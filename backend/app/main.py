@@ -7,7 +7,7 @@ from app.core.config import settings
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="API-first backend for the Alfabiz video discovery, product search & ad platform.",
+    description="API-first backend for the Miles Tech video discovery, product search & ad platform.",
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",

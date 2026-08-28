@@ -1,6 +1,6 @@
 # Project Brief — Video Discovery, Product Search & Digital Advertising Platform
 
-Client/owner: Alfabiz.AI. Market: Kenya, expanding to wider Africa. Proposal approved Aug 2026; project is now in active development.
+Client/owner: Miles Tech. Market: Kenya, expanding to wider Africa. Proposal approved Aug 2026; project is now in active development.
 
 Read this before starting any task on this project. For execution detail (stack, sprints, team), see [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 

@@ -18,7 +18,7 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Alfabiz Video Discovery Platform</h1>
+        <h1 className="text-2xl font-semibold">Miles Tech Video Discovery Platform</h1>
         <p className="text-[var(--color-ink-muted)] mt-1">
           Sprint 1 dev skeleton — frontend and backend wired together.
         </p>

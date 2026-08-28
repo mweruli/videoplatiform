@@ -7,7 +7,7 @@ Accounts and services the **PM** needs to create before later sprints can procee
 - **What it's for**: M-Pesa payments for ad campaigns (Fast-follow, Weeks 13–18 per `DEVELOPMENT_PLAN.md`).
 - **Why now**: Business approval for production Daraja access has historically taken weeks, independent of how simple the integration is. Applying in Sprint 1 (Week 1–2) is what keeps this off the critical path for Weeks 13–18.
 - **What to do**: Register at https://developer.safaricom.co.ke, create a sandbox app (instant) for dev/testing, and submit the **production (Go Live)** application in parallel — it needs business registration documents, a paybill/till number, and Safaricom's review.
-- **Tier**: Sandbox is free. Production requires an active paybill/till (short code) — confirm Alfabiz.AI already has one or needs to acquire it, since that itself has lead time.
+- **Tier**: Sandbox is free. Production requires an active paybill/till (short code) — confirm Miles Tech already has one or needs to acquire it, since that itself has lead time.
 
 ## 2. Managed video API — Cloudflare Stream or Bunny Stream
 

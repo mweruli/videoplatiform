@@ -1,4 +1,4 @@
-# Alfabiz Video Discovery, Product Search & Advertising Platform
+# Miles Tech Video Discovery, Product Search & Advertising Platform
 
 A video-first search, product discovery, business directory and digital advertising platform for the Kenyan market, expanding to wider Africa. Video is the primary content medium throughout — search, discover, watch, compare, connect, advertise.
 
@@ -29,7 +29,7 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000 (docs at `/docs`, health at `/health`)
 - Meilisearch: http://localhost:7700
-- Postgres: localhost:5433 (`alfabiz` / `alfabiz`) — 5433, not 5432, to avoid colliding with a native Postgres some dev machines already run on 5432
+- Postgres: localhost:5433 (`milestech` / `milestech`) — 5433, not 5432, to avoid colliding with a native Postgres some dev machines already run on 5432
 - Redis: localhost:6379
 
 The backend container waits for Postgres/Redis, runs Alembic migrations, seeds the 18 launch categories, then starts the API with hot reload. The frontend container runs the Vite dev server with hot reload. Both mount your local source, so edits apply immediately.

@@ -1,4 +1,4 @@
-# Frontend — Alfabiz Video Discovery Platform
+# Frontend — Miles Tech Video Discovery Platform
 
 React 18 + Vite + TypeScript + Tailwind CSS + TanStack Query. See the [root README](../README.md) for how to run the full stack, and [`docs/DEVELOPMENT_PLAN.md`](../docs/DEVELOPMENT_PLAN.md) for scope/sprint context.
 

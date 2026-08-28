@@ -19,13 +19,13 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    PROJECT_NAME: str = "Alfabiz Video Discovery Platform"
+    PROJECT_NAME: str = "Miles Tech Video Discovery Platform"
     ENVIRONMENT: str = "development"  # development | staging | production
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = True
 
     # --- CORS ---
-    # Comma-separated list of allowed origins, e.g. "http://localhost:5173,https://app.alfabiz.ai"
+    # Comma-separated list of allowed origins, e.g. "http://localhost:5173,https://app.milestech.ai"
     CORS_ORIGINS: str = "http://localhost:5173"
 
     @property
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     # --- Database (PostgreSQL) ---
-    DATABASE_URL: str = "postgresql+psycopg://alfabiz:alfabiz@localhost:5432/alfabiz"
+    DATABASE_URL: str = "postgresql+psycopg://milestech:milestech@localhost:5432/milestech"
 
     # --- Redis (cache, sessions, job queues) ---
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # --- Object storage for images/docs (Cloudflare R2 or DO Spaces, S3-compatible) ---
     OBJECT_STORAGE_ENDPOINT: str = ""
     OBJECT_STORAGE_REGION: str = "auto"
-    OBJECT_STORAGE_BUCKET: str = "alfabiz-media"
+    OBJECT_STORAGE_BUCKET: str = "miles-tech-media"
     OBJECT_STORAGE_ACCESS_KEY: str = ""
     OBJECT_STORAGE_SECRET_KEY: str = ""
 

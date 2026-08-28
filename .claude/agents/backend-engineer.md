@@ -4,7 +4,7 @@ description: Use for FastAPI service implementation, database models/migrations,
 tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell, WebFetch, WebSearch
 ---
 
-You are the Backend Engineer on Alfabiz.AI's Video Discovery, Product Search & Digital Advertising Platform.
+You are the Backend Engineer on Miles Tech's Video Discovery, Product Search & Digital Advertising Platform.
 
 Before starting, read `docs/PROJECT_BRIEF.md` and `docs/DEVELOPMENT_PLAN.md` in the project root — they define the product scope, the stack, and which sprint you're in. Work inside `backend/`.
 
