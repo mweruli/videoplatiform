@@ -1,38 +1,143 @@
 @import "tailwindcss";
 
 /*
- * Design tokens (theme variables) for the Miles Tech Video Discovery Platform.
- * This is a starter palette for Sprint 1 plumbing only — the UI/UX Designer
- * owns the real design system and should replace/extend these once the
- * Sprint 1-2 mockups are approved (see docs/DEVELOPMENT_PLAN.md, TEAM.md).
+ * ============================================================================
+ * Miles Tech design tokens
+ * ============================================================================
+ * Source of truth: docs/BRAND_DIRECTION.md (Palette v2, Egyptian Blue) +
+ * docs/design/prototype-v1.html (approved prototype, commit dff26d9).
+ *
+ * Mechanism: plain CSS custom properties for anything that needs to *change*
+ * between light/dark theme (surfaces, text, borders, glass, shadow tint),
+ * layered under Tailwind v4's `@theme` so every token also becomes a real
+ * Tailwind utility (bg-background, text-foreground, border-border, etc.) —
+ * no hardcoded hex in components, ever.
+ *
+ * Two families of color, on purpose (see BRAND_DIRECTION.md's own nuance):
+ *   - `brand` (Egyptian Blue) is a vivid, mid-tone accent — brand moments,
+ *     active states, links. It does NOT change between themes.
+ *   - `ink` is a genuinely dark, near-black neutral for real dark surfaces
+ *     (showroom bands, stats band, feed chrome) — also constant across
+ *     themes, deliberately decoupled from `foreground` (the text color,
+ *     which DOES flip between light/dark theme). The prototype reused one
+ *     variable for both roles, which quietly broke in its own dark theme
+ *     (near-white text on a "dark band" that had become near-white too);
+ *     splitting them here is a deliberate correction, not a deviation from
+ *     the approved design.
  */
-@theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
 
-  --color-surface: #ffffff;
-  --color-surface-muted: #f8fafc;
-  --color-ink: #0f172a;
-  --color-ink-muted: #64748b;
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+:root {
+  /* ---- theme-aware surface tokens (light default) ---- */
+  --surface-bg: hsl(210 40% 99%);
+  --surface-panel: hsl(215 30% 96%);
+  --surface-card: #ffffff;
+  --surface-fg: hsl(226 45% 8%);
+  --surface-fg-muted: hsl(215 16% 42%);
+  --surface-border: hsl(214 25% 91%);
+  --surface-glass: rgba(255, 255, 255, 0.66);
+  --surface-glass-border: rgba(255, 255, 255, 0.5);
+  --surface-sponsor-bg: #fff8e8;
+  --surface-sponsor-border: #f3d488;
+  --surface-shadow-ambient: 10, 15, 28;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-surface: #0f172a;
-    --color-surface-muted: #1e293b;
-    --color-ink: #f1f5f9;
-    --color-ink-muted: #94a3b8;
-  }
+.dark {
+  --surface-bg: #0a1120;
+  --surface-panel: #0f1a2c;
+  --surface-card: #101b30;
+  --surface-fg: hsl(200 100% 97%);
+  --surface-fg-muted: #8fa2b8;
+  --surface-border: #1e2c45;
+  --surface-glass: rgba(16, 27, 48, 0.6);
+  --surface-glass-border: rgba(240, 250, 255, 0.1);
+  --surface-sponsor-bg: #2a2210;
+  --surface-sponsor-border: #5b4715;
+  --surface-shadow-ambient: 0, 0, 0;
+}
+
+@theme {
+  /* ---- type ---- */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* ---- brand (theme-invariant) ---- */
+  --color-brand: #1034a6; /* Egyptian Blue — brand lockup, active states, hero gradient */
+  --color-brand-light: #1542d6; /* lighter tint, gradients only */
+  --color-ink: #0a0f1c; /* real dark surfaces regardless of app theme */
+  --color-ink-light: #141b34; /* lighter tint of ink, gradient depth only */
+  --color-amber: #fabd2e; /* CTAs, sponsored/featured markers */
+  --color-amber-ink: #5c3d00; /* text on amber */
+  --color-teal: #1c8aa8; /* verification, secondary accent */
+  --color-ice: #f0faff; /* text/icons on dark surfaces */
+  --color-danger: #e5484d;
+
+  /* ---- semantic (theme-aware, resolve through the CSS vars above) ---- */
+  --color-background: var(--surface-bg);
+  --color-surface: var(--surface-card);
+  --color-panel: var(--surface-panel);
+  --color-foreground: var(--surface-fg);
+  --color-muted-foreground: var(--surface-fg-muted);
+  --color-border: var(--surface-border);
+  --color-glass: var(--surface-glass);
+  --color-glass-border: var(--surface-glass-border);
+  --color-sponsor: var(--surface-sponsor-bg);
+  --color-sponsor-border: var(--surface-sponsor-border);
+
+  /* ---- motion: one deliberate easing + duration set, reused everywhere ---- */
+  --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- elevation: two-layer ambient+key shadows, not a single flat drop ---- */
+  --shadow-soft: 0 1px 2px rgba(var(--surface-shadow-ambient), 0.06), 0 14px 32px -14px rgba(var(--surface-shadow-ambient), 0.24);
+  --shadow-elevated: 0 2px 4px rgba(var(--surface-shadow-ambient), 0.08), 0 28px 56px -20px rgba(var(--surface-shadow-ambient), 0.32);
+  --shadow-glow-amber: 0 10px 28px -8px rgba(250, 189, 46, 0.55);
+  --shadow-glow-amber-lg: 0 10px 26px -6px rgba(250, 189, 46, 0.85);
+  --shadow-glow-teal: 0 10px 26px -8px rgba(28, 138, 168, 0.45);
+}
+
+/* Grain texture used across every "video still" thumbnail treatment — a
+   single shared SVG-turbulence data URI so it's one asset, not six. */
+:root {
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
+  min-height: 100dvh;
   font-family: var(--font-sans);
-  background: var(--color-surface-muted);
-  color: var(--color-ink);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-amber);
+  color: var(--color-amber-ink);
+}
+
+/* Visible keyboard focus everywhere — never suppressed, only restyled. */
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hide scrollbars on horizontal snap rails without hiding on the rest of
+   the page (accessibility: content is still scrollable via keyboard/touch,
+   this only hides the bar chrome to match the app's mobile-native feel). */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

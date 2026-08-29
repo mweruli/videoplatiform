@@ -5,14 +5,20 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App from './App.tsx'
 import { queryClient } from './lib/queryClient'
+import { ThemeProvider } from './lib/theme'
+import { ToastProvider } from './lib/toast'
 import './styles/index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ToastProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

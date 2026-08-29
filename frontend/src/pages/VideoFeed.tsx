@@ -4,9 +4,9 @@
  */
 export default function VideoFeed() {
   return (
-    <div>
-      <h1 className="text-xl font-semibold">Video Feed</h1>
-      <p className="text-[var(--color-ink-muted)] mt-2">
+    <div className="mx-auto w-full max-w-3xl px-5 py-16 text-center lg:px-8">
+      <h1 className="font-display text-2xl font-bold tracking-tight">Video Feed</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
         Coming in Sprint 3 — Shorts-style vertical feed backed by the managed video API.
       </p>
     </div>
