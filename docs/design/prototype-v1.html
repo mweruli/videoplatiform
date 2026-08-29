@@ -649,6 +649,129 @@ body{
 .toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,20px);background:linear-gradient(155deg,var(--ink-2),var(--ink));color:var(--ice);padding:11px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.78rem;font-weight:600;opacity:0;transition:all .28s var(--ease);z-index:99;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow-lg);}
 .toast.show{opacity:1;transform:translate(-50%,0);}
 
+/* ============ INTERNAL-TOOL APP SHELL (Business Dashboard / Admin Panel) ============
+   A deliberately different layout grammar from the consumer chrome above —
+   sidebar + topbar + content + footer, the way an internal tool/admin
+   console reads, not the phone bottom-tab-bar / marketing top-nav pattern
+   used everywhere else in this file. Same tokens (Egyptian Blue / amber /
+   type scale / shadow system), new grammar. ONE shared shell markup+CSS
+   powers both the Business Dashboard (business_admin) and the Admin Panel
+   (platform_admin/content_moderator) — see renderDashboard()/renderAdmin()
+   in the script, which both call the same renderDashSidebar()/dashTopbarHTML()
+   helpers with role-appropriate config, exactly like this file already
+   shares filter-panel render logic between the mobile filter sheet and the
+   desktop filter sidebar.
+   Note on colour: the sidebar is hardcoded to the brand's fixed near-black
+   `ink` value (#0A0F1C per BRAND_DIRECTION.md) rather than var(--ink) —
+   this file's --ink token deliberately flips to near-white in the app's
+   dark theme (it doubles as the "body text" token, see .app[data-app-theme
+   ="dark"]), so it is NOT safe to use as a background fill. --ink-2 and
+   --brand-blue are stable/fixed in both themes and used freely below. */
+.dash-shell{background:var(--panel);}
+.dash-topbar{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;
+}
+.dash-menu-btn{flex:0 0 auto;}
+.dash-topbar-titles{flex:1;min-width:0;}
+.dash-breadcrumb{font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);}
+.dash-topbar-titles h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;margin:2px 0 0;letter-spacing:-.01em;color:var(--ink);}
+.dash-topbar-stats{display:none;}
+.dash-topbar-stat{display:flex;flex-direction:column;align-items:flex-end;padding:0 12px;border-right:1px solid var(--line);}
+.dash-topbar-stat:last-child{border-right:0;padding-right:0;}
+.dash-topbar-stat .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;color:var(--ink);line-height:1;}
+.dash-topbar-stat.warn .n{color:var(--amber-ink);}
+.app[data-app-theme="dark"] .dash-topbar-stat.warn .n{color:var(--amber);}
+.dash-topbar-stat .c{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-top:2px;white-space:nowrap;}
+.dash-account-btn{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;border:1px solid var(--line);background:var(--panel);}
+.dash-account-btn:hover{border-color:var(--teal);}
+.dash-account-btn .av{width:26px;height:26px;border-radius:50%;background:var(--brand-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex:0 0 auto;}
+.dash-account-btn .nm{font-size:.74rem;font-weight:700;color:var(--ink);max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.dash-body{display:flex;align-items:flex-start;}
+.dash-main{flex:1;min-width:0;padding:18px 16px 36px;}
+.dash-footer{
+  padding:12px 16px;border-top:1px solid var(--line);background:var(--card);
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;
+  font-size:.66rem;color:var(--ink-soft);
+}
+.dash-footer .links{display:flex;gap:14px;}
+.dash-footer button{font-weight:700;color:var(--ink-soft);}
+.dash-footer button:hover{color:var(--ink);}
+
+/* ---- sidebar (shared markup for the persistent desktop rail AND the mobile drawer) ---- */
+.dash-sidebar-inline{display:none;}
+.dash-brand{display:flex;align-items:center;gap:10px;padding:2px 10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1rem;color:#fff;position:relative;z-index:1;}
+.dash-brand .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:0 0 auto;}
+.dash-brand small{display:block;font-family:'Inter',sans-serif;font-weight:600;font-size:.6rem;letter-spacing:.09em;text-transform:uppercase;color:rgba(240,250,255,.48);margin-top:2px;}
+.dash-nav-group{position:relative;z-index:1;display:flex;flex-direction:column;gap:2px;}
+.dash-navlink{
+  display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;border-radius:10px;
+  font-size:.83rem;font-weight:600;color:rgba(240,250,255,.66);transition:all .15s var(--ease);text-align:left;
+}
+.dash-navlink svg{flex:0 0 auto;opacity:.85;}
+.dash-navlink:hover:not(:disabled){background:rgba(240,250,255,.07);color:#fff;}
+.dash-navlink.active{background:var(--brand-blue);color:#fff;box-shadow:0 4px 14px -4px rgba(16,52,166,.65);}
+.dash-navlink.active svg{opacity:1;}
+.dash-navlink:disabled{opacity:.45;cursor:default;}
+.dash-navlink .soon{margin-left:auto;font-size:.56rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:rgba(240,250,255,.45);background:rgba(240,250,255,.08);padding:3px 6px;border-radius:5px;}
+.dash-navlink .count{margin-left:auto;font-size:.66rem;font-weight:800;background:var(--amber);color:var(--amber-ink);padding:1px 7px;border-radius:999px;}
+.dash-sidebar-foot{margin-top:16px;padding-top:14px;border-top:1px solid rgba(240,250,255,.1);position:relative;z-index:1;}
+.dash-back-site{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;font-size:.78rem;font-weight:700;color:rgba(240,250,255,.55);width:100%;}
+.dash-back-site:hover{color:#fff;background:rgba(240,250,255,.07);}
+.sheet.sheet-side{
+  left:0;right:auto;top:0;bottom:0;height:100%;width:250px;max-height:none;
+  border-radius:0 20px 20px 0;transform:translateX(-105%);padding:20px 14px;
+  background:#0A0F1C;background-image:radial-gradient(circle at 15% 0%, rgba(16,52,166,.4), transparent 55%);
+  border-top:0;border-right:1px solid rgba(240,250,255,.08);
+}
+.sheet.sheet-side::after{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.4;pointer-events:none;}
+.sheet.sheet-side.show{transform:translateX(0);}
+.sheet.sheet-side .grabber{display:none;}
+
+/* ---- KPI cards ---- */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;}
+.kpi-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);}
+.kpi-card .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.55rem;color:var(--ink);letter-spacing:-.02em;}
+.kpi-card.accent .n{color:var(--amber-ink);}
+.app[data-app-theme="dark"] .kpi-card.accent .n{color:var(--amber);}
+.kpi-card .c{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-top:4px;}
+
+/* ---- section cards, tables, status pills, tabs (shared by both screens) ---- */
+.dash-section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.dash-section.warn{border-color:var(--sponsor-line);background:var(--sponsor-bg);}
+.dash-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px;}
+.dash-section-head h2{font-size:.95rem;margin:0;font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--ink);}
+.dash-section-head p{font-size:.74rem;color:var(--ink-soft);margin:2px 0 0;line-height:1.4;}
+.dash-table{width:100%;border-collapse:collapse;}
+.dash-table th{text-align:left;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:0 10px 10px 0;border-bottom:1px solid var(--line);white-space:nowrap;}
+.dash-table td{padding:11px 10px 11px 0;border-bottom:1px solid var(--line);font-size:.8rem;vertical-align:middle;color:var(--ink);}
+.dash-table tr:last-child td{border-bottom:0;}
+.dash-row-entity{display:flex;align-items:center;gap:10px;}
+.dash-row-entity .ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.95rem;color:#fff;flex:0 0 auto;}
+.dash-row-entity .t{font-weight:700;color:var(--ink);}
+.dash-row-entity .m{font-size:.68rem;color:var(--ink-soft);margin-top:1px;}
+.status-pill{display:inline-flex;align-items:center;gap:5px;font-size:.62rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap;}
+.status-pill.verified,.status-pill.approved{background:rgba(28,138,168,.12);color:var(--teal);}
+.status-pill.pending{background:rgba(250,189,46,.18);color:var(--amber-ink);}
+.app[data-app-theme="dark"] .status-pill.pending{color:var(--amber);}
+.status-pill.rejected{background:rgba(229,72,77,.12);color:var(--danger);}
+.status-pill.unverified{background:var(--panel);color:var(--ink-soft);}
+.dash-row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.dash-btn-sm{padding:6px 12px;border-radius:999px;font-size:.7rem;font-weight:700;white-space:nowrap;transition:transform .15s var(--ease);}
+.dash-btn-sm:active{transform:scale(.94);}
+.dash-btn-approve{background:var(--teal);color:#fff;}
+.dash-btn-reject{background:rgba(229,72,77,.1);color:var(--danger);}
+.dash-btn-ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line);}
+.dash-empty{padding:26px 10px;text-align:center;color:var(--ink-soft);font-size:.8rem;}
+.dash-tabbar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.dash-tabbar button{padding:7px 13px;border-radius:999px;font-size:.74rem;font-weight:700;color:var(--ink-soft);background:var(--panel);border:1px solid transparent;}
+.dash-tabbar button.active{background:var(--brand-blue);color:#fff;}
+.dash-biz-switch{margin-bottom:16px;}
+
+/* ---- portal mode: consumer desktop-nav is retired while inside the shell ---- */
+.app.portal .desktop-nav{display:none!important;}
+
 /* ============ DESKTOP-READY WRAPPERS (default = mobile behaviour) ============
    These wrapper elements exist purely so the >=1024px breakpoint can
    reflow search/feed/profile/product into real desktop layouts without
@@ -719,6 +842,21 @@ body{
   .screen.anim-slide,.screen.anim-scale{animation:desktopFade .3s var(--ease);}
   .bottomnav{display:none!important;}
   .compare-tray{left:32px;right:auto;bottom:28px;}
+
+  /* ===== INTERNAL-TOOL SHELL: persistent sidebar replaces the mobile drawer ===== */
+  .dash-menu-btn{display:none!important;}
+  .dash-sidebar-inline{
+    display:flex;flex-direction:column;width:236px;flex:0 0 236px;padding:20px 14px;
+    position:sticky;top:64px;align-self:flex-start;
+    background:#0A0F1C;background-image:radial-gradient(circle at 15% 0%, rgba(16,52,166,.35), transparent 55%);
+    border-right:1px solid rgba(240,250,255,.08);
+  }
+  .dash-sidebar-inline::after{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.4;pointer-events:none;}
+  .dash-topbar{padding:16px 28px;}
+  .dash-topbar-stats{display:flex;align-items:center;}
+  .dash-main{padding:24px 32px 48px;}
+  .dash-footer{padding:12px 32px;}
+  .kpi-grid{grid-template-columns:repeat(4,1fr);}
 
   /* -- desktop top nav replaces the bottom tab bar -- */
   .desktop-nav{display:flex;}
@@ -820,6 +958,8 @@ body{
       <button data-jump="feed">Video Feed</button>
       <button data-jump="profile">Business Profile</button>
       <button data-jump="product">Product Detail</button>
+      <button data-jump="dashboard">Business Dashboard</button>
+      <button data-jump="admin">Admin Panel</button>
       <button class="info-btn" id="notesToggle" title="Design notes">i</button>
     </nav>
   </header>
@@ -941,6 +1081,16 @@ body{
               <div id="productContent"></div>
             </section>
 
+            <!-- ============ BUSINESS DASHBOARD (internal tool shell) ============ -->
+            <section class="screen" id="screen-dashboard" data-screen="dashboard">
+              <div id="dashboardContent"></div>
+            </section>
+
+            <!-- ============ ADMIN PANEL (same shell, staff nav) ============ -->
+            <section class="screen" id="screen-admin" data-screen="admin">
+              <div id="adminContent"></div>
+            </section>
+
           </div>
 
           <!-- bottom nav -->
@@ -963,13 +1113,25 @@ body{
           <div class="sheet" id="filterSheet"></div>
           <div class="sheet" id="accountSheet"></div>
           <div class="sheet" id="compareSheet"></div>
+          <!-- shared mobile drawer for the Business Dashboard / Admin Panel sidebar —
+               reuses the sheet-backdrop/openSheet mechanism, slides from the left
+               instead of up from the bottom (see .sheet-side) -->
+          <div class="sheet sheet-side" id="dashDrawer"></div>
         </div>
       </div>
     </div>
 
     <aside class="notes-panel" id="notesPanel">
-      <h3>Design notes for PM review — v5</h3>
+      <h3>Design notes for PM review — v6</h3>
       <ul>
+        <li><b>New in v6 — Business Dashboard &amp; Admin Panel get a real internal-tool shell (2026-08-30), status: draft, first pass, not yet reviewed — this directly answers the rejection of the build that reused the consumer TopNav/BottomNav shell ("that's not a Dashboard… a dashboard should have a Sidebar, navbar and footer"):</b> a brand-new layout grammar — <b>sidebar + topbar + content + footer</b> — deliberately distinct from every consumer screen above, which use the phone bottom-tab-bar (mobile) / marketing top-nav (desktop) pattern instead. Same tokens throughout (Egyptian Blue, amber, Space Grotesk/Inter, the shared shadow system) — this is a new IA/layout for internal tooling, not a new visual identity. <b>ONE shared shell</b> (<code>renderDashSidebar()</code> / <code>dashTopbarHTML()</code> / <code>dashFooterHTML()</code> in the script) powers both screens with role-appropriate nav config, the same way this file already shares filter-panel logic between the mobile filter sheet and the desktop filter sidebar — so Business Dashboard and Admin Panel read as one coherent product, not two off-brand one-offs.
+        <br><br><b>Sidebar</b> — a dark, near-black rail (hardcoded <code>#0A0F1C</code>, not the theme-flipping <code>--ink</code> token — see the code comment above <code>.dash-shell</code> for why) with the Miles Tech wordmark + a "Business Console"/"Staff Console" subtitle, then role-appropriate nav links: <b>Business Dashboard</b> gets Overview, Business Profile, Products, plus Analytics and Orders shown disabled with a "Soon" tag (present so the IA feels complete without over-building features not in this sprint's scope); <b>Admin Panel</b> gets Overview, Business Moderation, Product Moderation, with a live amber count badge on the moderation items whenever something's pending. Persistent/sticky on desktop (≥1024px, same sticky-column mechanism as the search filter sidebar and profile info column); collapses to a left-edge slide-in drawer below that, opened via a hamburger button in the topbar — reuses the existing sheet/backdrop system wholesale (<code>openSheet('dashDrawer')</code>), just with a new <code>.sheet-side</code> modifier that slides from the left edge instead of up from the bottom, so no new interaction plumbing was needed for the drawer's open/close/backdrop behaviour.
+        <br><br><b>Topbar</b> — a breadcrumb ("Business Dashboard / Overview") + page title on the left, a couple of quick-stat callouts (pending-count, verification status for the dashboard; pending-business/pending-product counts for the admin panel — amber-highlighted when nonzero) on the right at desktop, and the account button on the far right reusing the exact avatar-role-icon + name pattern from the consumer Account sheet (clicking it opens that same sheet, layered on top of the dashboard). Quick-stats are hidden below 1024px to keep the mobile topbar to one row.
+        <br><br><b>Footer</b> — a single plain row ("Miles Tech Business/Staff Console — internal tool, not visible to shoppers" + Help / Back-to-Miles-Tech), sitting in normal document flow under the content rather than fixed — deliberately unlike the bold, marketing-style dark bands used for the consumer app's section rhythm (stats band, showroom band): an internal tool's footer should read as an afterthought, not a moment.
+        <br><br><b>Content area</b> — real card/table sections, not stacked full-width blocks: KPI stat-card grid (2-up mobile, 4-up desktop) at the top of every Overview, then <code>.dash-section</code> cards containing either a real data table (product listings, moderation queues) or a profile/verification summary. Business Dashboard demos a business switcher (chip row, AquaTank ⇄ SunFlow) since a real owner can run more than one showroom. <b>Admin Panel's moderation queues are functionally real, not static</b>: Approve/Reject on BuildRight Hardware (business, pending per the real seeded demo data) and its "Builder's Hardware Starter Kit" listing (product, pending) actually mutate the shared data — approve BuildRight here and its verified badge updates live on Home, Search and its own profile screen too, the same shared <code>BUSINESSES</code>/<code>PRODUCTS</code> arrays every other screen reads from.
+        <br><br><b>Entry points, exactly as scoped</b> — reachable from the existing Account sheet, nothing new bolted on: signed in as Business Admin, "Manage my showroom" (previously a stub toast) now opens the real dashboard; a new demo staff account (<b>demo-admin@miles.tech / DemoAdmin123!</b>, Platform Administrator — surfaced in the Login sheet's demo-credentials note) gets an "Admin Panel" quick-link the same way. This mirrors the real backend on purpose: Platform Admin/Content Moderator are staff-assigned, never self-registered (the Register screen already said as much before this pass), so <b>signing in as staff is the Admin Panel's only entry point</b> — there's deliberately no public nav item, banner or button anyone can stumble into.
+        <br><br><b>Judgment call to flag for the PM:</b> Analytics and Orders are shown in the Business Dashboard's nav (disabled, "Soon" tag) purely so the IA reads as a finished product rather than a 3-item stub — neither has any backend or design behind it yet; say the word if they should come out entirely rather than sit disabled.
+        <br><br><b>Responsive/theme QA on this shell, completed:</b> verified the persistent sidebar ↔ hamburger-drawer collapse right at the 1024px handoff in both directions, the drawer's open/close/backdrop-dismiss/nav-item-close behaviour, and the Admin Panel's live count badges, on both Business Dashboard and Admin Panel, in <b>both light and dark app-theme</b>. Confirmed the drawer is intentionally NOT theme-aware (same hardcoded near-black rail either way — see the code comment above <code>.dash-shell</code>) and reads correctly against both a light and a dark content area behind it. Re-confirmed the BuildRight approve/reject live-mutation (Admin Panel → Search results badge) still holds after this pass.</li>
         <li><b>New in v5 — Register / OTP verify / Login / Forgot &amp; reset password (2026-08-29), status: draft, first pass, not yet reviewed:</b> replaces the old "Account" stub with the real flow now that backend auth exists (see docs/decisions.md). Built entirely inside the existing account sheet/modal chrome (bottom sheet on mobile, centred modal at ≥1024px) — <b>zero new colour, type or component language</b>: it reuses <code>.sheet</code>, <code>.pill</code>, <code>.chip</code>, <code>.pending-note</code> and the app's existing shadow/glass/motion tokens. Five screens: <b>Login</b> (email-or-phone + password, "Forgot password?" link), <b>Register</b> (email and/or phone, password, role picker — one screen, no wizard), <b>OTP verify</b> (auto-launches right after registration), and <b>Forgot → Reset password</b> (request screen, then a combined code + new-password screen, matching the real API's single <code>/auth/password/reset</code> call shape). Sign-in/Create-account is a segmented tab switch at the top rather than a separate screen, so it reads as one continuous flow, not a context jump.
         <br><br><b>Faithful to the real backend, not just decorative:</b> every error string is the real copy from <code>app/api/v1/endpoints/auth.py</code> — "Invalid credentials.", "Account is disabled.", "Please verify your account with the code sent at registration before logging in.", "An account with this email already exists.", "Password must be at least 8 characters.", "Invalid or expired code.". <b>Forgot password always shows the same generic success banner</b> whether or not the account exists, and only actually offers a working code when one does — mirrors the real endpoint's deliberate anti-enumeration design (see docs/decisions.md), which is also why <b>Login intentionally does NOT say "no account found"</b> even though that copy was suggested as an example — using it there would contradict the backend's documented security decision; a friendlier "No account found" analogue only appears on the registration-OTP-resend edge case, matching the real <code>/auth/otp/request</code> 404. <b>OTP verify does not auto-sign-in</b> — it sends you to Login, exactly like the real API (<code>/auth/otp/verify</code> and <code>/auth/login</code> are separate calls); <b>only password reset auto-signs-in</b>, because the real endpoint doubles as login. Rate limiting is simulated too: a live 60-second resend countdown, a 5-resend cap, and a 5-attempt cap on wrong codes before forcing a fresh code — all matching the real numbers in <code>app/services/otp_service.py</code>.
         <br><br><b>Component states covered:</b> default/hover/focus (brand-blue focus ring on every input), inline field errors + a persistent form-level banner for account-level failures, a loading state on every submit button (spinner + "Verifying…"/"Signing in…" copy, inputs disabled), a shake-and-red-border error state on the OTP boxes, and a signed-in "home" state (avatar, role chip, verified badge, role-specific quick links, sign out). OTP entry is 6 auto-advancing digit boxes with paste support, not a single text field — the small extra interactivity is deliberate for a video-first, thumb-driven product.
@@ -988,7 +1150,7 @@ body{
         <li><b>Verification states:</b> unchanged — teal check = verified, grey clock = pending. Search "construction" or "hardware" to see the pending state (BuildRight Hardware).</li>
         <li><b>Compare</b> remains the persistent cross-screen tray (up to 3 products) — untouched per the approved interaction model.</li>
         <li><b>Account tab</b> now opens the full Login/Register/Verify/Reset flow described above (v5) — only the location picker remains stubbed with a toast.</li>
-        <li>Toggle light/dark with the moon/sun icon in the hero, then re-run the same walkthrough: search "water tank suppliers near Nairobi", scroll the video feed, open AquaTank Kenya's profile, open a product, add 2–3 to compare.</li>
+        <li>Toggle light/dark with the moon/sun icon in the hero, then re-run the same walkthrough: search "water tank suppliers near Nairobi", scroll the video feed, open AquaTank Kenya's profile, open a product, add 2–3 to compare. Use the new <b>Business Dashboard</b> / <b>Admin Panel</b> buttons above to jump straight in (auto-signs you in as the matching demo account) — resize past/under 1024px once there to see the sidebar go from a persistent column to a hamburger-triggered drawer.</li>
       </ul>
     </aside>
   </div>
@@ -1068,6 +1230,14 @@ const PRODUCTS = [
     specs:{Variety:'H614',Maturity:'120–140 days',Pack:'2kg bag',Availability:'In stock'},tags:['seed','maize','agriculture']},
   {id:'inverter',businessId:'solaris',name:'5kW Hybrid Solar Inverter',price:145000,grad:4,icon:'🔋',
     specs:{Output:'5kW',Battery:'Lithium/Lead-acid compatible',Warranty:'5 Years',Availability:'In stock — Kisumu & Nairobi'},tags:['solar','inverter','power','energy']},
+  // Pending listing, deliberately unapproved — mirrors the real seeded demo data
+  // (BuildRight's own business is also pending) so the Admin Panel's Product
+  // Moderation queue has something real to review on first load, same as
+  // Business Moderation does. Other products above have no moderationStatus
+  // field at all, which every render treats as "approved" — see prodById() usage.
+  {id:'hardwarekit',businessId:'buildright',name:"Builder's Hardware Starter Kit",price:8500,grad:5,icon:'🧰',
+    specs:{Contents:'Hammer, tape measure, spirit level, utility knife, work gloves',Warranty:'1 Year',Availability:'In stock — Mombasa'},
+    tags:['hardware','tools','construction','starter kit'],moderationStatus:'pending'},
 ];
 
 const VIDEOS = [
@@ -1117,6 +1287,14 @@ const ICONS = {
   eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff:'<path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a20.4 20.4 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a20.3 20.3 0 01-3.22 4.44M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
   info:'<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8.01"/><line x1="12" y1="11" x2="12" y2="16"/>',
+  /* ---- internal-tool shell icons (Business Dashboard / Admin Panel) ---- */
+  menu:'<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  building:'<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h.01M15 8h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01"/>',
+  box:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  truck:'<rect x="1" y="7" width="13" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="5.5" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
+  logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
 };
 function icon(name,size=20){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;}
 const SPONSOR_DOT = '<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;flex:0 0 auto;"></span>';
@@ -1161,15 +1339,22 @@ const ROLE_META = {
   advertiser:{icon:'📢',label:'Advertiser',desc:'Create, fund and manage ad campaigns.'},
   content_creator:{icon:'🎬',label:'Content Creator',desc:'Upload video content for review and publication.'},
   publisher:{icon:'📚',label:'Publisher',desc:'Manage books, journals and publications.'},
+  platform_admin:{icon:'🧭',label:'Platform Administrator',desc:'Full system management, configuration and oversight.'},
+  content_moderator:{icon:'🛡️',label:'Content Moderator',desc:'Reviews, approves and rejects uploaded content.'},
 };
-// Platform Admin / Content Moderator are deliberately excluded — staff-assigned
-// only, never self-registered (SELF_REGISTERABLE_ROLES in app/schemas/auth.py).
+// Platform Admin / Content Moderator ARE included above (needed for the demo
+// staff login's role chip and Admin Panel quick-link) but are deliberately
+// excluded from the REGISTER role-picker below — staff-assigned only, never
+// self-registered (SELF_REGISTERABLE_ROLES in app/schemas/auth.py). The Admin
+// Panel's only entry point is signing in as one of these roles — see the
+// staff demo account below and the Login sheet's demo-credentials note.
 
 // Seeded fake "DB" of users so Login/Forgot-password have something real to
 // authenticate against inside the prototype. Purely in-memory — resets on reload.
 let FAKE_USERS = [
   {id:'demo-owner', email:'demo-owner@miles.tech', phone:null, password:'DemoPass123!', full_name:'Miles Tech Demo Owner', role:'business_admin', is_verified:true, is_active:true},
   {id:'demo-unverified', email:'grace@example.com', phone:null, password:'Passw0rd!', full_name:'Grace Wanjiru', role:'general_user', is_verified:false, is_active:true},
+  {id:'demo-admin', email:'demo-admin@miles.tech', phone:null, password:'DemoAdmin123!', full_name:'Miles Tech Demo Admin', role:'platform_admin', is_verified:true, is_active:true},
 ];
 
 /* ================= NAV ================= */
@@ -1183,7 +1368,9 @@ function navigate(name, opts={}){
   el.classList.add(mode==='scale' ? 'anim-scale' : 'anim-slide');
   el.scrollTop = 0;
   if(reset) navStack = [name]; else if(navStack[navStack.length-1]!==name) navStack.push(name);
-  document.getElementById('bottomnav').classList.toggle('hidden', name==='feed' || name==='product');
+  const isPortal = name==='dashboard' || name==='admin';
+  document.getElementById('bottomnav').classList.toggle('hidden', name==='feed' || name==='product' || isPortal);
+  document.getElementById('app').classList.toggle('portal', isPortal);
   updateNavActive(name);
 }
 function goBack(){
@@ -1866,7 +2053,7 @@ function renderAuthLogin(){
       <button type="submit" class="pill pill-amber" style="width:100%;justify-content:center;">Sign in</button>
     </form>
     <div class="pending-note" style="margin-top:16px;">${icon('info',15)}
-      <div>Demo login — <b>demo-owner@miles.tech</b> / <b>DemoPass123!</b> (verified, Business Admin). Try <b>grace@example.com</b> / <b>Passw0rd!</b> to see the "please verify" state.</div>
+      <div>Demo login — <b>demo-owner@miles.tech</b> / <b>DemoPass123!</b> (verified, Business Admin). Try <b>grace@example.com</b> / <b>Passw0rd!</b> to see the "please verify" state, or <b>demo-admin@miles.tech</b> / <b>DemoAdmin123!</b> (Platform Administrator) for the staff-only Admin Panel — there's no sign-up for that role, this is the only way in.</div>
     </div>
   `;
 }
@@ -2180,16 +2367,21 @@ function renderAuthHome(){
   `;
 }
 function renderRoleQuickLinks(role){
+  // Third tuple item, when present, is a real data-action instead of the
+  // generic "not built this sprint" stub — used for the two links that now
+  // route into the real Business Dashboard / Admin Panel shell below.
   const links = {
     general_user: [['⭐','Saved businesses'],['📄','My quote requests']],
-    business_admin: [['🏢','Manage my showroom'],['🛡️','Verification status']],
+    business_admin: [['🏢','Manage my showroom','goto-dashboard'],['🛡️','Verification status']],
     advertiser: [['📢','Ad campaigns'],['💳','Billing']],
     content_creator: [['🎬','My uploads'],['📈','Analytics']],
     publisher: [['📚','My publications'],['📝','Submissions']],
+    platform_admin: [['🧭','Admin Panel','goto-admin'],['👥','Platform settings']],
+    content_moderator: [['🧭','Admin Panel','goto-admin'],['📋','My review history']],
   };
   const items = links[role]||links.general_user;
-  return `<div class="role-card-list">${items.map(([e,label])=>`
-    <button type="button" class="role-card" data-action="auth-quicklink-stub">
+  return `<div class="role-card-list">${items.map(([e,label,action])=>`
+    <button type="button" class="role-card" data-action="${action||'auth-quicklink-stub'}">
       <span style="display:flex;align-items:center;gap:12px;"><span class="e">${e}</span><span class="t">${label}</span></span>${icon('chev',15)}
     </button>`).join('')}</div>`;
 }
@@ -2283,6 +2475,278 @@ function refreshCurrentScreen(){
   if(active==='search') runSearch(false);
   if(active==='profile') renderProfileTab(activeTab);
   if(active==='product') renderProduct();
+  if(active==='dashboard') renderDashboard();
+  if(active==='admin') renderAdmin();
+}
+
+/* ================= BUSINESS DASHBOARD / ADMIN PANEL (internal-tool shell) =================
+   One shared shell (sidebar + topbar + content + footer) powers both screens —
+   role-appropriate nav config in, same render mechanics out. Mirrors the real
+   backend's own data model as closely as a client-side mock can: business
+   verification is unverified→pending→verified/rejected, product moderation is
+   pending→approved/rejected (see docs/decisions.md). Approve/Reject here
+   actually mutate the shared BUSINESSES/PRODUCTS arrays, so a business's
+   verified badge updates live everywhere else in the prototype too (Home,
+   Search, its own profile) — a small but real demonstration of why
+   moderation matters, not just a static mock. */
+const DASH_NAV = {
+  business: [
+    {id:'overview', label:'Overview', icon:'grid'},
+    {id:'profile', label:'Business Profile', icon:'building'},
+    {id:'products', label:'Products', icon:'box'},
+    {id:'analytics', label:'Analytics', icon:'chart', soon:true},
+    {id:'orders', label:'Orders', icon:'truck', soon:true},
+  ],
+  admin: [
+    {id:'overview', label:'Overview', icon:'grid'},
+    {id:'bizmod', label:'Business Moderation', icon:'building'},
+    {id:'prodmod', label:'Product Moderation', icon:'box'},
+  ],
+};
+let dashSection = 'overview';
+let dashBizId = 'aquatank';
+let adminSection = 'overview';
+let adminBizTab = 'pending';
+let adminProdTab = 'pending';
+
+function pendingBizCount(){ return BUSINESSES.filter(b=>b.pending && !b.rejected).length; }
+function pendingProdCount(){ return PRODUCTS.filter(p=>p.moderationStatus==='pending').length; }
+function verifiedBizCount(){ return BUSINESSES.filter(b=>b.verified).length; }
+
+function renderSidebarNavHTML(mode){
+  const activeId = mode==='business' ? dashSection : adminSection;
+  return DASH_NAV[mode].map(it=>{
+    let badge = '';
+    if(it.soon) badge = `<span class="soon">Soon</span>`;
+    else if(it.id==='bizmod' && pendingBizCount()) badge = `<span class="count">${pendingBizCount()}</span>`;
+    else if(it.id==='prodmod' && pendingProdCount()) badge = `<span class="count">${pendingProdCount()}</span>`;
+    return `<button type="button" class="dash-navlink ${activeId===it.id?'active':''}" data-action="dash-nav" data-mode="${mode}" data-section="${it.id}" ${it.soon?'disabled':''}>
+      ${icon(it.icon,17)}<span>${it.label}</span>${badge}
+    </button>`;
+  }).join('');
+}
+function renderDashSidebar(mode){
+  const screen = document.getElementById(mode==='admin' ? 'screen-admin' : 'screen-dashboard');
+  const html = `
+    <div class="dash-brand"><span class="dot"></span><div>Miles<span style="color:var(--amber)">Tech</span><small>${mode==='admin'?'Staff Console':'Business Console'}</small></div></div>
+    <div class="dash-nav-group">${renderSidebarNavHTML(mode)}</div>
+    <div class="dash-sidebar-foot"><button type="button" class="dash-back-site" data-action="dash-exit">${icon('logout',15)} Exit to Miles Tech</button></div>`;
+  const inline = screen && screen.querySelector('.dash-sidebar-inline');
+  if(inline) inline.innerHTML = html;
+  document.getElementById('dashDrawer').innerHTML = html;
+}
+function dashTopbarHTML({breadcrumb, title, stats}){
+  const u = sessionUser;
+  const meta = u ? (ROLE_META[u.role]||ROLE_META.general_user) : null;
+  return `
+    <button type="button" class="dash-menu-btn icon-btn solid" data-action="dash-open-drawer">${icon('menu',18)}</button>
+    <div class="dash-topbar-titles"><div class="dash-breadcrumb">${breadcrumb}</div><h1>${title}</h1></div>
+    <div class="dash-topbar-stats">${(stats||[]).map(s=>`<div class="dash-topbar-stat ${s.warn?'warn':''}"><div class="n">${s.n}</div><div class="c">${s.c}</div></div>`).join('')}</div>
+    <button type="button" class="dash-account-btn" data-action="open-account-from-dash">
+      <span class="av">${meta?meta.icon:'🙂'}</span><span class="nm">${u?(u.full_name||u.email||u.phone):'Guest'}</span>
+    </button>`;
+}
+function dashFooterHTML(mode){
+  return `
+    <div>Miles Tech ${mode==='admin'?'Staff Console':'Business Console'} — internal tool, not visible to shoppers</div>
+    <div class="links"><button type="button" data-action="auth-quicklink-stub">Help</button><button type="button" data-action="dash-exit">Back to Miles Tech</button></div>`;
+}
+
+/* ---- Business Dashboard content ---- */
+function renderBizSwitcher(){
+  const owned = ['aquatank','sunflow']; // demo: this account owns more than one business
+  return `<div class="chipwrap dash-biz-switch">
+    ${owned.map(id=>{const b=bizById(id); return `<button type="button" class="chip ${dashBizId===id?'active':''}" data-action="dash-switch-biz" data-biz="${id}">${b.icon} ${b.name}</button>`;}).join('')}
+    <button type="button" class="chip" data-action="auth-quicklink-stub">${icon('plus',12)} Add business</button>
+  </div>`;
+}
+function renderProductTable(prods){
+  return `<div style="overflow-x:auto;"><table class="dash-table"><thead><tr><th>Product</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
+    ${prods.map(p=>`<tr>
+      <td><div class="dash-row-entity"><span class="ic grad-${p.grad}">${p.icon}</span><div><div class="t">${p.name}</div><div class="m">${Object.values(p.specs)[0]||''}</div></div></div></td>
+      <td>${fmtKES(p.price)}</td>
+      <td><span class="status-pill ${p.moderationStatus==='pending'?'pending':'approved'}">${p.moderationStatus==='pending'?icon('clock',9)+' Pending':icon('check',9)+' Approved'}</span></td>
+      <td><div class="dash-row-actions"><button type="button" class="dash-btn-sm dash-btn-ghost" data-action="auth-quicklink-stub">Edit</button></div></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+function renderBizOverview(biz){
+  const prods = PRODUCTS.filter(p=>p.businessId===biz.id);
+  const pendingOwn = prods.filter(p=>p.moderationStatus==='pending').length;
+  return `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="n">${biz.videosCount||0}</div><div class="c">Videos</div></div>
+      <div class="kpi-card"><div class="n">${prods.length}</div><div class="c">Product Listings</div></div>
+      <div class="kpi-card ${pendingOwn?'accent':''}"><div class="n">${pendingOwn}</div><div class="c">Pending Review</div></div>
+      <div class="kpi-card"><div class="n">${biz.rating}</div><div class="c">Avg. Rating (${biz.ratingCount})</div></div>
+    </div>
+    ${biz.pending?`<div class="dash-section warn">
+      <div class="dash-section-head"><div><h2>Verification pending</h2><p>Your submission is in the moderation queue — most reviews complete within 2 business days.</p></div>${icon('clock',20)}</div>
+    </div>`:''}
+    <div class="dash-section">
+      <div class="dash-section-head">
+        <div><h2>${biz.name}</h2><p>${biz.categories.join(' · ')} · ${biz.location}</p></div>
+        <span class="status-pill ${biz.verified?'verified':biz.pending?'pending':'unverified'}">${biz.verified?icon('check',9)+' Verified':biz.pending?icon('clock',9)+' Pending':'Unverified'}</span>
+      </div>
+      <p style="font-size:.8rem;color:var(--ink-soft);line-height:1.55;margin:0 0 14px;">${biz.description}</p>
+      <button type="button" class="pill pill-outline pill-sm" data-action="dash-nav" data-mode="business" data-section="profile">Manage profile <span class="arrow">${icon('chev',11)}</span></button>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-head">
+        <div><h2>Recent listings</h2><p>${prods.length} product${prods.length===1?'':'s'} in your showroom</p></div>
+        <button type="button" class="pill pill-ghost pill-sm" data-action="dash-nav" data-mode="business" data-section="products">View all</button>
+      </div>
+      ${prods.length ? renderProductTable(prods.slice(0,4)) : `<div class="dash-empty">No products yet — add your first listing.</div>`}
+    </div>`;
+}
+function renderBizProfile(biz){
+  return `
+    <div class="dash-section">
+      <div class="dash-section-head">
+        <div><h2>Business Profile</h2><p>How your showroom appears to shoppers.</p></div>
+        <button type="button" class="pill pill-amber pill-sm" data-action="auth-quicklink-stub">Edit details</button>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px;">
+        <div class="grad-${biz.grad}" style="width:60px;height:60px;border-radius:16px;font-size:1.7rem;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">${biz.icon}</div>
+        <div><div style="font-weight:700;font-size:.98rem;color:var(--ink);">${biz.name} ${verifiedBadge(biz)}</div>
+        <div style="font-size:.76rem;color:var(--ink-soft);margin-top:2px;">${biz.categories.join(' · ')}</div></div>
+      </div>
+      <table class="dash-table">
+        <tr><td class="cmp-label" style="width:110px;color:var(--ink-soft);font-weight:700;">Location</td><td>${biz.location}</td></tr>
+        <tr><td class="cmp-label" style="color:var(--ink-soft);font-weight:700;">Phone</td><td>${biz.phone}</td></tr>
+        <tr><td class="cmp-label" style="color:var(--ink-soft);font-weight:700;">Hours</td><td>${biz.hours}</td></tr>
+        <tr><td class="cmp-label" style="color:var(--ink-soft);font-weight:700;">Description</td><td>${biz.description}</td></tr>
+      </table>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-head">
+        <div><h2>Verification</h2><p>Submit for review once your profile is complete.</p></div>
+        <span class="status-pill ${biz.verified?'verified':biz.pending?'pending':'unverified'}">${biz.verified?'Verified':biz.pending?'Pending review':'Unverified'}</span>
+      </div>
+      ${!biz.verified && !biz.pending ? `<button type="button" class="pill pill-amber" data-action="auth-quicklink-stub">Submit for verification</button>` :
+        biz.pending ? `<p style="font-size:.8rem;color:var(--ink-soft);">Submitted — awaiting a moderator's review.</p>` :
+        `<p style="font-size:.8rem;color:var(--teal);font-weight:700;">${icon('check',12)} Verified by Miles Tech.</p>`}
+    </div>`;
+}
+function renderBizProducts(biz){
+  const prods = PRODUCTS.filter(p=>p.businessId===biz.id);
+  return `<div class="dash-section">
+    <div class="dash-section-head">
+      <div><h2>Products &amp; Services</h2><p>${prods.length} listing${prods.length===1?'':'s'}</p></div>
+      <button type="button" class="pill pill-amber pill-sm" data-action="auth-quicklink-stub">${icon('plus',13)} Add listing</button>
+    </div>
+    ${prods.length ? renderProductTable(prods) : `<div class="dash-empty">No products yet — add your first listing.</div>`}
+  </div>`;
+}
+function renderDashboard(){
+  const biz = bizById(dashBizId) || BUSINESSES[0];
+  const ownPending = PRODUCTS.filter(p=>p.businessId===biz.id && p.moderationStatus==='pending').length;
+  const titles = {overview:'Overview', profile:'Business Profile', products:'Products'};
+  const stats = [
+    {n:String(ownPending), c:'Pending', warn:ownPending>0},
+    {n:biz.verified?'Verified':biz.pending?'Pending':'Unverified', c:'Status'},
+  ];
+  let body = '';
+  if(dashSection==='overview') body = renderBizOverview(biz);
+  else if(dashSection==='profile') body = renderBizProfile(biz);
+  else if(dashSection==='products') body = renderBizProducts(biz);
+  document.getElementById('dashboardContent').innerHTML = `
+    <div class="dash-shell">
+      <header class="dash-topbar">${dashTopbarHTML({breadcrumb:'Business Dashboard', title:titles[dashSection], stats})}</header>
+      <div class="dash-body">
+        <aside class="dash-sidebar-inline"></aside>
+        <main class="dash-main">${renderBizSwitcher()}${body}</main>
+      </div>
+      <footer class="dash-footer">${dashFooterHTML('business')}</footer>
+    </div>`;
+  renderDashSidebar('business');
+}
+
+/* ---- Admin Panel content ---- */
+function renderAdminBizRow(b){
+  return `<tr>
+    <td><div class="dash-row-entity"><span class="ic grad-${b.grad}">${b.icon}</span><div><div class="t">${b.name}</div><div class="m">${b.location}</div></div></div></td>
+    <td>${b.categories.join(' · ')}</td>
+    <td><div class="dash-row-actions">
+      ${b.pending?`<button type="button" class="dash-btn-sm dash-btn-approve" data-action="admin-approve-biz" data-biz="${b.id}">Approve</button>
+      <button type="button" class="dash-btn-sm dash-btn-reject" data-action="admin-reject-biz" data-biz="${b.id}">Reject</button>`:
+      `<span class="status-pill ${b.verified?'verified':b.rejected?'rejected':'unverified'}">${b.verified?'Verified':b.rejected?'Rejected':'Unverified'}</span>`}
+    </div></td>
+  </tr>`;
+}
+function renderAdminProdRow(p){
+  const biz = bizById(p.businessId);
+  return `<tr>
+    <td><div class="dash-row-entity"><span class="ic grad-${p.grad}">${p.icon}</span><div><div class="t">${p.name}</div><div class="m">${biz.name} · ${fmtKES(p.price)}</div></div></div></td>
+    <td>${biz.name}</td>
+    <td><div class="dash-row-actions">
+      ${p.moderationStatus==='pending'?`<button type="button" class="dash-btn-sm dash-btn-approve" data-action="admin-approve-prod" data-prod="${p.id}">Approve</button>
+      <button type="button" class="dash-btn-sm dash-btn-reject" data-action="admin-reject-prod" data-prod="${p.id}">Reject</button>`:
+      `<span class="status-pill ${p.moderationStatus==='rejected'?'rejected':'approved'}">${p.moderationStatus==='rejected'?'Rejected':'Approved'}</span>`}
+    </div></td>
+  </tr>`;
+}
+function renderAdminOverview(){
+  const pendingBiz = pendingBizCount(), pendingProd = pendingProdCount();
+  const rows = [...BUSINESSES.filter(b=>b.pending && !b.rejected).map(b=>renderAdminBizRow(b)), ...PRODUCTS.filter(p=>p.moderationStatus==='pending').map(p=>renderAdminProdRow(p))];
+  return `
+    <div class="kpi-grid">
+      <div class="kpi-card ${pendingBiz?'accent':''}"><div class="n">${pendingBiz}</div><div class="c">Pending Businesses</div></div>
+      <div class="kpi-card ${pendingProd?'accent':''}"><div class="n">${pendingProd}</div><div class="c">Pending Products</div></div>
+      <div class="kpi-card"><div class="n">${verifiedBizCount()}</div><div class="c">Verified Businesses</div></div>
+      <div class="kpi-card"><div class="n">${CATEGORIES.length}</div><div class="c">Live Categories</div></div>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-head"><div><h2>Needs your review</h2><p>Oldest submissions first.</p></div></div>
+      ${rows.length ? `<table class="dash-table"><tbody>${rows.join('')}</tbody></table>` :
+      `<div class="dash-empty">${icon('check',22)}<div style="margin-top:6px;">Nothing waiting on you — you're all caught up.</div></div>`}
+    </div>`;
+}
+function renderAdminBizMod(){
+  const tabs = [['pending','Pending'],['verified','Verified'],['rejected','Rejected'],['unverified','Unverified']];
+  const countFor = id => BUSINESSES.filter(b=>id==='pending'?(b.pending&&!b.rejected):id==='verified'?b.verified:id==='rejected'?b.rejected:(!b.verified&&!b.pending&&!b.rejected)).length;
+  const list = BUSINESSES.filter(b=>{
+    if(adminBizTab==='pending') return b.pending && !b.rejected;
+    if(adminBizTab==='verified') return b.verified;
+    if(adminBizTab==='rejected') return b.rejected;
+    return !b.verified && !b.pending && !b.rejected;
+  });
+  return `<div class="dash-section">
+    <div class="dash-tabbar">${tabs.map(([id,l])=>`<button type="button" class="${adminBizTab===id?'active':''}" data-action="admin-biz-tab" data-tab="${id}">${l} (${countFor(id)})</button>`).join('')}</div>
+    ${list.length? `<table class="dash-table"><thead><tr><th>Business</th><th>Category</th><th></th></tr></thead><tbody>${list.map(renderAdminBizRow).join('')}</tbody></table>` :
+    `<div class="dash-empty">No ${adminBizTab} businesses right now.</div>`}
+  </div>`;
+}
+function renderAdminProdMod(){
+  const tabs = [['pending','Pending'],['approved','Approved'],['rejected','Rejected']];
+  const countFor = id => PRODUCTS.filter(p=>(p.moderationStatus||'approved')===id).length;
+  const list = PRODUCTS.filter(p=>(p.moderationStatus||'approved')===adminProdTab);
+  return `<div class="dash-section">
+    <div class="dash-tabbar">${tabs.map(([id,l])=>`<button type="button" class="${adminProdTab===id?'active':''}" data-action="admin-prod-tab" data-tab="${id}">${l} (${countFor(id)})</button>`).join('')}</div>
+    ${list.length? `<table class="dash-table"><thead><tr><th>Product</th><th>Business</th><th></th></tr></thead><tbody>${list.map(renderAdminProdRow).join('')}</tbody></table>` :
+    `<div class="dash-empty">No ${adminProdTab} products right now.</div>`}
+  </div>`;
+}
+function renderAdmin(){
+  const titles = {overview:'Overview', bizmod:'Business Moderation', prodmod:'Product Moderation'};
+  const stats = [
+    {n:String(pendingBizCount()), c:'Pending Biz', warn:pendingBizCount()>0},
+    {n:String(pendingProdCount()), c:'Pending Prod', warn:pendingProdCount()>0},
+  ];
+  let body = '';
+  if(adminSection==='overview') body = renderAdminOverview();
+  else if(adminSection==='bizmod') body = renderAdminBizMod();
+  else if(adminSection==='prodmod') body = renderAdminProdMod();
+  document.getElementById('adminContent').innerHTML = `
+    <div class="dash-shell">
+      <header class="dash-topbar">${dashTopbarHTML({breadcrumb:'Admin Panel', title:titles[adminSection], stats})}</header>
+      <div class="dash-body">
+        <aside class="dash-sidebar-inline"></aside>
+        <main class="dash-main">${body}</main>
+      </div>
+      <footer class="dash-footer">${dashFooterHTML('admin')}</footer>
+    </div>`;
+  renderDashSidebar('admin');
 }
 
 /* ================= THEME ================= */
@@ -2323,6 +2787,16 @@ document.getElementById('jumpnav').addEventListener('click', e=>{
   if(j==='feed') buildFeed('v3');
   if(j==='profile') openProfile('aquatank');
   if(j==='product') openProduct('tank5000');
+  if(j==='dashboard'){
+    if(!sessionUser || sessionUser.role!=='business_admin'){ sessionUser = FAKE_USERS.find(u=>u.id==='demo-owner'); toast('Signed in as the demo Business Admin for preview'); }
+    dashSection='overview'; dashBizId='aquatank';
+    navigate('dashboard',{reset:true}); renderDashboard();
+  }
+  if(j==='admin'){
+    if(!sessionUser || (sessionUser.role!=='platform_admin' && sessionUser.role!=='content_moderator')){ sessionUser = FAKE_USERS.find(u=>u.id==='demo-admin'); toast('Signed in as the demo Platform Admin for preview'); }
+    adminSection='overview';
+    navigate('admin',{reset:true}); renderAdmin();
+  }
 });
 
 document.getElementById('bottomnav').addEventListener('click', e=>{
@@ -2399,6 +2873,23 @@ document.getElementById('app').addEventListener('click', e=>{
     }
     else if(a==='auth-signout'){ sessionUser=null; authView='login'; authHistory=['login']; renderAccountSheet(); toast('Signed out'); }
     else if(a==='auth-quicklink-stub'){ toast('That module is a separate design/build pass — not in this sprint.'); }
+    else if(a==='goto-dashboard'){ closeSheets(); dashSection='overview'; navigate('dashboard',{reset:true}); renderDashboard(); }
+    else if(a==='goto-admin'){ closeSheets(); adminSection='overview'; navigate('admin',{reset:true}); renderAdmin(); }
+    else if(a==='dash-exit'){ closeSheets(); navigate('home',{reset:true}); }
+    else if(a==='dash-open-drawer'){ openSheet('dashDrawer'); }
+    else if(a==='open-account-from-dash'){ openAccountSheet(); }
+    else if(a==='dash-switch-biz'){ dashBizId = t.dataset.biz; renderDashboard(); }
+    else if(a==='dash-nav'){
+      closeSheets();
+      if(t.dataset.mode==='business'){ dashSection = t.dataset.section; renderDashboard(); }
+      else { adminSection = t.dataset.section; renderAdmin(); }
+    }
+    else if(a==='admin-biz-tab'){ adminBizTab = t.dataset.tab; renderAdmin(); }
+    else if(a==='admin-prod-tab'){ adminProdTab = t.dataset.tab; renderAdmin(); }
+    else if(a==='admin-approve-biz'){ const b=bizById(t.dataset.biz); b.verified=true; b.pending=false; b.rejected=false; toast(`${b.name} approved — now live and verified`); renderAdmin(); }
+    else if(a==='admin-reject-biz'){ const b=bizById(t.dataset.biz); b.verified=false; b.pending=false; b.rejected=true; toast(`${b.name} rejected`); renderAdmin(); }
+    else if(a==='admin-approve-prod'){ const p=prodById(t.dataset.prod); p.moderationStatus='approved'; toast(`${p.name} approved`); renderAdmin(); }
+    else if(a==='admin-reject-prod'){ const p=prodById(t.dataset.prod); p.moderationStatus='rejected'; toast(`${p.name} rejected`); renderAdmin(); }
     else if(a==='ptab'){ /* handled below */ }
     else if(a==='filter-cat'){
       const c=t.dataset.cat; filters.categories.has(c)?filters.categories.delete(c):filters.categories.add(c);
