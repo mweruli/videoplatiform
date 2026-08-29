@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 
 import BrandLockup from './BrandLockup'
 import ThemeToggle from './ThemeToggle'
@@ -27,6 +27,15 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export default function TopNav() {
   const { showToast } = useToast()
   const { status, user, openAuthModal } = useAuth()
+  const navigate = useNavigate()
+
+  // A signed-in visitor clicking "List your business" already has an account
+  // — send them straight to the dashboard rather than back through Register.
+  // Only an anonymous visitor needs the register-with-role-preset flow.
+  function handleListYourBusiness() {
+    if (status === 'authenticated') navigate('/dashboard')
+    else openAuthModal({ forceRegisterRole: 'business_admin' })
+  }
 
   return (
     <nav className="sticky top-0 z-50 hidden items-center justify-between gap-6 border-b border-glass-border bg-glass px-8 py-3.5 backdrop-blur-xl backdrop-saturate-150 lg:flex">
@@ -63,8 +72,8 @@ export default function TopNav() {
         <Pill variant="outline" size="sm" onClick={() => openAuthModal()}>
           {status === 'authenticated' && user ? (user.full_name?.split(' ')[0] ?? 'Account') : 'Account'}
         </Pill>
-        <Pill variant="amber" size="sm" onClick={() => openAuthModal({ forceRegisterRole: 'business_admin' })}>
-          List your business
+        <Pill variant="amber" size="sm" onClick={handleListYourBusiness}>
+          {status === 'authenticated' ? 'My business' : 'List your business'}
         </Pill>
       </div>
     </nav>

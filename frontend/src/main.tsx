@@ -19,8 +19,8 @@ createRoot(document.getElementById('root')!).render(
           <AuthProvider>
             <BrowserRouter>
               <App />
+              <AuthModal />
             </BrowserRouter>
-            <AuthModal />
           </AuthProvider>
         </ToastProvider>
       </QueryClientProvider>

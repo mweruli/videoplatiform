@@ -50,12 +50,21 @@ async function extractErrorDetail(response: Response, path: string): Promise<str
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  // `...init` must spread BEFORE `headers`, not after: `init` itself carries
+  // a `headers` key on every authenticated call (see authHeaders() below), so
+  // spreading `...init` last would silently clobber the merged headers object
+  // with init.headers alone — dropping the default Content-Type entirely and
+  // sending JSON bodies with no Content-Type header. That's exactly what
+  // happened here previously: it went unnoticed because no caller combined a
+  // body *and* custom headers in the same request until the Business
+  // Dashboard's authenticated POST/PATCH endpoints (a bearer token header
+  // alongside a JSON body) started doing both.
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
     headers: {
       'Content-Type': 'application/json',
       ...init?.headers,
     },
-    ...init,
   })
 
   if (!response.ok) {
@@ -72,6 +81,27 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 /** Attaches a bearer token to an apiFetch call — see app/api/deps.py's HTTPBearer contract. */
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` }
+}
+
+/**
+ * Multipart upload — deliberately not routed through apiFetch, which always
+ * forces a `Content-Type: application/json` header; a multipart boundary has
+ * to be set by the browser itself from the FormData body. Used by the
+ * business logo/cover-image and product image upload endpoints, the only
+ * endpoints in the API that take file bodies.
+ */
+async function apiUpload<T>(path: string, token: string, formData: FormData): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: formData,
+  })
+  if (!response.ok) {
+    const detail = await extractErrorDetail(response, path)
+    throw new ApiError(detail, response.status)
+  }
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
 }
 
 export interface DependencyStatus {
@@ -231,13 +261,20 @@ export interface ListProductsParams {
   min_price?: number
   max_price?: number
   q?: string
+  /** Only takes effect when `token` belongs to the owner of `business_id` (or a platform admin) — see app/api/v1/endpoints/products.py. */
+  include_unapproved?: boolean
   page?: number
   page_size?: number
 }
 
-/** Public browse — approved, active products from active businesses only. */
-export function listProducts(params: ListProductsParams = {}): Promise<Page<ProductDto>> {
-  return apiFetch<Page<ProductDto>>(`${V1}/products${toQuery(params)}`)
+/**
+ * Public browse — approved, active products from active businesses only,
+ * unless `token` is the owning business's owner (or a platform admin) and
+ * `include_unapproved` is set, in which case the dashboard reuses this same
+ * endpoint to see its own pending/rejected listings too.
+ */
+export function listProducts(params: ListProductsParams = {}, token?: string): Promise<Page<ProductDto>> {
+  return apiFetch<Page<ProductDto>>(`${V1}/products${toQuery(params)}`, token ? { headers: authHeaders(token) } : undefined)
 }
 
 export function getProductBySlug(slug: string): Promise<ProductDto> {
@@ -382,4 +419,120 @@ export function resetPassword(payload: ResetPasswordPayload): Promise<TokenRespo
 
 export function getMe(token: string): Promise<UserRead> {
   return apiFetch<UserRead>(`${V1}/auth/me`, { headers: authHeaders(token) })
+}
+
+/**
+ * Business Dashboard — mirrors app/schemas/business.py's BusinessCreate/
+ * BusinessUpdate 1:1. Any authenticated user may own a business (there is no
+ * role gate on the backend beyond "is the owner, or a platform admin" —
+ * see businesses.py's `_can_manage`), so these aren't restricted to
+ * role === 'business_admin' on the client either.
+ */
+
+export interface BusinessWritePayload {
+  name: string
+  description?: string | null
+  category_id?: number | null
+  county?: string | null
+  city?: string | null
+  address_line?: string | null
+  phone?: string | null
+  email?: string | null
+  website_url?: string | null
+  facebook_url?: string | null
+  instagram_url?: string | null
+  twitter_url?: string | null
+  tiktok_url?: string | null
+}
+
+export type BusinessUpdatePayload = Partial<BusinessWritePayload>
+
+export function getMyBusinesses(token: string): Promise<BusinessDto[]> {
+  return apiFetch<BusinessDto[]>(`${V1}/businesses/mine`, { headers: authHeaders(token) })
+}
+
+export function createBusiness(token: string, payload: BusinessWritePayload): Promise<BusinessDto> {
+  return apiFetch<BusinessDto>(`${V1}/businesses`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateBusiness(token: string, businessId: string, payload: BusinessUpdatePayload): Promise<BusinessDto> {
+  return apiFetch<BusinessDto>(`${V1}/businesses/${businessId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** unverified/rejected -> pending. 409s (surfaced via ApiError) from any other status — see app/api/v1/endpoints/businesses.py. */
+export function submitBusinessForVerification(token: string, businessId: string): Promise<BusinessDto> {
+  return apiFetch<BusinessDto>(`${V1}/businesses/${businessId}/submit-for-verification`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+}
+
+export function uploadBusinessLogo(token: string, businessId: string, file: File): Promise<BusinessDto> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiUpload<BusinessDto>(`${V1}/businesses/${businessId}/logo`, token, formData)
+}
+
+export function uploadBusinessCoverImage(token: string, businessId: string, file: File): Promise<BusinessDto> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiUpload<BusinessDto>(`${V1}/businesses/${businessId}/cover-image`, token, formData)
+}
+
+/** Mirrors app/schemas/product.py's ProductCreate/ProductUpdate 1:1. */
+export interface ProductWritePayload {
+  name: string
+  description?: string | null
+  category_id?: number | null
+  specs?: Record<string, string>
+  currency?: string
+  price_min?: number | null
+  price_max?: number | null
+  warranty_terms?: string | null
+  availability_status?: AvailabilityStatus
+  availability_note?: string | null
+  county?: string | null
+  city?: string | null
+  related_product_ids?: string[]
+}
+
+export type ProductUpdatePayload = Partial<ProductWritePayload>
+
+export function createProduct(token: string, businessId: string, payload: ProductWritePayload): Promise<ProductDto> {
+  return apiFetch<ProductDto>(`${V1}/businesses/${businessId}/products`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Editing an already-approved product resets it to moderation_status='pending' server-side — see docs/decisions.md. */
+export function updateProduct(token: string, productId: string, payload: ProductUpdatePayload): Promise<ProductDto> {
+  return apiFetch<ProductDto>(`${V1}/products/${productId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Soft delete (deactivates, doesn't hard-delete) — see app/api/v1/endpoints/products.py's deactivate_product docstring. */
+export function deactivateProduct(token: string, productId: string): Promise<void> {
+  return apiFetch<void>(`${V1}/products/${productId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+}
+
+export function uploadProductImages(token: string, productId: string, files: File[]): Promise<ProductDto> {
+  const formData = new FormData()
+  for (const file of files) formData.append('files', file)
+  return apiUpload<ProductDto>(`${V1}/products/${productId}/images`, token, formData)
 }

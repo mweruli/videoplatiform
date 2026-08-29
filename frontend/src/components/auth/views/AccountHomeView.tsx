@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom'
+
 import type { UserRead } from '../../../lib/api'
 import { ROLE_META } from '../roles'
 import Icon from '../../icons/Icon'
@@ -6,36 +8,55 @@ import { useToast } from '../../../lib/toast'
 interface AccountHomeViewProps {
   user: UserRead
   onSignOut: () => void
+  /** Closes the auth modal — used when a quick link navigates to a real route (e.g. the dashboard) rather than staying inside the sheet. */
+  onNavigateAway: () => void
 }
 
-const ROLE_QUICK_LINKS: Record<string, [string, string][]> = {
+interface QuickLink {
+  emoji: string
+  label: string
+  /** Real route — present once the destination actually exists. Absent entries fall back to a "not built yet" toast rather than a dead link. */
+  to?: string
+}
+
+const ROLE_QUICK_LINKS: Record<string, QuickLink[]> = {
   general_user: [
-    ['⭐', 'Saved businesses'],
-    ['📄', 'My quote requests'],
+    { emoji: '⭐', label: 'Saved businesses' },
+    { emoji: '📄', label: 'My quote requests' },
   ],
   business_admin: [
-    ['🏢', 'Manage my showroom'],
-    ['🛡️', 'Verification status'],
+    { emoji: '🏢', label: 'Manage my showroom', to: '/dashboard' },
+    { emoji: '🛡️', label: 'Verification status', to: '/dashboard' },
   ],
   advertiser: [
-    ['📢', 'Ad campaigns'],
-    ['💳', 'Billing'],
+    { emoji: '📢', label: 'Ad campaigns' },
+    { emoji: '💳', label: 'Billing' },
   ],
   content_creator: [
-    ['🎬', 'My uploads'],
-    ['📈', 'Analytics'],
+    { emoji: '🎬', label: 'My uploads' },
+    { emoji: '📈', label: 'Analytics' },
   ],
   publisher: [
-    ['📚', 'My publications'],
-    ['📝', 'Submissions'],
+    { emoji: '📚', label: 'My publications' },
+    { emoji: '📝', label: 'Submissions' },
   ],
 }
 
-/** Signed-in state of the account sheet — identity, role, verification badge, role-specific quick links (stubbed for now — real destinations are a later sprint's build), and sign out. */
-export default function AccountHomeView({ user, onSignOut }: AccountHomeViewProps) {
+/** Signed-in state of the account sheet — identity, role, verification badge, role-specific quick links (business_admin's link to a real destination now that the Business Dashboard exists; the rest stubbed until their own screens are built), and sign out. */
+export default function AccountHomeView({ user, onSignOut, onNavigateAway }: AccountHomeViewProps) {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const meta = ROLE_META[user.role as keyof typeof ROLE_META] ?? ROLE_META.general_user
   const links = ROLE_QUICK_LINKS[user.role] ?? ROLE_QUICK_LINKS.general_user
+
+  function handleLinkClick(link: QuickLink) {
+    if (link.to) {
+      navigate(link.to)
+      onNavigateAway()
+    } else {
+      showToast('That module is a separate design/build pass — not in this sprint.')
+    }
+  }
 
   return (
     <div>
@@ -61,16 +82,16 @@ export default function AccountHomeView({ user, onSignOut }: AccountHomeViewProp
       </div>
 
       <div className="flex flex-col gap-2">
-        {links.map(([emoji, label]) => (
+        {links.map((link) => (
           <button
-            key={label}
+            key={link.label}
             type="button"
-            onClick={() => showToast('That module is a separate design/build pass — not in this sprint.')}
+            onClick={() => handleLinkClick(link)}
             className="flex items-center justify-between rounded-2xl border border-border bg-panel px-3.5 py-3 text-left transition-colors duration-150 ease-brand hover:border-teal"
           >
             <span className="flex items-center gap-3">
-              <span className="text-lg">{emoji}</span>
-              <span className="text-sm font-bold text-foreground">{label}</span>
+              <span className="text-lg">{link.emoji}</span>
+              <span className="text-sm font-bold text-foreground">{link.label}</span>
             </span>
             <Icon name="chevronRight" size={15} className="text-muted-foreground" />
           </button>

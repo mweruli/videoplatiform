@@ -163,7 +163,7 @@ export default function AuthModal() {
         {view === 'verify' && pending && <OtpVerifyView pending={pending} onBack={goBack} onVerified={handleVerified} />}
         {view === 'forgot' && <ForgotPasswordView onBack={goBack} onRequested={handleForgotRequested} />}
         {view === 'reset' && pending && <ResetPasswordView pending={pending} onBack={goBack} onReset={handleReset} />}
-        {view === 'home' && user && <AccountHomeView user={user} onSignOut={handleSignOut} />}
+        {view === 'home' && user && <AccountHomeView user={user} onSignOut={handleSignOut} onNavigateAway={closeAuthModal} />}
       </div>
     </div>
   )
