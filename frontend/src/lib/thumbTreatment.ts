@@ -25,3 +25,17 @@ export const THUMB_GRADIENTS: string[] = [
 export function gradientFor(index: number): string {
   return THUMB_GRADIENTS[index % THUMB_GRADIENTS.length]
 }
+
+/**
+ * Deterministic gradient index for real backend entities, which don't carry
+ * the fixture data's hand-picked `grad` field. Same id always maps to the
+ * same gradient (stable across renders/refetches) without needing a random
+ * seed stored anywhere.
+ */
+export function gradIndexForId(id: string): number {
+  let hash = 0
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) | 0
+  }
+  return Math.abs(hash) % THUMB_GRADIENTS.length
+}

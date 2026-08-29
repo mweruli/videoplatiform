@@ -12,9 +12,13 @@ interface BusinessCardProps {
 }
 
 /**
- * Business profile pages aren't built yet (later session per the brief) —
- * this stays a real, keyboard-operable button with honest feedback rather
- * than a dead link or a fake href.
+ * Home's featured-businesses rail still runs on curated fixture data (see
+ * src/data/businesses.ts) rather than the real /businesses endpoint — that
+ * rewire is a separate, larger task (Home currently has no loading/empty
+ * states for a near-empty real catalog). Real Business profile pages exist
+ * now (BusinessProfile.tsx, /business/:slug) but these fixture ids don't
+ * correspond to real backend rows, so this stays an honest toast rather than
+ * a link that would 404 — Search results link to real profiles instead.
  */
 export default function BusinessCard({ business, tone = 'light' }: BusinessCardProps) {
   const { showToast } = useToast()
@@ -23,7 +27,7 @@ export default function BusinessCard({ business, tone = 'light' }: BusinessCardP
   return (
     <button
       type="button"
-      onClick={() => showToast('Business profiles are coming in the next release')}
+      onClick={() => showToast('This is demo data — try Search to browse real, verified businesses')}
       className={`group relative w-[180px] flex-none rounded-2xl border p-3.5 text-left transition-[transform,box-shadow,background-color,border-color] duration-150 ease-brand hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 lg:w-full ${
         onDark
           ? 'border-white/15 bg-white/[0.06] shadow-[0_12px_28px_-12px_rgba(0,0,0,0.5)] backdrop-blur-md hover:border-amber/40 hover:bg-white/[0.09]'

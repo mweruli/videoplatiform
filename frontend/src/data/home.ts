@@ -8,6 +8,9 @@
  */
 export const TRENDING_ORDER: string[] = ['v1', 'v2', 'v3', 'v7']
 
+/** Full Shorts feed order — ported from the approved prototype's FEED_ORDER. */
+export const FEED_ORDER: string[] = ['v3', 'v1', 'v5', 'v2', 'v6', 'v4', 'v7']
+
 export const FEATURED_BIZ_ORDER: string[] = ['solaris', 'aquatank', 'sunflow', 'nairobisteel']
 
 export const HOME_CATEGORY_ORDER: string[] = [
