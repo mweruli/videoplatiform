@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 import Icon from '../icons/Icon'
 import type { IconName } from '../icons/Icon'
+import { useAuth } from '../../lib/auth'
 import { useToast } from '../../lib/toast'
 
 interface NavItemBase {
@@ -18,19 +19,23 @@ interface NavActionItem extends NavItemBase {
   icon: IconName
   message: string
 }
+interface NavAccountItem extends NavItemBase {
+  kind: 'account'
+  icon: IconName
+}
 interface NavFabItem extends NavItemBase {
   kind: 'fab'
   to: string
 }
 
-type NavItem = NavLinkItem | NavActionItem | NavFabItem
+type NavItem = NavLinkItem | NavActionItem | NavAccountItem | NavFabItem
 
 const items: NavItem[] = [
   { kind: 'link', to: '/', end: true, icon: 'home', label: 'Home' },
   { kind: 'link', to: '/search', icon: 'search', label: 'Search' },
   { kind: 'fab', to: '/feed', label: 'Shorts' },
   { kind: 'action', icon: 'compare', label: 'Compare', message: 'Add products to compare from any listing first' },
-  { kind: 'action', icon: 'user', label: 'Account', message: 'Account & sign-in ship in a later sprint' },
+  { kind: 'account', icon: 'user', label: 'Account' },
 ]
 
 const itemButtonClass =
@@ -43,6 +48,7 @@ const itemButtonClass =
  */
 export default function BottomNav() {
   const { showToast } = useToast()
+  const { status, openAuthModal } = useAuth()
 
   return (
     <nav
@@ -77,6 +83,20 @@ export default function BottomNav() {
                 </>
               )}
             </NavLink>
+          )
+        }
+        if (item.kind === 'account') {
+          const signedIn = status === 'authenticated'
+          return (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => openAuthModal()}
+              className={`${itemButtonClass} ${signedIn ? 'text-brand dark:text-ice' : ''}`}
+            >
+              <Icon name={item.icon} size={20} className={signedIn ? 'stroke-amber' : ''} />
+              <span>{item.label}</span>
+            </button>
           )
         }
         return (

@@ -13,12 +13,40 @@ const V1 = '/api/v1'
 
 export class ApiError extends Error {
   status: number
+  /** Seconds to wait before retrying — populated from a 429's `Retry-After` header (OTP rate limiting; see app/services/otp_service.py). */
+  retryAfterSeconds?: number
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, retryAfterSeconds?: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.retryAfterSeconds = retryAfterSeconds
   }
+}
+
+/**
+ * Pulls FastAPI's real error copy out of the response body instead of a
+ * generic "request failed" string — every auth screen surfaces the
+ * backend's actual `detail` (see app/api/v1/endpoints/auth.py), not a
+ * paraphrase. Falls back to a generic message only if the body isn't the
+ * shape we expect (e.g. a proxy error page, not JSON).
+ */
+async function extractErrorDetail(response: Response, path: string): Promise<string> {
+  try {
+    const body: unknown = await response.json()
+    if (body && typeof body === 'object' && 'detail' in body) {
+      const detail = (body as { detail: unknown }).detail
+      if (typeof detail === 'string') return detail
+      if (Array.isArray(detail)) {
+        return detail
+          .map((d) => (d && typeof d === 'object' && 'msg' in d ? String((d as { msg: unknown }).msg) : String(d)))
+          .join(' ')
+      }
+    }
+  } catch {
+    // Non-JSON body — fall through to the generic message below.
+  }
+  return `Request to ${path} failed with ${response.status}`
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -31,10 +59,19 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   })
 
   if (!response.ok) {
-    throw new ApiError(`Request to ${path} failed with ${response.status}`, response.status)
+    const detail = await extractErrorDetail(response, path)
+    const retryAfterHeader = response.headers.get('Retry-After')
+    const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : undefined
+    throw new ApiError(detail, response.status, Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : undefined)
   }
 
+  if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+/** Attaches a bearer token to an apiFetch call — see app/api/deps.py's HTTPBearer contract. */
+function authHeaders(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` }
 }
 
 export interface DependencyStatus {
@@ -205,4 +242,144 @@ export function listProducts(params: ListProductsParams = {}): Promise<Page<Prod
 
 export function getProductBySlug(slug: string): Promise<ProductDto> {
   return apiFetch<ProductDto>(`${V1}/products/slug/${encodeURIComponent(slug)}`)
+}
+
+/**
+ * Auth — mirrors app/schemas/auth.py 1:1. See app/api/v1/endpoints/auth.py
+ * for the exact per-endpoint status codes/error semantics this UI relies on.
+ */
+
+/** The 7 roles from docs/PROJECT_BRIEF.md. Only SelfRegisterableRole may be chosen at registration — the other two are staff-assigned. */
+export type UserRole =
+  | 'platform_admin'
+  | 'content_moderator'
+  | 'business_admin'
+  | 'advertiser'
+  | 'content_creator'
+  | 'publisher'
+  | 'general_user'
+
+export type SelfRegisterableRole = Exclude<UserRole, 'platform_admin' | 'content_moderator'>
+
+export type OtpPurpose = 'registration' | 'login' | 'password_reset'
+export type OtpChannel = 'email' | 'phone'
+
+export interface UserRead {
+  id: string
+  phone: string | null
+  email: string | null
+  full_name: string | null
+  role: UserRole
+  is_active: boolean
+  is_verified: boolean
+}
+
+export interface OtpDebugInfo {
+  code: string
+  destination: string
+  expires_in_seconds: number
+}
+
+export interface Identity {
+  email?: string | null
+  phone?: string | null
+}
+
+export interface RegisterPayload extends Identity {
+  password: string
+  full_name?: string | null
+  role: SelfRegisterableRole
+}
+
+export interface RegisterResponse {
+  user: UserRead
+  message: string
+  otp: OtpDebugInfo | null
+}
+
+export interface OtpRequestPayload extends Identity {
+  purpose: OtpPurpose
+}
+
+export interface OtpRequestResponse {
+  message: string
+  otp: OtpDebugInfo | null
+}
+
+export interface OtpVerifyPayload extends Identity {
+  code: string
+  purpose: OtpPurpose
+}
+
+export interface OtpVerifyResponse {
+  message: string
+  user: UserRead
+}
+
+export interface LoginPayload extends Identity {
+  password: string
+}
+
+export interface TokenResponse {
+  access_token: string
+  token_type: string
+  user: UserRead
+}
+
+export interface ForgotPasswordPayload extends Identity {}
+
+export interface ForgotPasswordResponse {
+  message: string
+  otp: OtpDebugInfo | null
+}
+
+export interface ResetPasswordPayload extends Identity {
+  code: string
+  new_password: string
+}
+
+export function registerUser(payload: RegisterPayload): Promise<RegisterResponse> {
+  return apiFetch<RegisterResponse>(`${V1}/auth/register`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function requestOtp(payload: OtpRequestPayload): Promise<OtpRequestResponse> {
+  return apiFetch<OtpRequestResponse>(`${V1}/auth/otp/request`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function verifyOtp(payload: OtpVerifyPayload): Promise<OtpVerifyResponse> {
+  return apiFetch<OtpVerifyResponse>(`${V1}/auth/otp/verify`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function loginUser(payload: LoginPayload): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>(`${V1}/auth/login`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function forgotPassword(payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> {
+  return apiFetch<ForgotPasswordResponse>(`${V1}/auth/password/forgot`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function resetPassword(payload: ResetPasswordPayload): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>(`${V1}/auth/password/reset`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getMe(token: string): Promise<UserRead> {
+  return apiFetch<UserRead>(`${V1}/auth/me`, { headers: authHeaders(token) })
 }

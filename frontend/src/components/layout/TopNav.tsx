@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom'
 import BrandLockup from './BrandLockup'
 import ThemeToggle from './ThemeToggle'
 import Icon from '../icons/Icon'
-import { Pill, PillLink } from '../ui/Pill'
+import { Pill } from '../ui/Pill'
+import { useAuth } from '../../lib/auth'
 import { useToast } from '../../lib/toast'
 
 const links = [
@@ -25,6 +26,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
  */
 export default function TopNav() {
   const { showToast } = useToast()
+  const { status, user, openAuthModal } = useAuth()
 
   return (
     <nav className="sticky top-0 z-50 hidden items-center justify-between gap-6 border-b border-glass-border bg-glass px-8 py-3.5 backdrop-blur-xl backdrop-saturate-150 lg:flex">
@@ -58,16 +60,12 @@ export default function TopNav() {
           Nairobi
         </button>
         <ThemeToggle variant="solid" />
-        <Pill
-          variant="outline"
-          size="sm"
-          onClick={() => showToast('Account & sign-in ship in a later sprint')}
-        >
-          Account
+        <Pill variant="outline" size="sm" onClick={() => openAuthModal()}>
+          {status === 'authenticated' && user ? (user.full_name?.split(' ')[0] ?? 'Account') : 'Account'}
         </Pill>
-        <PillLink to="/dashboard" variant="amber" size="sm">
+        <Pill variant="amber" size="sm" onClick={() => openAuthModal({ forceRegisterRole: 'business_admin' })}>
           List your business
-        </PillLink>
+        </Pill>
       </div>
     </nav>
   )
