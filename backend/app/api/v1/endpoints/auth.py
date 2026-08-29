@@ -64,7 +64,25 @@ def _find_user_by_identity(db: Session, *, email: str | None, phone: str | None)
 
 def _channel_and_destination(*, email: str | None, phone: str | None) -> tuple[OtpChannel, str]:
     """OtpRequestRequest/OtpVerifyRequest/etc. already reject "both provided"
-    at the schema layer; this just picks whichever one is set."""
+    at the schema layer, so for those this just picks whichever one is set.
+
+    RegisterRequest is different: it allows both email AND phone on one
+    account (there's no "exactly one" constraint there), so this also has to
+    handle the both-present case — and naively preferring phone (the
+    Kenya-market default) breaks registration for real users whenever SMS
+    isn't actually configured for delivery yet, since a "sent" code that
+    never reaches anyone is a dead end with no way to recover in the UI. See
+    docs/decisions.md for the incident this came from.
+
+    When both are present, prefer whichever channel has a real (non-console)
+    delivery provider configured; if both or neither do, fall back to the
+    phone-first default."""
+    if phone and email:
+        email_is_real = settings.OTP_EMAIL_PROVIDER != "console"
+        phone_is_real = settings.OTP_SMS_PROVIDER != "console"
+        if email_is_real and not phone_is_real:
+            return OtpChannel.EMAIL, email
+        return OtpChannel.PHONE, phone
     if phone:
         return OtpChannel.PHONE, phone
     return OtpChannel.EMAIL, email  # type: ignore[return-value]

@@ -206,6 +206,45 @@ def test_password_reset_full_cycle() -> None:
     assert resp.status_code == 200
 
 
+def test_channel_selection_prefers_whichever_provider_is_really_configured(
+    monkeypatch,
+) -> None:
+    """Regression test for a real incident: a user registered with both email
+    and phone, got routed to phone/SMS for the OTP, and had no way to receive
+    it since only email had a real (non-console) provider configured at the
+    time. `_channel_and_destination` must not blindly prefer phone once both
+    are present — see its docstring and docs/decisions.md."""
+    from app.api.v1.endpoints import auth as auth_module
+    from app.models.otp import OtpChannel
+
+    email, phone = "someone@example.com", "+254700000000"
+    cases = [
+        # (email provider, sms provider) -> expected channel when both given
+        ("console", "console", OtpChannel.PHONE),  # neither real: phone-first default
+        ("smtp", "console", OtpChannel.EMAIL),  # only email real: don't strand the user
+        ("console", "africastalking", OtpChannel.PHONE),  # only phone real
+        ("smtp", "africastalking", OtpChannel.PHONE),  # both real: phone-first default
+    ]
+    for email_provider, sms_provider, expected in cases:
+        monkeypatch.setattr(auth_module.settings, "OTP_EMAIL_PROVIDER", email_provider)
+        monkeypatch.setattr(auth_module.settings, "OTP_SMS_PROVIDER", sms_provider)
+        channel, destination = auth_module._channel_and_destination(email=email, phone=phone)
+        assert channel == expected, (email_provider, sms_provider)
+        assert destination == (phone if expected is OtpChannel.PHONE else email)
+
+    # Single-identity cases are unaffected by provider config either way.
+    monkeypatch.setattr(auth_module.settings, "OTP_EMAIL_PROVIDER", "smtp")
+    monkeypatch.setattr(auth_module.settings, "OTP_SMS_PROVIDER", "console")
+    assert auth_module._channel_and_destination(email=None, phone=phone) == (
+        OtpChannel.PHONE,
+        phone,
+    )
+    assert auth_module._channel_and_destination(email=email, phone=None) == (
+        OtpChannel.EMAIL,
+        email,
+    )
+
+
 def test_dev_token_still_gated_by_debug_and_unaffected_by_real_auth() -> None:
     """auth_dev.py stays available in DEBUG (settings.DEBUG defaults True in
     tests/dev) purely as a quick-testing shortcut; this just documents it
