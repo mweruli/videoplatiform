@@ -1,9 +1,3 @@
-export interface Category {
-  id: string
-  label: string
-  icon: string
-}
-
 export interface Business {
   id: string
   name: string

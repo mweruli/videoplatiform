@@ -7,9 +7,16 @@ import TrendingVideos from '../components/home/TrendingVideos'
 
 /**
  * Home screen — matches the approved prototype (docs/design/prototype-v1.html,
- * commit dff26d9) at both the mobile and >=1024px desktop breakpoints. Data
- * is the prototype's fixtures (src/data/*) until the Search/Business/Product
- * endpoints land; ordering/curation lives in src/data/home.ts.
+ * commit dff26d9) at both the mobile and >=1024px desktop breakpoints.
+ *
+ * Categories (CategoryRail/CategoryGrid) and featured businesses
+ * (FeaturedBusinesses) are real backend data now, via the same
+ * hooks/useCatalog.ts hooks Search.tsx uses — see those components for the
+ * "no real `featured` field yet" substitute and loading/empty/error
+ * handling. TrendingVideos is still fixture-backed (src/data/videos.ts) —
+ * there is no video backend yet (see VideoFeed.tsx). Section
+ * order/curation for the still-fixture-backed video rail lives in
+ * src/data/home.ts.
  */
 export default function Home() {
   return (

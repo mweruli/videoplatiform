@@ -1,14 +1,22 @@
 import CategoryChip, { MoreCategoriesChip } from './CategoryChip'
-import { catById } from '../../data/categories'
-import { HOME_CATEGORY_ORDER } from '../../data/home'
+import Skeleton from '../ui/Skeleton'
+import { useCategories } from '../../hooks/useCatalog'
+import { HOME_CATEGORY_SLUGS } from '../../data/home'
 
 /**
  * Horizontal scroll-snap rail on mobile; becomes a wrap/grid of chips at the
  * desktop breakpoint (still just chips — the full 18-category grid lives
- * further down the page as its own section).
+ * further down the page as its own section). Real categories from
+ * GET /api/v1/categories (useCatalog.ts); HOME_CATEGORY_SLUGS is just this
+ * rail's curated subset/order, not a separate data source.
  */
 export default function CategoryRail() {
-  const categories = HOME_CATEGORY_ORDER.map(catById).filter((c): c is NonNullable<typeof c> => Boolean(c))
+  const categoriesQuery = useCategories()
+
+  const bySlug = new Map((categoriesQuery.data ?? []).map((c) => [c.slug, c]))
+  const categories = HOME_CATEGORY_SLUGS.map((slug) => bySlug.get(slug)).filter(
+    (c): c is NonNullable<typeof c> => Boolean(c),
+  )
 
   return (
     <div className="bg-panel py-4 lg:py-7">
@@ -17,10 +25,22 @@ export default function CategoryRail() {
         Browse categories
       </div>
       <div className="no-scrollbar -mx-0 flex gap-3 overflow-x-auto px-5 pt-0.5 pb-1.5 lg:flex-wrap lg:justify-start lg:gap-5 lg:px-14">
-        {categories.map((category) => (
-          <CategoryChip key={category.id} category={category} />
-        ))}
-        <MoreCategoriesChip />
+        {categoriesQuery.isLoading ? (
+          Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} className="h-[52px] w-16 flex-none rounded-2xl lg:w-[68px]" />
+          ))
+        ) : categories.length > 0 ? (
+          <>
+            {categories.map((category) => (
+              <CategoryChip key={category.id} category={category} />
+            ))}
+            <MoreCategoriesChip />
+          </>
+        ) : (
+          <p className="px-1 py-3 text-xs text-muted-foreground">
+            Categories aren&apos;t available right now — try refreshing.
+          </p>
+        )}
       </div>
     </div>
   )

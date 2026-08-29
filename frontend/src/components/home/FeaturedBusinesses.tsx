@@ -1,17 +1,28 @@
 import SectionHeading from '../ui/SectionHeading'
+import Skeleton from '../ui/Skeleton'
 import BusinessCard from './BusinessCard'
-import { bizById } from '../../data/businesses'
-import { FEATURED_BIZ_ORDER } from '../../data/home'
+import { useAllBusinesses } from '../../hooks/useCatalog'
 import { GRAIN_TEXTURE } from '../../lib/thumbTreatment'
+
+const FEATURED_COUNT = 4
 
 /**
  * The dark "digital showroom" band — restores the brand doc's alternating
  * dark/light section rhythm rather than letting the page read as one flat
- * scroll. Uses the fixed `ink` token (not the theme-flipping `foreground`),
- * so it stays a deliberate dark accent in both light and dark app themes.
+ * scroll.
+ *
+ * Real businesses now (GET /api/v1/businesses, verified+active only,
+ * backend-enforced). There's no `featured`/`sponsored` field on Business yet
+ * (flagged in docs/decisions.md) — as a substitute, this takes the first
+ * FEATURED_COUNT rows as returned by the API, which the backend orders by
+ * `created_at DESC` (see backend/app/api/v1/endpoints/businesses.py), i.e.
+ * "most recently onboarded verified businesses". Swap this slice for a real
+ * `featured`/`is_featured` filter once that field exists — search this file
+ * for FEATURED_COUNT when it lands.
  */
 export default function FeaturedBusinesses() {
-  const businesses = FEATURED_BIZ_ORDER.map(bizById).filter((b): b is NonNullable<typeof b> => Boolean(b))
+  const businessesQuery = useAllBusinesses()
+  const businesses = (businessesQuery.data?.items ?? []).slice(0, FEATURED_COUNT)
 
   return (
     <section
@@ -24,11 +35,37 @@ export default function FeaturedBusinesses() {
       <div className="relative z-10 mb-4 px-5 lg:px-14">
         <SectionHeading eyebrow="Digital showrooms" title="Featured businesses" tone="onDark" />
       </div>
-      <div className="no-scrollbar relative z-10 flex gap-3 overflow-x-auto px-5 pb-1.5 lg:grid lg:grid-cols-4 lg:gap-5 lg:overflow-visible lg:px-14">
-        {businesses.map((business) => (
-          <BusinessCard key={business.id} business={business} tone="onDark" />
-        ))}
-      </div>
+
+      {businessesQuery.isLoading ? (
+        <div className="relative z-10 flex gap-3 px-5 lg:grid lg:grid-cols-4 lg:gap-5 lg:px-14">
+          {Array.from({ length: FEATURED_COUNT }, (_, i) => (
+            <Skeleton key={i} className="h-[132px] w-[180px] flex-none bg-white/[0.06] lg:w-full" />
+          ))}
+        </div>
+      ) : businessesQuery.isError ? (
+        <div className="relative z-10 px-5 lg:px-14">
+          <p className="text-sm text-ice/60">Couldn&apos;t load featured businesses right now.</p>
+          <button
+            type="button"
+            onClick={() => businessesQuery.refetch()}
+            className="mt-3 rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-ice transition-colors duration-150 ease-brand hover:border-amber/50"
+          >
+            Try again
+          </button>
+        </div>
+      ) : businesses.length === 0 ? (
+        <div className="relative z-10 px-5 lg:px-14">
+          <p className="text-sm text-ice/60">
+            No verified businesses yet — new businesses are being onboarded. Check back soon.
+          </p>
+        </div>
+      ) : (
+        <div className="no-scrollbar relative z-10 flex gap-3 overflow-x-auto px-5 pb-1.5 lg:grid lg:grid-cols-4 lg:gap-5 lg:overflow-visible lg:px-14">
+          {businesses.map((business) => (
+            <BusinessCard key={business.id} business={business} tone="onDark" />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
