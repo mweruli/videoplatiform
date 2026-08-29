@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <title>Miles Tech</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +18,7 @@ img{max-width:100%;display:block;}
 :root{
   --page-bg:#EEF1F6;
   --page-bg-2:#E1E6ED;
-  --page-ink:#0E1729;
+  --page-ink:#0A0F1C;
   --page-muted:#5B6B7D;
   --page-border:#DCE2EA;
   --page-card:#FFFFFF;
@@ -27,7 +28,7 @@ img{max-width:100%;display:block;}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --page-bg:#080D16;
-    --page-bg-2:#0E1729;
+    --page-bg-2:#0A0F1C;
     --page-ink:#F0FAFF;
     --page-muted:#8A9BB0;
     --page-border:#1C2740;
@@ -36,7 +37,7 @@ img{max-width:100%;display:block;}
 }
 :root[data-theme="dark"]{
   --page-bg:#080D16;
-  --page-bg-2:#0E1729;
+  --page-bg-2:#0A0F1C;
   --page-ink:#F0FAFF;
   --page-muted:#8A9BB0;
   --page-border:#1C2740;
@@ -105,20 +106,32 @@ body{
   --bg:#FCFDFE;
   --panel:#F2F4F8;
   --card:#FFFFFF;
-  --ink:#0E1729;
+  --ink:#0A0F1C;
   --ink-soft:#5B6B7D;
   --line:#E5E9EF;
   --amber:#FABD2E;
   --amber-ink:#5C3D00;
-  --navy:#0E1729;
-  --navy-2:#16233D;
+  /* Egyptian Blue — the brand's primary blue (v2, confirmed 2026-08-29). Vivid/mid-tone (36% L),
+     reserved for brand moments: active/selected states, key accents, brand-lockup, hero, gradients.
+     Deliberately NOT used as a background fill for large surfaces — see --ink below for that. */
+  --brand-blue:#1034A6;
+  --brand-blue-2:#1542D6; /* lighter tint of brand-blue, for gradient highlights only */
+  /* Genuinely dark, near-black neutral — real dark surfaces/backgrounds where Egyptian Blue is
+     too light/saturated to hold contrast (dark bands, floating dark chrome, feed background). */
+  --ink-2:#141B34; /* lighter tint of ink, for gradient depth only */
   --teal:#1C8AA8;
   --ice:#F0FAFF;
   --danger:#E5484D;
-  --shadow:0 10px 30px -12px rgba(14,23,41,.18);
+  --shadow:0 1px 2px rgba(10,15,28,.06),0 14px 32px -14px rgba(10,15,28,.24);
+  --shadow-lg:0 2px 4px rgba(10,15,28,.08),0 28px 56px -20px rgba(10,15,28,.32);
+  --shadow-glow-amber:0 10px 28px -8px rgba(250,189,46,.55);
+  --shadow-glow-teal:0 10px 26px -8px rgba(28,138,168,.45);
   --ease:cubic-bezier(.22,1,.36,1);
   --sponsor-bg:#FFF8E8;
   --sponsor-line:#F3D488;
+  --glass-bg:rgba(255,255,255,.62);
+  --glass-line:rgba(255,255,255,.5);
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 .app[data-app-theme="dark"]{
   --bg:#0A1120;
@@ -127,9 +140,12 @@ body{
   --ink:#F0FAFF;
   --ink-soft:#8FA2B8;
   --line:#1E2C45;
-  --shadow:0 10px 30px -10px rgba(0,0,0,.55);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 32px -12px rgba(0,0,0,.6);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.5),0 30px 60px -18px rgba(0,0,0,.7);
   --sponsor-bg:#2A2210;
   --sponsor-line:#5B4715;
+  --glass-bg:rgba(16,27,48,.58);
+  --glass-line:rgba(240,250,255,.1);
 }
 
 /* ============ STATUS BAR ============ */
@@ -155,15 +171,17 @@ body{
 .screen-pad{padding:0 20px;}
 
 /* ============ TYPE ============ */
-.display{font-family:'Space Grotesk',sans-serif;font-weight:700;line-height:1.08;letter-spacing:-.01em;}
+.display{font-family:'Space Grotesk',sans-serif;font-weight:700;line-height:1.02;letter-spacing:-.03em;}
 .hl{color:var(--amber);}
 .eyebrow{
-  display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;
+  display:flex;align-items:center;gap:8px;font-size:.7rem;font-weight:800;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:9px;
 }
-.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:0 0 auto;}
-.eyebrow.on-dark{color:rgba(240,250,255,.75);}
-.section-title{font-size:1.28rem;margin:0 0 4px;}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:0 0 auto;box-shadow:0 0 0 3px rgba(250,189,46,.22);}
+.eyebrow.on-dark{color:rgba(240,250,255,.8);}
+.eyebrow.on-dark .dot{animation:eyebrowPulse 2.2s ease-in-out infinite;}
+@keyframes eyebrowPulse{0%,100%{box-shadow:0 0 0 3px rgba(250,189,46,.22);}50%{box-shadow:0 0 0 6px rgba(250,189,46,.08);}}
+.section-title{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.02em;}
 .section-sub{font-size:.86rem;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
 
 /* ============ BUTTONS / PILLS / CHIPS ============ */
@@ -173,11 +191,11 @@ body{
   border:1.5px solid transparent;
 }
 .pill:active{transform:scale(.96);}
-.pill-amber{background:var(--amber);color:#3A2900;box-shadow:0 6px 18px -6px rgba(250,189,46,.6);}
-.pill-amber:hover{box-shadow:0 8px 22px -6px rgba(250,189,46,.8);}
-.pill-outline{background:transparent;border-color:var(--navy);color:var(--ink);}
+.pill-amber{background:linear-gradient(155deg,#FFCE5C,var(--amber) 55%,#F0A80F);color:#3A2900;box-shadow:0 8px 20px -6px rgba(250,189,46,.65),inset 0 1px 0 rgba(255,255,255,.4);}
+.pill-amber:hover{box-shadow:0 10px 26px -6px rgba(250,189,46,.85),inset 0 1px 0 rgba(255,255,255,.4);}
+.pill-outline{background:transparent;border-color:var(--ink);color:var(--ink);}
 .app[data-app-theme="dark"] .pill-outline{border-color:var(--ice);}
-.pill-outline:hover{background:var(--navy);color:var(--ice);}
+.pill-outline:hover{background:var(--ink);color:var(--ice);}
 .pill-ghost{background:var(--panel);color:var(--ink);}
 .pill .arrow{transition:transform .18s var(--ease);}
 .pill:hover .arrow{transform:translateX(3px);}
@@ -188,14 +206,15 @@ body{
   white-space:nowrap;transition:all .16s var(--ease);
 }
 .chip:hover{border-color:var(--teal);color:var(--teal);}
-.chip.active{background:var(--navy);color:var(--ice);border-color:var(--navy);}
+.chip.active{background:var(--brand-blue);color:var(--ice);border-color:var(--brand-blue);}
 .icon-btn{
   width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.14);color:var(--ice);backdrop-filter:blur(6px);transition:background .16s;
-  flex:0 0 auto;
+  background:rgba(255,255,255,.14);color:var(--ice);backdrop-filter:blur(10px) saturate(1.5);transition:background .16s,transform .16s var(--ease);
+  flex:0 0 auto;border:1px solid rgba(255,255,255,.14);
 }
 .icon-btn:hover{background:rgba(255,255,255,.26);}
-.icon-btn.solid{background:var(--panel);color:var(--ink);}
+.icon-btn:active{transform:scale(.9);}
+.icon-btn.solid{background:var(--glass-bg);color:var(--ink);border-color:var(--glass-line);backdrop-filter:blur(10px) saturate(1.4);}
 .icon-btn.solid:hover{background:var(--line);}
 
 /* ============ BADGES ============ */
@@ -208,31 +227,57 @@ body{
 }
 .tag-featured{
   display:inline-flex;align-items:center;gap:5px;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  color:#fff;background:var(--navy);padding:4px 9px;border-radius:6px;
+  color:#fff;background:var(--brand-blue);padding:4px 9px;border-radius:6px;
 }
 .tag-featured .dot{width:5px;height:5px;border-radius:50%;background:var(--amber);}
 .stars{color:var(--amber);font-size:.78rem;letter-spacing:1px;}
 .stars .empty{color:var(--line);}
 
-/* ============ CARDS: shared thumb system ============ */
-.thumb{position:relative;border-radius:16px;overflow:hidden;background:var(--panel);}
-.thumb .grad{position:absolute;inset:0;}
-.thumb .grad::after{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 20% 20%, rgba(255,255,255,.14) 0, transparent 45%),repeating-linear-gradient(115deg, rgba(255,255,255,.045) 0 2px, transparent 2px 26px);}
-.thumb .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.4rem;opacity:.9;filter:drop-shadow(0 6px 14px rgba(0,0,0,.25));}
+/* ============ CARDS: shared thumb system ============
+   Treated as an out-of-focus video still, not a flat color chip:
+   multi-stop base gradient + soft bokeh light + film grain + vignette. */
+.thumb{position:relative;border-radius:16px;overflow:hidden;background:var(--panel);isolation:isolate;}
+.thumb .grad{position:absolute;inset:0;transition:transform .5s var(--ease);}
+.thumb:hover .grad{transform:scale(1.06);}
+.thumb .grad::before{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.7;}
+.thumb .grad::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 120%, rgba(0,0,0,.5) 0%, transparent 55%),
+             radial-gradient(circle at 82% 8%, rgba(255,255,255,.16) 0%, transparent 30%);}
+.thumb .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.4rem;opacity:.85;filter:drop-shadow(0 8px 18px rgba(0,0,0,.35));transform:translateY(2px);}
 .thumb .overlay-label{
-  position:absolute;left:0;right:0;bottom:0;padding:10px 10px 8px;
-  background:linear-gradient(to top, rgba(6,10,18,.88), rgba(6,10,18,0));color:#fff;
+  position:absolute;left:0;right:0;bottom:0;padding:16px 10px 8px;
+  background:linear-gradient(to top, rgba(4,7,13,.92), rgba(4,7,13,.35) 55%, transparent);color:#fff;
 }
 .thumb .overlay-label .t{font-size:.78rem;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .thumb .overlay-label .m{font-size:.68rem;opacity:.8;margin-top:2px;}
-.thumb .playbadge{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.thumb .playbadge{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(6,10,18,.5);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px) saturate(1.3);box-shadow:0 4px 10px rgba(0,0,0,.35);}
+.duration{position:absolute;right:7px;bottom:7px;z-index:2;font-size:.62rem;font-weight:800;letter-spacing:.01em;line-height:1;color:#fff;background:rgba(4,7,13,.72);padding:3px 6px;border-radius:5px;backdrop-filter:blur(3px);font-variant-numeric:tabular-nums;white-space:nowrap;}
 
-.grad-0{background:linear-gradient(135deg,#0E1729,#1C8AA8);}
-.grad-1{background:linear-gradient(135deg,#7A4E00,#FABD2E);}
-.grad-2{background:linear-gradient(135deg,#16233D,#3D5570);}
-.grad-3{background:linear-gradient(135deg,#0B3B2E,#1C8AA8);}
-.grad-4{background:linear-gradient(135deg,#3A1F00,#FABD2E);}
-.grad-5{background:linear-gradient(135deg,#2C1B3D,#5B6B7D);}
+/* multi-stop "out of focus footage" gradients — angled base + two bokeh glows each */
+.grad-0{background:
+  radial-gradient(circle at 78% 18%, rgba(56,190,224,.55) 0%, transparent 42%),
+  radial-gradient(circle at 14% 88%, rgba(250,189,46,.14) 0%, transparent 38%),
+  linear-gradient(150deg,#060B15 0%,#0E1F35 38%,#155874 72%,#1C8AA8 100%);}
+.grad-1{background:
+  radial-gradient(circle at 80% 14%, rgba(255,214,110,.65) 0%, transparent 45%),
+  radial-gradient(circle at 10% 90%, rgba(122,78,0,.4) 0%, transparent 40%),
+  linear-gradient(150deg,#2B1B00 0%,#5E3E00 42%,#9C6A00 75%,#FABD2E 100%);}
+.grad-2{background:
+  radial-gradient(circle at 75% 20%, rgba(150,175,205,.5) 0%, transparent 42%),
+  radial-gradient(circle at 15% 85%, rgba(28,138,168,.22) 0%, transparent 38%),
+  linear-gradient(150deg,#0A0F1A 0%,#16233D 40%,#2C4260 75%,#3D5570 100%);}
+.grad-3{background:
+  radial-gradient(circle at 80% 16%, rgba(90,224,180,.5) 0%, transparent 42%),
+  radial-gradient(circle at 12% 88%, rgba(28,138,168,.28) 0%, transparent 38%),
+  linear-gradient(150deg,#031A12 0%,#0B3B2E 42%,#0F6E5C 75%,#1C8AA8 100%);}
+.grad-4{background:
+  radial-gradient(circle at 78% 18%, rgba(255,196,90,.6) 0%, transparent 44%),
+  radial-gradient(circle at 14% 88%, rgba(58,31,0,.5) 0%, transparent 38%),
+  linear-gradient(150deg,#200F00 0%,#4A2A00 40%,#8C5A00 75%,#FABD2E 100%);}
+.grad-5{background:
+  radial-gradient(circle at 78% 18%, rgba(190,170,230,.42) 0%, transparent 42%),
+  radial-gradient(circle at 14% 88%, rgba(91,107,125,.35) 0%, transparent 38%),
+  linear-gradient(150deg,#160B22 0%,#2C1B3D 42%,#42405C 75%,#5B6B7D 100%);}
 
 /* horizontal scroll rail */
 .hrail{display:flex;gap:12px;overflow-x:auto;padding:2px 20px 6px;margin:0 -20px;scroll-snap-type:x proximity;}
@@ -241,23 +286,30 @@ body{
 
 /* ============ HOME ============ */
 .hero{
-  position:relative;padding:18px 20px 26px;color:var(--ice);overflow:hidden;
-  background:radial-gradient(ellipse at top right, hsl(195 80% 28%), hsl(220 60% 10%) 55%, hsl(222 70% 6%) 100%);
+  position:relative;padding:18px 20px 28px;color:var(--ice);overflow:hidden;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(250,189,46,.16), transparent 30%),
+    radial-gradient(ellipse at top right, hsl(226 82% 36%), hsl(226 60% 14%) 55%, hsl(226 70% 6%) 100%);
 }
 .hero::before{content:'';position:absolute;inset:0;opacity:.5;
   background-image:linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
   background-size:26px 26px;mask-image:radial-gradient(ellipse at top right, black, transparent 70%);}
-.hero-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;position:relative;z-index:2;}
-.brand-lockup{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.15rem;}
+.hero::after{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.5;pointer-events:none;}
+.hero-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:relative;z-index:2;}
+.brand-lockup{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;}
 .brand-lockup .t{color:var(--amber);}
+/* On the light desktop top nav the wordmark gets its own brand-blue treatment (the palette's
+   first-listed Egyptian Blue role: "logo/brand lockup"). On the dark hero it stays --ice
+   (inherited) since brand-blue-on-brand-blue-gradient would lose contrast. */
+.desktop-nav .brand-lockup{color:var(--brand-blue);}
 .hero-actions{display:flex;align-items:center;gap:8px;}
-.loc-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);padding:7px 12px;border-radius:999px;font-size:.74rem;font-weight:600;}
-.hero h1{position:relative;z-index:2;font-size:1.7rem;margin:0 0 8px;}
-.hero p.sub{position:relative;z-index:2;font-size:.86rem;color:rgba(240,250,255,.72);margin:0 0 18px;max-width:32ch;line-height:1.5;}
-.searchbar{position:relative;z-index:2;display:flex;align-items:center;gap:8px;background:#fff;border-radius:16px;padding:6px 6px 6px 16px;box-shadow:0 14px 30px -10px rgba(0,0,0,.4);}
-.searchbar input{flex:1;border:0;outline:0;background:transparent;font-size:.86rem;color:var(--navy);padding:8px 0;}
+.loc-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);padding:7px 12px;border-radius:999px;font-size:.74rem;font-weight:600;}
+.hero h1{position:relative;z-index:2;font-size:2.15rem;margin:0 0 9px;}
+.hero p.sub{position:relative;z-index:2;font-size:.87rem;color:rgba(240,250,255,.72);margin:0 0 18px;max-width:32ch;line-height:1.5;}
+.searchbar{position:relative;z-index:2;display:flex;align-items:center;gap:8px;background:#fff;border-radius:16px;padding:6px 6px 6px 16px;box-shadow:0 18px 36px -12px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06);}
+.searchbar input{flex:1;border:0;outline:0;background:transparent;font-size:.86rem;color:var(--ink);padding:8px 0;}
 .searchbar input::placeholder{color:#8593A3;}
-.searchbar button{width:40px;height:40px;border-radius:12px;background:var(--amber);color:var(--amber-ink);display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:transform .15s;}
+.searchbar button{width:40px;height:40px;border-radius:12px;background:linear-gradient(155deg,#FFCE5C,var(--amber) 60%,#F0A80F);color:var(--amber-ink);display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 6px 14px -4px rgba(250,189,46,.6);transition:transform .15s;}
 .searchbar button:active{transform:scale(.92);}
 .suggest-row{position:relative;z-index:2;display:flex;gap:8px;overflow-x:auto;margin:14px -20px 0;padding:2px 20px 4px;}
 .suggest-row::-webkit-scrollbar{display:none;}
@@ -266,20 +318,38 @@ body{
 
 .catrail-wrap{background:var(--panel);padding:16px 0 18px;}
 .cat-chip{display:flex;flex-direction:column;align-items:center;gap:6px;width:64px;}
-.cat-chip .ico{width:52px;height:52px;border-radius:16px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:1.35rem;box-shadow:var(--shadow);border:1px solid var(--line);transition:transform .16s var(--ease),border-color .16s;}
-.cat-chip:hover .ico{transform:translateY(-2px);border-color:var(--teal);}
+.cat-chip .ico{width:52px;height:52px;border-radius:16px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:1.35rem;box-shadow:var(--shadow);border:1px solid var(--line);transition:transform .16s var(--ease),border-color .16s,box-shadow .16s;}
+.cat-chip:hover .ico{transform:translateY(-3px);border-color:var(--teal);box-shadow:var(--shadow-lg),0 0 0 1px rgba(28,138,168,.15);}
 .cat-chip span{font-size:.63rem;font-weight:700;text-align:center;color:var(--ink-soft);line-height:1.15;}
 
 .section{padding:24px 0 6px;background:var(--bg);}
-.section.alt{background:var(--panel);}
+/* alt sections break the flat scroll with a dark navy "showroom" band — carries the
+   brief's dark/light alternating rhythm instead of a pale-grey tint. */
+.section.alt{
+  position:relative;overflow:hidden;padding:26px 0 22px;
+  background:radial-gradient(circle at 85% 0%, rgba(28,138,168,.4), transparent 45%),linear-gradient(180deg,#070A12,var(--ink) 60%,#070A12);
+  color:var(--ice);
+}
+.section.alt::after{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.45;pointer-events:none;}
+.section.alt .screen-pad{position:relative;z-index:1;}
+.section.alt .hrail{position:relative;z-index:1;}
+.section.alt .eyebrow{color:rgba(240,250,255,.65);}
+.section.alt .section-title{color:var(--ice);}
+.section.alt .section-sub{color:rgba(240,250,255,.6);}
 .vid-card{width:168px;}
 .vid-card .thumb{width:168px;height:112px;}
-.biz-card{width:180px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;position:relative;transition:transform .16s var(--ease),box-shadow .16s;}
-.biz-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);}
-.biz-card .logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#fff;margin-bottom:10px;}
+.biz-card{width:180px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;position:relative;z-index:1;transition:transform .18s var(--ease),box-shadow .18s;box-shadow:var(--shadow);}
+.biz-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
+.biz-card .logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#fff;margin-bottom:10px;box-shadow:0 6px 14px -4px rgba(0,0,0,.35);}
 .biz-card .name{font-weight:700;font-size:.86rem;display:flex;align-items:center;gap:5px;line-height:1.25;}
 .biz-card .meta{font-size:.72rem;color:var(--ink-soft);margin-top:4px;}
 .biz-card .tag-featured{position:absolute;top:10px;right:10px;}
+/* frosted-glass variant so business cards read as premium tiles floating on the dark showroom band */
+.section.alt .biz-card{background:rgba(240,250,255,.06);border-color:rgba(240,250,255,.14);backdrop-filter:blur(10px);box-shadow:0 12px 28px -12px rgba(0,0,0,.5);}
+.section.alt .biz-card:hover{background:rgba(240,250,255,.09);border-color:rgba(250,189,46,.35);}
+.section.alt .biz-card .name{color:var(--ice);}
+.section.alt .biz-card .meta{color:rgba(240,250,255,.6);}
+.section.alt .biz-card .tag-featured{background:rgba(250,189,46,.16);color:var(--amber);border:1px solid rgba(250,189,46,.4);}
 
 .catgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px;}
 .catgrid .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;transition:transform .16s var(--ease);}
@@ -287,41 +357,51 @@ body{
 .catgrid .tile .ico{font-size:1.25rem;}
 .catgrid .tile span{font-size:.68rem;font-weight:700;color:var(--ink-soft);line-height:1.2;}
 
-.statsband{background:var(--navy);color:var(--ice);padding:28px 20px 30px;margin-top:8px;display:flex;justify-content:space-between;gap:10px;}
-.stat{text-align:left;}
-.stat .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;color:var(--amber);}
-.stat .c{font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(240,250,255,.7);margin-top:2px;}
-.homefoot{height:90px;background:var(--navy);}
+.statsband{position:relative;overflow:hidden;background:radial-gradient(circle at 15% 0%, rgba(28,138,168,.35), transparent 45%),var(--ink);color:var(--ice);padding:30px 20px 32px;margin-top:8px;display:flex;justify-content:space-between;gap:10px;}
+.statsband::after{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.5;pointer-events:none;}
+.stat{position:relative;z-index:1;text-align:left;}
+.stat .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:2.05rem;letter-spacing:-.02em;color:var(--amber);text-shadow:0 0 24px rgba(250,189,46,.35);}
+.stat .c{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(240,250,255,.7);margin-top:3px;}
+.homefoot{height:90px;background:var(--ink);}
 
 /* ============ BOTTOM NAV ============ */
 .bottomnav{
   position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;justify-content:space-around;
-  background:var(--card);border-top:1px solid var(--line);z-index:70;padding-bottom:6px;
+  background:var(--glass-bg);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);
+  border-top:1px solid var(--glass-line);z-index:70;padding-bottom:6px;box-shadow:0 -8px 24px -16px rgba(0,0,0,.25);
 }
 .bottomnav.hidden{display:none;}
-.navbtn{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-soft);font-size:.6rem;font-weight:700;width:56px;transition:color .15s;}
-.navbtn.active{color:var(--navy);}
+.navbtn{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-soft);font-size:.6rem;font-weight:700;width:56px;transition:color .15s,transform .15s var(--ease);}
+.navbtn:active{transform:scale(.92);}
+.navbtn.active{color:var(--brand-blue);}
 .app[data-app-theme="dark"] .navbtn.active{color:var(--ice);}
 .navbtn.active svg{stroke:var(--amber);}
-.navbtn .fab{width:46px;height:46px;border-radius:50%;background:var(--navy);color:var(--amber);display:flex;align-items:center;justify-content:center;margin-top:-24px;box-shadow:0 8px 18px -6px rgba(14,23,41,.5);border:3px solid var(--bg);}
+.navbtn.active:not([data-nav="feedtab"])::after{content:'';position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--amber);}
+.navbtn .fab{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 32% 28%,var(--brand-blue-2),var(--brand-blue) 70%);color:var(--amber);display:flex;align-items:center;justify-content:center;margin-top:-24px;box-shadow:0 8px 20px -6px rgba(10,15,28,.55),0 0 0 5px var(--bg),0 0 22px -4px rgba(250,189,46,.55);border:1.5px solid rgba(250,189,46,.4);transition:transform .18s var(--ease);}
+.navbtn:active .fab{transform:scale(.9);}
 
 /* ============ SEARCH ============ */
-.search-top{position:sticky;top:0;z-index:30;background:var(--bg);padding:14px 20px 10px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);}
+.search-top{position:sticky;top:0;z-index:30;background:var(--glass-bg);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);padding:14px 20px 10px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);}
 .search-top .searchbar{background:var(--panel);box-shadow:none;flex:1;}
 .search-top .searchbar input{color:var(--ink);}
 .search-top .icon-btn.solid{background:var(--panel);color:var(--ink);}
-.tabs-row{display:flex;gap:6px;padding:12px 20px 4px;overflow-x:auto;position:sticky;top:64px;background:var(--bg);z-index:29;}
+.tabs-row{display:flex;gap:6px;padding:12px 20px 4px;overflow-x:auto;position:sticky;top:64px;background:var(--glass-bg);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);z-index:29;}
 .tab-btn{padding:8px 14px;border-radius:999px;font-size:.78rem;font-weight:700;color:var(--ink-soft);white-space:nowrap;border:1px solid transparent;}
-.tab-btn.active{background:var(--navy);color:var(--ice);}
+.tab-btn.active{background:var(--brand-blue);color:var(--ice);}
 .results-list{padding:14px 20px 100px;display:flex;flex-direction:column;gap:12px;}
 .section-label{display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-ink);margin:4px 0 -2px;}
 .section-label svg{width:12px;height:12px;}
 
-.result-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;transition:transform .14s var(--ease),box-shadow .14s;position:relative;}
-.result-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
-.result-card.sponsored{background:var(--sponsor-bg);border-color:var(--sponsor-line);}
-.result-card .r-thumb{width:78px;height:78px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#fff;position:relative;}
+.result-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;transition:transform .16s var(--ease),box-shadow .16s;position:relative;box-shadow:var(--shadow);}
+.result-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);}
+.result-card.sponsored{background:var(--sponsor-bg);border-color:var(--sponsor-line);box-shadow:var(--shadow),0 0 0 1px rgba(250,189,46,.12) inset;}
+.result-card.sponsored::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:16px 0 0 16px;background:linear-gradient(180deg,var(--amber),rgba(250,189,46,.3));}
+.result-card .r-thumb{width:78px;height:78px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#fff;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
 .result-card .r-thumb.biz-logo{color:#fff;}
+.result-card .r-thumb::before{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.65;}
+.result-card .r-thumb::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 78% 15%, rgba(255,255,255,.18), transparent 40%),radial-gradient(ellipse at 50% 120%, rgba(0,0,0,.4), transparent 55%);}
+.result-card .r-thumb>svg,.result-card .r-thumb>span{position:relative;z-index:1;}
+.result-card .r-thumb .duration{right:4px;bottom:4px;}
 .result-card .r-body{flex:1;min-width:0;}
 .result-card .r-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
 .result-card .r-name{font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:5px;}
@@ -330,10 +410,10 @@ body{
 .result-card .r-price{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--ink);font-size:.92rem;margin-top:4px;}
 .result-card .r-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px;}
 .cmp-chip{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;padding:5px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink-soft);}
-.cmp-chip.added{background:var(--navy);color:var(--ice);border-color:var(--navy);}
+.cmp-chip.added{background:var(--brand-blue);color:var(--ice);border-color:var(--brand-blue);}
 .cmp-chip svg{width:11px;height:11px;}
 
-.skel{background:linear-gradient(90deg, var(--line) 25%, var(--panel) 37%, var(--line) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:16px;}
+.skel{background:linear-gradient(90deg, var(--line) 20%, rgba(250,189,46,.16) 42%, var(--line) 64%);background-size:400% 100%;animation:shimmer 1.3s ease infinite;border-radius:16px;}
 @keyframes shimmer{0%{background-position:100% 0;}100%{background-position:0 0;}}
 .skel-card{height:100px;}
 
@@ -343,31 +423,45 @@ body{
 .empty-state p{font-size:.82rem;color:var(--ink-soft);margin:0 0 16px;}
 
 /* ============ FEED ============ */
-.feed{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;background:#000;}
+.feed{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;background:var(--ink);}
 .feed-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;}
 .feed-slide .grad{position:absolute;inset:0;transform:scale(1.06);transition:transform 7s linear;}
 .feed-slide.in-view .grad{transform:scale(1.16);}
+.feed-slide .grad::before{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.6;}
+.feed-slide .grad::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 8%, rgba(255,255,255,.14), transparent 40%);}
 .feed-slide .glyph{font-size:6rem;opacity:.16;}
-.feed-scrim{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,.82) 100%);}
-.feed-topbar{position:absolute;top:8px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:6px 14px;z-index:10;}
-.feed-title{font-weight:700;font-size:.86rem;}
+.feed-scrim{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 55%, rgba(0,0,0,.86) 100%);}
+.feed-topbar{position:absolute;top:14px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:6px 14px;z-index:10;}
+.feed-title{font-weight:700;font-size:.86rem;display:flex;align-items:center;gap:6px;}
+.feed-title .eq{display:inline-flex;align-items:flex-end;gap:2px;height:11px;}
+.feed-title .eq span{width:2.5px;background:var(--amber);border-radius:1px;animation:eqBar .9s ease-in-out infinite;}
+.feed-title .eq span:nth-child(1){animation-delay:-.6s;}
+.feed-title .eq span:nth-child(2){animation-delay:-.3s;}
+.feed-title .eq span:nth-child(3){animation-delay:0s;}
+@keyframes eqBar{0%,100%{height:3px;}50%{height:11px;}}
 .feed-progress{position:absolute;top:4px;left:14px;right:14px;display:flex;gap:4px;z-index:10;}
-.feed-progress .dot{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);}
+.feed-progress .dot{position:relative;flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden;}
 .feed-progress .dot.done{background:rgba(255,255,255,.75);}
-.feed-progress .dot.now{background:var(--amber);}
+.feed-progress .dot.now::after{content:'';position:absolute;inset:0;background:var(--amber);border-radius:2px;transform-origin:left;animation:scrubFill 9s linear infinite;}
+@keyframes scrubFill{from{transform:scaleX(0);}to{transform:scaleX(1);}}
 .feed-center-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none;}
 .feed-center-icon svg{width:64px;height:64px;opacity:0;transition:opacity .25s;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));}
 .feed-center-icon.show svg{opacity:.9;}
-.sponsored-tag{position:absolute;top:46px;left:14px;z-index:10;}
+.sponsored-tag{position:absolute;top:52px;left:14px;z-index:10;}
+.sponsored-tag .tag-sponsored{box-shadow:0 6px 16px -4px rgba(250,189,46,.5);}
 .feed-rail{position:absolute;right:10px;bottom:110px;display:flex;flex-direction:column;align-items:center;gap:20px;z-index:10;}
 .rail-btn{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.rail-btn .rail-icon{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:transform .15s var(--ease);}
+.rail-btn .rail-icon{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px) saturate(1.6);transition:transform .15s var(--ease),background .15s;}
 .rail-btn:active .rail-icon{transform:scale(.86);}
 .rail-btn .rail-icon svg{width:22px;height:22px;}
 .rail-btn.liked .rail-icon{background:rgba(250,189,46,.22);}
 .rail-btn.liked .rail-icon svg{fill:var(--amber);stroke:var(--amber);}
-.rail-btn .count{font-size:.66rem;font-weight:700;}
-.rail-btn.avatar .rail-icon{background:var(--navy);font-size:1.1rem;border:2px solid var(--amber);}
+.rail-btn .count{font-size:.66rem;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.5);}
+.rail-btn.avatar{position:relative;}
+.rail-btn.avatar .rail-icon{background:var(--brand-blue);font-size:1.1rem;border:2px solid var(--amber);position:relative;z-index:1;}
+.rail-btn.avatar::before{content:'';position:absolute;inset:-5px;border-radius:50%;border:1.5px solid var(--amber);opacity:0;}
+.feed-slide.in-view .rail-btn.avatar::before{opacity:1;animation:avatarPulse 1.8s ease-out infinite;}
+@keyframes avatarPulse{0%{transform:scale(.86);opacity:.9;}100%{transform:scale(1.35);opacity:0;}}
 .feed-bottom{position:absolute;left:0;right:74px;bottom:22px;padding:0 14px;z-index:10;}
 .feed-handle{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem;font-weight:700;}
 .feed-handle .pill{padding:5px 12px;font-size:.68rem;}
@@ -379,7 +473,9 @@ body{
 .feed-exit{position:absolute;top:8px;left:8px;z-index:12;}
 
 /* ============ PROFILE ============ */
-.cover{position:relative;height:190px;color:#fff;}
+.cover{position:relative;height:190px;color:#fff;overflow:hidden;}
+.cover::before{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.6;}
+.cover::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 10%, rgba(255,255,255,.16), transparent 40%),linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%);}
 .cover .topctl{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;z-index:5;}
 .cover .playhint{position:absolute;bottom:12px;right:14px;display:flex;align-items:center;gap:6px;font-size:.7rem;font-weight:700;background:rgba(0,0,0,.4);padding:6px 11px;border-radius:999px;z-index:5;}
 .identity{padding:0 20px;margin-top:-34px;position:relative;z-index:2;}
@@ -392,13 +488,13 @@ body{
 .stats-row{display:flex;gap:22px;padding:16px 20px;}
 .actions-row{display:flex;gap:10px;padding:2px 20px 14px;}
 .actions-row .pill{flex:1;justify-content:center;}
-.ptabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;}
+.ptabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--glass-bg);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);z-index:5;}
 .ptab{padding:12px 6px;font-size:.82rem;font-weight:700;color:var(--ink-soft);border-bottom:2px solid transparent;margin-right:18px;}
 .ptab.active{color:var(--ink);border-color:var(--amber);}
 .ptab-content{padding:16px 20px 100px;}
 .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.pgrid .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .15s var(--ease);}
-.pgrid .pcard:hover{transform:translateY(-3px);}
+.pgrid .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .16s var(--ease),box-shadow .16s;box-shadow:var(--shadow);}
+.pgrid .pcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
 .pgrid .pcard .thumb{height:90px;border-radius:0;}
 .pgrid .pcard .body{padding:10px;}
 .pgrid .pcard .name{font-size:.76rem;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em;}
@@ -417,15 +513,17 @@ body{
 .chipwrap{display:flex;flex-wrap:wrap;gap:8px;}
 
 /* ============ PRODUCT ============ */
-.p-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--line);}
+.p-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;position:sticky;top:0;background:var(--glass-bg);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);z-index:10;border-bottom:1px solid var(--line);}
 .p-top .biz-link{font-size:.78rem;font-weight:700;color:var(--teal);display:flex;align-items:center;gap:5px;}
-.p-gallery{position:relative;height:220px;}
+.p-gallery{position:relative;height:220px;overflow:hidden;}
+.p-gallery::before{content:'';position:absolute;inset:0;background-image:var(--grain);mix-blend-mode:overlay;opacity:.6;}
+.p-gallery::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 78% 12%, rgba(255,255,255,.16), transparent 42%),radial-gradient(ellipse at 50% 130%, rgba(0,0,0,.4), transparent 55%);}
 .p-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;}
 .p-dots .d{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5);}
 .p-dots .d.active{background:#fff;width:16px;border-radius:4px;}
 .p-body{padding:16px 20px 0;}
-.p-title{font-size:1.15rem;margin:0 0 4px;}
-.p-price{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;color:var(--ink);margin:6px 0;}
+.p-title{font-size:1.28rem;margin:0 0 4px;letter-spacing:-.02em;}
+.p-price{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.75rem;letter-spacing:-.02em;color:var(--ink);margin:6px 0;}
 .p-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .badge-instock{background:#E4F4EE;color:#0B6B4E;font-size:.68rem;font-weight:800;padding:5px 10px;border-radius:6px;text-transform:uppercase;letter-spacing:.05em;}
 .app[data-app-theme="dark"] .badge-instock{background:#0B3B2E;color:#7FE0C0;}
@@ -449,12 +547,13 @@ body{
 .p-cta-bar .pill{flex:1;justify-content:center;}
 
 /* ============ SHEETS ============ */
-.sheet-backdrop{position:absolute;inset:0;background:rgba(6,10,18,.55);opacity:0;pointer-events:none;transition:opacity .25s var(--ease);z-index:90;}
+.sheet-backdrop{position:absolute;inset:0;background:rgba(6,10,18,.6);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s var(--ease);z-index:90;}
 .sheet-backdrop.show{opacity:1;pointer-events:auto;}
 .sheet{
   position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:22px 22px 0 0;
+  border-top:1px solid var(--glass-line);
   transform:translateY(105%);transition:transform .32s var(--ease);z-index:95;max-height:82%;overflow-y:auto;
-  padding:10px 20px 26px;box-shadow:0 -10px 40px rgba(0,0,0,.25);
+  padding:10px 20px 26px;box-shadow:var(--shadow-lg);
 }
 .sheet.show{transform:translateY(0);}
 .sheet .grabber{width:38px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 16px;}
@@ -486,12 +585,42 @@ body{
 /* compare tray */
 .compare-tray{position:absolute;left:20px;right:20px;bottom:88px;z-index:60;display:flex;justify-content:center;transform:translateY(140%);transition:transform .3s var(--ease);}
 .compare-tray.show{transform:translateY(0);}
-.compare-tray .inner{display:flex;align-items:center;gap:10px;background:var(--navy);color:var(--ice);padding:10px 10px 10px 16px;border-radius:999px;box-shadow:0 12px 26px -8px rgba(0,0,0,.4);}
+.compare-tray .inner{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--ink-2),var(--ink) 65%);color:var(--ice);padding:10px 10px 10px 16px;border-radius:999px;border:1px solid rgba(250,189,46,.35);box-shadow:0 14px 30px -8px rgba(0,0,0,.45),0 0 20px -6px rgba(250,189,46,.35);}
 .compare-tray b{color:var(--amber);}
 
 /* toast */
-.toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,20px);background:var(--navy);color:var(--ice);padding:10px 18px;border-radius:999px;font-size:.78rem;font-weight:600;opacity:0;transition:all .28s var(--ease);z-index:99;pointer-events:none;white-space:nowrap;}
+.toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,20px);background:linear-gradient(155deg,var(--ink-2),var(--ink));color:var(--ice);padding:11px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.78rem;font-weight:600;opacity:0;transition:all .28s var(--ease);z-index:99;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow-lg);}
 .toast.show{opacity:1;transform:translate(-50%,0);}
+
+/* ============ DESKTOP-READY WRAPPERS (default = mobile behaviour) ============
+   These wrapper elements exist purely so the >=1024px breakpoint can
+   reflow search/feed/profile/product into real desktop layouts without
+   touching the render logic. Below 1024px they collapse to `display:contents`
+   (or stay hidden) so the DOM order renders IDENTICALLY to the phone build —
+   zero visual change below the breakpoint. */
+.search-body{display:contents;}
+.filter-sidebar{display:none;}
+.feed-desktop-frame{display:contents;}
+.feed-upnext{display:none;}
+.profile-side,.profile-main{display:contents;}
+.desktop-nav{display:none;align-items:center;justify-content:space-between;gap:18px;padding:14px 24px;position:sticky;top:0;z-index:50;background:var(--glass-bg);backdrop-filter:blur(18px) saturate(1.6);-webkit-backdrop-filter:blur(18px) saturate(1.6);border-bottom:1px solid var(--glass-line);}
+.desktop-nav .dn-left{display:flex;align-items:center;gap:32px;}
+.desktop-nav .dn-links{display:flex;align-items:center;gap:6px;}
+.desktop-nav .dn-links button{padding:9px 15px;border-radius:999px;font-size:.82rem;font-weight:700;color:var(--ink-soft);transition:all .15s var(--ease);}
+.desktop-nav .dn-links button:hover{color:var(--ink);background:var(--panel);}
+.desktop-nav .dn-links button.active{color:var(--ink);background:var(--panel);}
+.desktop-nav .dn-links button.active svg{stroke:var(--amber);}
+.desktop-nav .dn-right{display:flex;align-items:center;gap:10px;}
+.desktop-nav .dn-compare{position:relative;}
+.desktop-nav .dn-compare .badge{position:absolute;top:-5px;right:-5px;background:var(--amber);color:var(--amber-ink);font-size:.6rem;font-weight:800;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--card);}
+.feed-upnext .fun-head{font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(240,250,255,.55);margin:2px 0 12px;}
+.feed-upnext .fun-row{display:flex;gap:10px;padding:8px;border-radius:12px;margin-bottom:6px;transition:background .15s;}
+.feed-upnext .fun-row:hover{background:rgba(255,255,255,.06);}
+.feed-upnext .fun-row.active{background:rgba(250,189,46,.12);box-shadow:inset 0 0 0 1px rgba(250,189,46,.35);}
+.feed-upnext .fun-row .thumb{width:96px;height:64px;flex:0 0 auto;}
+.feed-upnext .fun-info{min-width:0;}
+.feed-upnext .fun-info .t{font-size:.78rem;font-weight:700;line-height:1.3;color:#fff;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.feed-upnext .fun-info .m{font-size:.68rem;color:rgba(240,250,255,.6);margin-top:3px;}
 
 /* ============ RESPONSIVE: real mobile viewport ============ */
 @media (max-width:760px){
@@ -507,6 +636,106 @@ body{
 @media (min-width:761px){
   .notes-panel.open{display:block;}
 }
+
+/* ============ RESPONSIVE: real desktop web layout (>=1024px) ============
+   Per the architecture doc, "Web application" and "Mobile-first responsive
+   interface" are related but distinct surfaces. Below this breakpoint the
+   product is the phone-in-hand experience above (unchanged). At and above
+   it, the phone bezel/notch/status-bar/bottom-tab-bar are retired entirely
+   and each of the 5 screens gets a genuine desktop reflow — a persistent
+   top nav, a filter sidebar + results grid, a centred Shorts column with an
+   Up Next rail, and two-column profile/product layouts — not a stretched
+   or centred phone. */
+@media (min-width:1024px){
+  .stage{max-width:1680px;align-items:flex-start;padding:32px 32px 96px;gap:32px;}
+  .device-shell{position:static;flex:1 1 0%;width:0;min-width:0;}
+  .notes-panel{position:sticky;top:32px;}
+
+  /* -- retire the phone shell -- */
+  .device-bezel{width:100%;height:auto;border-radius:20px;padding:0;box-shadow:0 40px 90px -30px rgba(5,8,16,.35),0 0 0 1px var(--page-border) inset;}
+  .device-notch{display:none;}
+  .statusbar{display:none;}
+  .app{height:auto;min-height:640px;border-radius:20px;}
+  .screens{height:auto;position:relative;}
+  .screen{position:static;display:none;overflow:visible;}
+  .screen.active{display:block;}
+  .screen.anim-slide,.screen.anim-scale{animation:desktopFade .3s var(--ease);}
+  .bottomnav{display:none!important;}
+  .compare-tray{left:32px;right:auto;bottom:28px;}
+
+  /* -- desktop top nav replaces the bottom tab bar -- */
+  .desktop-nav{display:flex;}
+
+  /* sticky in-screen headers now stack under the desktop nav, not a status bar */
+  .search-top{top:64px;padding:18px 40px;}
+  .tabs-row{top:126px;padding:14px 40px 10px;}
+  .ptabs{top:64px;}
+  .p-top{top:64px;}
+
+  /* ===== HOME: wider hero, grids instead of rails-only ===== */
+  .screen-pad{padding:0 56px;}
+  .hero{padding:64px 56px 64px;}
+  .hero-row{display:none;} /* brand/location/theme now live in the persistent desktop nav above — no need to repeat them in the hero */
+  .hero h1{font-size:3.4rem;max-width:20ch;}
+  .hero p.sub{font-size:1rem;max-width:46ch;}
+  .searchbar{max-width:560px;padding:8px 8px 8px 22px;}
+  .searchbar input{font-size:.95rem;padding:10px 0;}
+  .suggest-row{margin:18px 0 0;padding:0;}
+  .catrail-wrap{padding:28px 0;}
+  .section{padding:40px 0 10px;}
+  .section.alt{padding:44px 0 40px;}
+  .statsband{padding:48px 56px;}
+  .homefoot{height:40px;}
+
+  .rail-cats,.rail-trending,.rail-biz{display:grid;overflow-x:visible;margin:0;padding:0;}
+  .rail-cats{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:20px;justify-items:center;}
+  .rail-trending{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;}
+  .rail-biz{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;}
+  .rail-trending .vid-card,.rail-biz .biz-card{width:100%;}
+  .rail-trending .vid-card .thumb{width:100%;height:150px;}
+  .catgrid{grid-template-columns:repeat(6,1fr);gap:16px;padding:0 56px;}
+
+  /* ===== SEARCH: filter sidebar + results grid ===== */
+  .search-body{display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start;padding:0 40px 100px;}
+  .filter-sidebar{display:block;position:sticky;top:158px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);}
+  .filter-sidebar .grabber{display:none;}
+  .filter-sidebar .sheet-actions{position:sticky;bottom:0;background:var(--card);padding-top:8px;}
+  .results-list{padding:0!important;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;align-content:start;}
+  .results-list .section-label{grid-column:1/-1;}
+  .results-list .empty-state{grid-column:1/-1;}
+  .result-card{height:100%;}
+
+  /* ===== FEED: centred desktop-web Shorts column, not full-bleed ===== */
+  .screen[data-screen="feed"]{background:var(--ink);}
+  .feed-desktop-frame{display:flex;justify-content:center;gap:28px;padding:28px 40px;min-height:calc(100vh - 190px);}
+  .feed{width:400px;height:calc(100vh - 190px);max-height:800px;flex:0 0 auto;border-radius:24px;box-shadow:0 30px 70px -20px rgba(0,0,0,.6);}
+  .feed-upnext{display:block;width:320px;flex:0 0 auto;max-height:calc(100vh - 190px);overflow-y:auto;}
+
+  /* ===== PROFILE: info sidebar beside a wider tab column ===== */
+  #profileContent{display:grid;grid-template-columns:360px 1fr;grid-template-areas:"cover cover" "side main";gap:8px 36px;padding:0 56px 80px;}
+  .cover{grid-area:cover;border-radius:20px;height:260px;margin-top:24px;}
+  .profile-side{display:block;grid-area:side;position:sticky;top:110px;}
+  .profile-main{display:block;grid-area:main;}
+  .identity{padding:0;margin-top:-40px;}
+  .desc{padding:12px 0 0;}
+  .stats-row{padding:16px 0;}
+  .actions-row{padding:2px 0 14px;}
+  .ptabs{padding:0;}
+  .ptab-content{padding:16px 0 40px;}
+  .pgrid{grid-template-columns:repeat(3,1fr);}
+
+  /* ===== PRODUCT: gallery beside specs/related, not one narrow column ===== */
+  #productContent{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"top top" "gallery info" "cta cta";gap:28px 40px;padding:0 56px 60px;align-items:start;}
+  .p-top{grid-area:top;padding:18px 0;}
+  .p-gallery{grid-area:gallery;height:460px;border-radius:20px;position:sticky;top:96px;}
+  .p-body{grid-area:info;padding:0!important;}
+  .p-cta-bar{grid-area:cta;position:static;background:none;padding:8px 0 0;max-width:520px;}
+
+  /* ===== SHEETS become centred desktop panels instead of bottom sheets ===== */
+  .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-46%);width:min(560px,90%);border-radius:20px;max-height:80vh;opacity:0;pointer-events:none;transition:transform .28s var(--ease),opacity .22s var(--ease);}
+  .sheet.show{transform:translate(-50%,-50%);opacity:1;pointer-events:auto;}
+}
+@keyframes desktopFade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 </style>
 
 <div class="page">
@@ -533,6 +762,23 @@ body{
       <div class="device-bezel">
         <div class="device-notch"></div>
         <div class="app" id="app" data-app-theme="light">
+          <nav class="desktop-nav" id="desktopNav">
+            <div class="dn-left">
+              <div class="brand-lockup">Miles<span class="t">Tech</span></div>
+              <div class="dn-links">
+                <button data-dnav="home">Home</button>
+                <button data-dnav="search">Search</button>
+                <button data-dnav="feed">Shorts</button>
+                <button class="dn-compare" data-dnav="compare">Compare <span class="badge" id="dnCompareBadge" style="display:none;">0</span></button>
+              </div>
+            </div>
+            <div class="dn-right">
+              <button class="loc-chip" data-dnav="location">📍 Nairobi <span style="opacity:.7">▾</span></button>
+              <button class="icon-btn solid" id="themeToggleDesktop" title="Toggle app theme"></button>
+              <button class="pill pill-outline pill-sm" data-dnav="account">Account</button>
+              <button class="pill pill-amber pill-sm" data-dnav="business">List your business</button>
+            </div>
+          </nav>
           <div class="statusbar" id="statusbar"><span>9:41</span><span>●●●● Safaricom  ▮▮▮▮</span></div>
           <div class="screens" id="screens">
 
@@ -558,7 +804,7 @@ body{
 
               <div class="catrail-wrap">
                 <div class="screen-pad eyebrow"><span class="dot"></span>Browse categories</div>
-                <div class="hrail" id="catRailHome"></div>
+                <div class="hrail rail-cats" id="catRailHome"></div>
               </div>
 
               <div class="section">
@@ -566,7 +812,7 @@ body{
                   <div class="eyebrow"><span class="dot"></span>Trending now</div>
                   <h2 class="section-title">Videos everyone's watching</h2>
                 </div>
-                <div class="hrail" id="trendingRail"></div>
+                <div class="hrail rail-trending" id="trendingRail"></div>
               </div>
 
               <div class="section alt">
@@ -574,7 +820,7 @@ body{
                   <div class="eyebrow"><span class="dot"></span>Digital showrooms</div>
                   <h2 class="section-title">Featured businesses</h2>
                 </div>
-                <div class="hrail" id="featuredBizRail"></div>
+                <div class="hrail rail-biz" id="featuredBizRail"></div>
               </div>
 
               <div class="section">
@@ -604,12 +850,18 @@ body{
                 <button class="icon-btn solid" id="filterBtn"></button>
               </div>
               <div class="tabs-row" id="tabsRow"></div>
-              <div class="results-list" id="resultsList"></div>
+              <div class="search-body">
+                <aside class="filter-sidebar" id="filterSidebar"></aside>
+                <div class="results-list" id="resultsList"></div>
+              </div>
             </section>
 
             <!-- ============ FEED ============ -->
             <section class="screen" id="screen-feed" data-screen="feed">
-              <div class="feed" id="feed"></div>
+              <div class="feed-desktop-frame">
+                <div class="feed" id="feed"></div>
+                <aside class="feed-upnext" id="feedUpNext"></aside>
+              </div>
             </section>
 
             <!-- ============ PROFILE ============ -->
@@ -649,15 +901,22 @@ body{
     </div>
 
     <aside class="notes-panel" id="notesPanel">
-      <h3>Design notes for PM review</h3>
+      <h3>Design notes for PM review — v4</h3>
       <ul>
-        <li><b>Status:</b> Draft — ready for first-pass review, not yet approved for build.</li>
-        <li><b>Sponsored vs Featured:</b> amber is used consistently for anything paid — "Sponsored" in search/feed, "Featured" on home showroom row — per the palette's stated role for accent color.</li>
-        <li><b>No real photography:</b> thumbnails use brand-gradient + icon in place of product photos/video frames, since none exist yet. Swap 1:1 once real assets land.</li>
-        <li><b>Verification states:</b> teal check = verified, grey clock = pending review. Search "construction" or "hardware" to see the pending state (BuildRight Hardware).</li>
-        <li><b>Compare</b> is modelled as a persistent cross-screen tray (add from any product card, up to 3) rather than a dedicated page — confirm this matches intent vs. a full comparison screen.</li>
-        <li><b>Account tab</b> and location picker are stubbed with a toast — onboarding/auth is a separate flow per the brief.</li>
-        <li>Try the suggested searches, scroll the video feed, and tap into a business to see the full loop.</li>
+        <li><b>New in v4 — Egyptian Blue brand-colour update (2026-08-29):</b> the owner confirmed <b>Egyptian Blue</b> (<code>#1034A6</code>) as the brand's primary blue, replacing the deep-navy <code>#0E1729</code> that previously did double duty as both the brand colour and the app's dark-surface colour. Nav/IA/layout from v2–v3 are <b>untouched</b> — this is a token-level colour pass. Because Egyptian Blue is a vivid, mid-tone colour (36% lightness) and not dark enough to hold contrast as a background fill, it was <b>not</b> a find-and-replace: every old-navy usage was audited individually and split into two roles — <b>Egyptian Blue</b> (<code>--brand-blue</code>) for brand moments — logo/brand-lockup (desktop top nav wordmark), the hero gradient, active/selected states (bottom-nav active icon, active search tab, active category chip, "added to compare" chip), the Feed tab's FAB, the feed creator-avatar accent, and the "Featured" business tag — versus a genuinely dark, near-black <b>ink</b> (<code>--ink</code>, <code>#0A0F1C</code>, blue-tinted) for real dark surfaces/backgrounds where Egyptian Blue would lose legibility — the "Featured businesses" dark showroom band, the stats band, the home footer band, the feed's base background, the floating compare-tray and toast pills, and the dark-outlined secondary pill button. Plain body/heading text on light surfaces (search input text, card titles) also now resolves to the new <code>ink</code> value rather than old navy, since that role was always "near-black text," not a brand-colour moment. Amber accents sitting on top of Egyptian Blue (the FAB's play icon, the "Featured" tag's dot) were contrast-checked — Egyptian Blue is lighter/more saturated than the old navy, so amber-on-brand-blue contrast is ~6:1 versus the old ~10.5:1; still comfortably above the ~4.5:1 floor for small UI accents, but noticeably closer to the line, so flag if it ever needs a bolder amber or a drop shadow behind it. White/ice text and icons on Egyptian Blue (chips, tags, tab pills) measure ~10:1 — no concern there. Verified in both the light and dark app-theme and at both breakpoints. The six thumbnail "out-of-focus footage" gradients (<code>.grad-0</code>…<code>.grad-5</code>) were deliberately left alone — those are decorative video-still art direction, not brand chrome, and weren't part of this audit.</li>
+        <li><b>New in v3 — real desktop breakpoint (≥1024px):</b> resize this window (or the browser) past ~1024px wide. Below that, this is still the exact v2 phone-in-bezel build, untouched. At and above it, the bezel/notch/status bar/bottom tab bar disappear and a persistent top nav takes over — per the brief's architecture section, "Web application" and "Mobile-first responsive interface" are related but distinct surfaces, and this is the first pass at the former. Every screen was reflowed for the extra width, not just centred/stretched: <b>Home</b> gets a wider hero and the category rail, trending-videos rail and featured-businesses rail become real multi-column grids instead of horizontal-scroll-only, alongside a 6-column "Explore categories" grid. <b>Search</b> gains a persistent filter sidebar (same filter state/markup as the mobile filter sheet, just always visible) beside a multi-column results grid instead of one stacked list. <b>Video feed</b> becomes a centred, narrower vertical column — closer to YouTube Shorts/TikTok's desktop web treatment than a stretched phone screen — with a live "Up next" rail alongside it that highlights the currently-playing Short as you scroll and jumps the feed on click. <b>Business profile</b> and <b>product detail</b> both go two-column: profile splits into a sticky info sidebar (identity/stats/contact actions) beside a wider Products/Videos/About tab column; product splits into a sticky gallery beside specs/price/supplier/related-products. Bottom sheets (filter/account/compare) become centred modal panels at this width instead of bottom sheets, since a sheet sliding up from the bottom of a browser window reads as a mobile pattern. Compare tray, sponsored/featured labelling, verification badges, light/dark toggle and all interaction logic are unchanged — this is a layout pass, not a new visual direction.</li>
+        <li><b>Status:</b> Navigation, IA and interaction model are <b>approved</b> and unchanged in this pass — every screen, transition and gesture from v1 is intact. This revision is a visual-execution pass only, responding to "not premium enough" + "doesn't feel video-first enough."</li>
+        <li><b>Thumbnails, before → after:</b> every video/product tile was a flat two-stop gradient + one centered emoji — the single biggest reason it read as a wireframe. Now each tile layers a multi-stop angled gradient with two off-axis "bokeh" glows, a film-grain texture (SVG turbulence, blended at low opacity), and a bottom vignette — closer to an out-of-focus video still than a colour chip. Icons remain as placeholders for real thumbnails/photos, unchanged in role.</li>
+        <li><b>Video-specific cues added:</b> duration badges on every video tile (home rail, search results, profile videos tab); a looping scrub-bar under the feed's progress dots so the current Short visibly "plays"; a pulsing ring on the creator avatar for the in-view feed slide; a small animated equalizer next to "Shorts" in the feed topbar. None of this is decorative-only — it's the vocabulary that signals "this is a real video" at a glance.</li>
+        <li><b>Depth &amp; glass, before → after:</b> chrome that used to sit on flat opaque backgrounds — bottom nav, search header, filter tabs, profile tabs, product top bar, sheets — now uses frosted blur + translucency, echoing the feed rail's existing glass treatment so the whole app feels like one material system. Cards moved from a single flat shadow to a two-layer ambient+key shadow (see <code>--shadow</code> / <code>--shadow-lg</code>) that intensifies on hover/press instead of just shifting position.</li>
+        <li><b>Typographic contrast:</b> hero headline, section titles, stat numbers and product price all stepped up in size and tightened in tracking (negative letter-spacing on display type) for a punchier display/body split — the brief for a video-first consumer app reads bigger and bolder than a B2B density-first one.</li>
+        <li><b>Bolder, more intentional colour placement:</b> the "Featured businesses / Digital showrooms" row is now a dark navy showroom band (grain + teal glow, frosted-glass business cards) instead of a pale-grey tint — restores the brief's alternating dark/light rhythm, which the flat build had lost. Amber CTAs got a gloss gradient + glow instead of a flat fill; the compare tray, FAB and stat numbers pick up matching amber glow so paid/primary actions feel more alive without diluting amber's meaning (still reserved for CTA + Sponsored/Featured).</li>
+        <li><b>Small bug fix along the way:</b> the home search button, the search-screen's back/search/filter icons were rendering as blank circles (icons were never filled in on load) — filled in, no behaviour change.</li>
+        <li><b>Sponsored stays legible and distinct:</b> unchanged semantics — amber "Sponsored"/"Featured" tags, separate labelled row in search — now with a left accent bar and soft glow on sponsored result cards so the paid placement reads as a considered treatment, not just a tinted background.</li>
+        <li><b>Verification states:</b> unchanged — teal check = verified, grey clock = pending. Search "construction" or "hardware" to see the pending state (BuildRight Hardware).</li>
+        <li><b>Compare</b> remains the persistent cross-screen tray (up to 3 products) — untouched per the approved interaction model.</li>
+        <li><b>Account tab</b> and location picker remain stubbed with a toast — onboarding/auth is a separate flow per the brief.</li>
+        <li>Toggle light/dark with the moon/sun icon in the hero, then re-run the same walkthrough: search "water tank suppliers near Nairobi", scroll the video feed, open AquaTank Kenya's profile, open a product, add 2–3 to compare.</li>
       </ul>
     </aside>
   </div>
@@ -740,13 +999,13 @@ const PRODUCTS = [
 ];
 
 const VIDEOS = [
-  {id:'v1',businessId:'aquatank',title:"Inside Our Rotomoulding Plant — How It's Made",category:'Manufacturing',views:82000,grad:0,icon:'🏭',sponsored:false},
-  {id:'v2',businessId:'sunflow',title:'Solar Irrigation Setup in 10 Minutes',category:'Energy · Agriculture',views:54000,grad:1,icon:'☀️',sponsored:false},
-  {id:'v3',businessId:null,creator:'Fundi Josephat',title:'DIY: Fixing a Leaking Water Tank Valve',category:'DIY',views:121000,grad:5,icon:'🔧',sponsored:false},
-  {id:'v4',businessId:'nairobisteel',title:'Steel Fabrication Floor Tour',category:'Manufacturing',views:19000,grad:2,icon:'⚙️',sponsored:false},
-  {id:'v5',businessId:'aquatank',title:'New 2026 Tank Range Launch',category:'Manufacturing',views:8000,grad:0,icon:'🛢️',sponsored:true},
-  {id:'v6',businessId:'solaris',title:'How Solar Hybrid Systems Work',category:'Energy',views:33000,grad:4,icon:'🔋',sponsored:false},
-  {id:'v7',businessId:'greengrow',title:'Testing Your Soil pH at Home',category:'Agriculture · Education',views:45000,grad:3,icon:'🌱',sponsored:false},
+  {id:'v1',businessId:'aquatank',title:"Inside Our Rotomoulding Plant — How It's Made",category:'Manufacturing',views:82000,grad:0,icon:'🏭',sponsored:false,duration:'12:04'},
+  {id:'v2',businessId:'sunflow',title:'Solar Irrigation Setup in 10 Minutes',category:'Energy · Agriculture',views:54000,grad:1,icon:'☀️',sponsored:false,duration:'9:47'},
+  {id:'v3',businessId:null,creator:'Fundi Josephat',title:'DIY: Fixing a Leaking Water Tank Valve',category:'DIY',views:121000,grad:5,icon:'🔧',sponsored:false,duration:'6:42'},
+  {id:'v4',businessId:'nairobisteel',title:'Steel Fabrication Floor Tour',category:'Manufacturing',views:19000,grad:2,icon:'⚙️',sponsored:false,duration:'4:55'},
+  {id:'v5',businessId:'aquatank',title:'New 2026 Tank Range Launch',category:'Manufacturing',views:8000,grad:0,icon:'🛢️',sponsored:true,duration:'1:58'},
+  {id:'v6',businessId:'solaris',title:'How Solar Hybrid Systems Work',category:'Energy',views:33000,grad:4,icon:'🔋',sponsored:false,duration:'7:20'},
+  {id:'v7',businessId:'greengrow',title:'Testing Your Soil pH at Home',category:'Agriculture · Education',views:45000,grad:3,icon:'🌱',sponsored:false,duration:'5:10'},
 ];
 
 const FEED_ORDER = ['v3','v1','v5','v2','v6','v4','v7'];
@@ -838,6 +1097,10 @@ function updateNavActive(name){
   const map = {home:'home',search:'searchtab',feed:'feedtab'};
   const key = map[name];
   if(key) document.querySelector(`.navbtn[data-nav="${key}"]`)?.classList.add('active');
+  document.querySelectorAll('.desktop-nav .dn-links button').forEach(b=>b.classList.remove('active'));
+  const dnMap = {home:'home',search:'search',feed:'feed'};
+  const dnKey = dnMap[name];
+  if(dnKey) document.querySelector(`.desktop-nav [data-dnav="${dnKey}"]`)?.classList.add('active');
 }
 
 /* ================= TOAST ================= */
@@ -880,6 +1143,7 @@ function renderVidCardHome(v){
       <div class="glyph">${v.icon}</div>
       ${v.sponsored?`<div style="position:absolute;top:8px;left:8px;"><span class="tag-sponsored">${SPONSOR_DOT}Sponsored</span></div>`:''}
       <div class="playbadge">${icon('play',13)}</div>
+      ${v.duration?`<div class="duration">${v.duration}</div>`:''}
       <div class="overlay-label"><div class="t">${v.title}</div><div class="m">${by} · ${fmtViews(v.views)} views</div></div>
     </div>
   </div>`;
@@ -1034,7 +1298,7 @@ function resultVidCard(v){
   const biz = v.businessId?bizById(v.businessId):null;
   const by = biz?biz.name:v.creator;
   return `<div class="result-card" data-action="open-feed" data-vid="${v.id}">
-    <div class="r-thumb grad-${v.grad}">${icon('play',18)}</div>
+    <div class="r-thumb grad-${v.grad}">${icon('play',18)}${v.duration?`<div class="duration">${v.duration}</div>`:''}</div>
     <div class="r-body">
       <div class="r-name">${v.title}</div>
       <div class="r-meta">${by}${biz?' '+verifiedBadge(biz):''} · ${v.category}</div>
@@ -1076,6 +1340,7 @@ function openSearch(query, category){
   activeQuery = query||''; activeCategoryFilter = category||null; activeTab='all';
   document.getElementById('searchInput2').value = activeQuery;
   navigate('search');
+  renderFilterPanels();
   runSearch(true);
 }
 
@@ -1084,12 +1349,29 @@ function buildFeed(startId){
   const container = document.getElementById('feed');
   container.innerHTML = FEED_ORDER.map((id,i)=>renderFeedSlide(vidById(id), i)).join('');
   navigate('feed', {mode:'scale'});
+  renderFeedUpNext(startId||FEED_ORDER[0]);
   requestAnimationFrame(()=>{
     const idx = FEED_ORDER.indexOf(startId);
     const target = container.children[idx>=0?idx:0];
     target.scrollIntoView({block:'start'});
     setupFeedObserver();
   });
+}
+/* Desktop-only "Up next" rail beside the centred Shorts column — reuses the
+   same feed order and click-to-jump (open-feed) action as every other video
+   tile, so it stays wired into the existing feed even though it's invisible
+   on the phone layout below 1024px. */
+function renderFeedUpNext(currentId){
+  const panel = document.getElementById('feedUpNext');
+  if(!panel) return;
+  panel.innerHTML = `<div class="fun-head">Up next in Shorts</div>` + FEED_ORDER.map(id=>{
+    const v = vidById(id);
+    const biz = v.businessId?bizById(v.businessId):null;
+    return `<div class="fun-row ${id===currentId?'active':''}" data-action="open-feed" data-vid="${id}" data-fun="${id}">
+      <div class="thumb"><div class="grad grad-${v.grad}"></div><div class="glyph" style="font-size:1.3rem;">${v.icon}</div>${v.duration?`<div class="duration">${v.duration}</div>`:''}</div>
+      <div class="fun-info"><div class="t">${v.title}</div><div class="m">${biz?biz.name:v.creator} · ${fmtViews(v.views)} views</div></div>
+    </div>`;
+  }).join('');
 }
 function renderFeedSlide(v, idx){
   const biz = v.businessId?bizById(v.businessId):null;
@@ -1103,7 +1385,7 @@ function renderFeedSlide(v, idx){
     <div class="feed-progress">${dots}</div>
     <div class="feed-topbar" style="margin-top:8px;">
       <button class="icon-btn" data-action="feed-exit">${icon('back',18)}</button>
-      <div class="feed-title">Shorts</div>
+      <div class="feed-title"><span class="eq"><span></span><span></span><span></span></span>Shorts</div>
       <button class="icon-btn" data-action="feed-search">${icon('search',18)}</button>
     </div>
     ${v.sponsored?`<div class="sponsored-tag"><span class="tag-sponsored">${SPONSOR_DOT}Sponsored</span></div>`:''}
@@ -1128,7 +1410,7 @@ function renderFeedSlide(v, idx){
         ${biz?`<button class="pill ${following?'pill-amber':'pill-outline'}" style="color:#fff;border-color:#fff;" data-action="follow" data-biz="${biz.id}">${following?'Following':'Follow'}</button>`:''}
       </div>
       <div class="feed-caption">${v.title}</div>
-      <div class="feed-meta">${v.category} · ${fmtViews(v.views)} views</div>
+      <div class="feed-meta">${v.category} · ${fmtViews(v.views)} views${v.duration?` · ${v.duration}`:''}</div>
     </div>
   </div>`;
 }
@@ -1140,6 +1422,8 @@ function setupFeedObserver(){
       if(e.isIntersecting && e.intersectionRatio>0.6){
         slides.forEach(s=>s.classList.remove('in-view'));
         e.target.classList.add('in-view');
+        const vid = e.target.dataset.vid;
+        document.querySelectorAll('.fun-row').forEach(r=>r.classList.toggle('active', r.dataset.fun===vid));
       }
     });
   }, {root:document.getElementById('feed'), threshold:[0,0.6,1]});
@@ -1166,29 +1450,33 @@ function renderProfile(tab){
       </div>
       <button class="playhint" data-action="open-feed-biz" data-biz="${b.id}">${icon('play',13)} Watch cover video</button>
     </div>
-    <div class="identity">
-      <div class="logo grad-${b.grad}">${b.icon}</div>
-      <h2>${b.name} ${verifiedBadge(b)}</h2>
-      <div class="meta">${b.categories.join(' · ')} · ${icon('pin',12)} ${b.location}</div>
-      <div class="rating">${stars(b.rating)} <b>${b.rating}</b> <span style="color:var(--ink-soft)">(${b.ratingCount} reviews)</span></div>
-      ${b.pending?`<div class="pending-note">${icon('clock',15)} <div>Verification pending — this profile is under Miles Tech's manual review and not yet marked verified.</div></div>`:''}
+    <div class="profile-side">
+      <div class="identity">
+        <div class="logo grad-${b.grad}">${b.icon}</div>
+        <h2>${b.name} ${verifiedBadge(b)}</h2>
+        <div class="meta">${b.categories.join(' · ')} · ${icon('pin',12)} ${b.location}</div>
+        <div class="rating">${stars(b.rating)} <b>${b.rating}</b> <span style="color:var(--ink-soft)">(${b.ratingCount} reviews)</span></div>
+        ${b.pending?`<div class="pending-note">${icon('clock',15)} <div>Verification pending — this profile is under Miles Tech's manual review and not yet marked verified.</div></div>`:''}
+      </div>
+      <p class="desc">${b.description}</p>
+      <div class="stats-row">
+        <div class="stat"><div class="n" style="color:var(--amber)">${b.products}</div><div class="c" style="color:var(--ink-soft)">Products</div></div>
+        <div class="stat"><div class="n" style="color:var(--amber)">${b.videosCount}</div><div class="c" style="color:var(--ink-soft)">Videos</div></div>
+        <div class="stat"><div class="n" style="color:var(--amber)">${b.rating}★</div><div class="c" style="color:var(--ink-soft)">Rating</div></div>
+      </div>
+      <div class="actions-row">
+        <button class="pill pill-amber" data-action="contact">${icon('phone',15)} Contact</button>
+        <button class="pill pill-outline" data-action="save-biz" data-biz="${b.id}">${icon('bookmark',15)} Save</button>
+      </div>
     </div>
-    <p class="desc">${b.description}</p>
-    <div class="stats-row">
-      <div class="stat"><div class="n" style="color:var(--amber)">${b.products}</div><div class="c" style="color:var(--ink-soft)">Products</div></div>
-      <div class="stat"><div class="n" style="color:var(--amber)">${b.videosCount}</div><div class="c" style="color:var(--ink-soft)">Videos</div></div>
-      <div class="stat"><div class="n" style="color:var(--amber)">${b.rating}★</div><div class="c" style="color:var(--ink-soft)">Rating</div></div>
+    <div class="profile-main">
+      <div class="ptabs">
+        <button class="ptab ${tab==='products'?'active':''}" data-ptab="products">Products</button>
+        <button class="ptab ${tab==='videos'?'active':''}" data-ptab="videos">Videos</button>
+        <button class="ptab ${tab==='about'?'active':''}" data-ptab="about">About</button>
+      </div>
+      <div class="ptab-content" id="ptabContent"></div>
     </div>
-    <div class="actions-row">
-      <button class="pill pill-amber" data-action="contact">${icon('phone',15)} Contact</button>
-      <button class="pill pill-outline" data-action="save-biz" data-biz="${b.id}">${icon('bookmark',15)} Save</button>
-    </div>
-    <div class="ptabs">
-      <button class="ptab ${tab==='products'?'active':''}" data-ptab="products">Products</button>
-      <button class="ptab ${tab==='videos'?'active':''}" data-ptab="videos">Videos</button>
-      <button class="ptab ${tab==='about'?'active':''}" data-ptab="about">About</button>
-    </div>
-    <div class="ptab-content" id="ptabContent"></div>
   `;
   renderProfileTab(tab);
 }
@@ -1212,7 +1500,7 @@ function renderProfileTab(tab){
     const vids = VIDEOS.filter(v=>v.businessId===b.id);
     el.innerHTML = `<div class="vlist">${vids.map(v=>`
       <div class="vrow" data-action="open-feed" data-vid="${v.id}">
-        <div class="thumb"><div class="grad grad-${v.grad}"></div><div class="glyph" style="font-size:1.5rem;">${v.icon}</div><div class="playbadge">${icon('play',12)}</div>${v.sponsored?`<div style="position:absolute;top:6px;left:6px;"><span class="tag-sponsored" style="font-size:.58rem;padding:3px 7px;">Sponsored</span></div>`:''}</div>
+        <div class="thumb"><div class="grad grad-${v.grad}"></div><div class="glyph" style="font-size:1.5rem;">${v.icon}</div><div class="playbadge">${icon('play',12)}</div>${v.duration?`<div class="duration">${v.duration}</div>`:''}${v.sponsored?`<div style="position:absolute;top:6px;left:6px;"><span class="tag-sponsored" style="font-size:.58rem;padding:3px 7px;">Sponsored</span></div>`:''}</div>
         <div class="info"><div class="t">${v.title}</div><div class="m">${v.category} · ${fmtViews(v.views)} views</div></div>
       </div>`).join('')}</div>`;
   } else {
@@ -1309,6 +1597,8 @@ function toggleCompare(prodId){
 }
 function renderCompareTray(){
   const tray = document.getElementById('compareTray');
+  const badge = document.getElementById('dnCompareBadge');
+  if(badge){ badge.textContent = compareSet.length; badge.style.display = compareSet.length ? 'flex' : 'none'; }
   if(compareSet.length===0){ tray.classList.remove('show'); tray.innerHTML=''; return; }
   tray.innerHTML = `<div class="inner">
     <span>Compare <b>(${compareSet.length})</b></span>
@@ -1350,10 +1640,14 @@ function renderCompareSheet(){
   `;
 }
 
-/* ================= FILTER SHEET ================= */
-function renderFilterSheet(){
+/* ================= FILTER PANEL =================
+   Same markup renders into the mobile bottom sheet (#filterSheet) AND the
+   persistent desktop sidebar (#filterSidebar, >=1024px) — one source of
+   truth for filter state and UI, two chrome treatments. Price inputs use
+   data-role instead of id since both panels can be in the DOM at once. */
+function filterPanelHTML(){
   const cats = ['Manufacturing','Agriculture','Construction','Energy','Retail','Automotive'];
-  document.getElementById('filterSheet').innerHTML = `
+  return `
     <div class="grabber"></div>
     <h3>Filter results</h3>
     <p class="sheet-sub">Narrow down by category, location or price.</p>
@@ -1368,9 +1662,9 @@ function renderFilterSheet(){
     <div class="sheet-row">
       <label>Price range (KES)</label>
       <div class="price-inputs">
-        <input type="number" id="priceMin" placeholder="Min" value="${filters.priceMin}">
+        <input type="number" data-role="priceMin" placeholder="Min" value="${filters.priceMin}">
         <span>–</span>
-        <input type="number" id="priceMax" placeholder="Max" value="${filters.priceMax}">
+        <input type="number" data-role="priceMax" placeholder="Max" value="${filters.priceMax}">
       </div>
     </div>
     <div class="sheet-actions">
@@ -1378,6 +1672,12 @@ function renderFilterSheet(){
       <button class="pill pill-amber" data-action="apply-filters" style="flex:1;justify-content:center;">Apply</button>
     </div>
   `;
+}
+function renderFilterPanels(){
+  const html = filterPanelHTML();
+  document.getElementById('filterSheet').innerHTML = html;
+  const side = document.getElementById('filterSidebar');
+  if(side) side.innerHTML = html;
 }
 
 /* ================= ACCOUNT SHEET ================= */
@@ -1409,12 +1709,16 @@ function refreshCurrentScreen(){
 function applyThemeIcon(){
   const dark = document.getElementById('app').dataset.appTheme==='dark';
   document.getElementById('themeToggle').innerHTML = icon(dark?'sun':'moon',17);
+  const dt = document.getElementById('themeToggleDesktop');
+  if(dt) dt.innerHTML = icon(dark?'sun':'moon',16);
 }
-document.getElementById('themeToggle').addEventListener('click', ()=>{
+function toggleAppTheme(){
   const app = document.getElementById('app');
   app.dataset.appTheme = app.dataset.appTheme==='dark' ? 'light' : 'dark';
   applyThemeIcon();
-});
+}
+document.getElementById('themeToggle').addEventListener('click', toggleAppTheme);
+document.getElementById('themeToggleDesktop').addEventListener('click', toggleAppTheme);
 
 /* ================= EVENT WIRING ================= */
 document.getElementById('homeSearchForm').addEventListener('submit', e=>{
@@ -1427,7 +1731,7 @@ document.getElementById('searchInput2').addEventListener('input', e=>{
   clearTimeout(window.__st);
   window.__st = setTimeout(()=>runSearch(false), 140);
 });
-document.getElementById('filterBtn').addEventListener('click', ()=>{ renderFilterSheet(); openSheet('filterSheet'); });
+document.getElementById('filterBtn').addEventListener('click', ()=>{ renderFilterPanels(); openSheet('filterSheet'); });
 document.getElementById('sheetBackdrop').addEventListener('click', closeSheets);
 document.getElementById('notesToggle').addEventListener('click', ()=>document.getElementById('notesPanel').classList.toggle('open'));
 
@@ -1449,6 +1753,19 @@ document.getElementById('bottomnav').addEventListener('click', e=>{
   if(n==='feedtab') buildFeed(FEED_ORDER[0]);
   if(n==='comparetab'){ if(compareSet.length){ renderCompareSheet(); openSheet('compareSheet'); } else toast('Add products to compare from any listing first'); }
   if(n==='account'){ renderAccountSheet(); openSheet('accountSheet'); }
+});
+
+document.getElementById('desktopNav').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-dnav]'); if(!btn) return;
+  const n = btn.dataset.dnav;
+  if(n==='home') navigate('home',{reset:true});
+  if(n==='search') openSearch('');
+  if(n==='feed') buildFeed(FEED_ORDER[0]);
+  if(n==='compare'){ if(compareSet.length){ renderCompareSheet(); openSheet('compareSheet'); } else toast('Add products to compare from any listing first'); }
+  if(n==='account'){ renderAccountSheet(); openSheet('accountSheet'); }
+  if(n==='business'){ renderAccountSheet(); openSheet('accountSheet'); }
+  if(n==='location'){ toast('Location picker — Nairobi set as default for this prototype'); }
+  updateNavActive(document.querySelector('.screen.active').dataset.screen);
 });
 
 document.getElementById('app').addEventListener('click', e=>{
@@ -1474,15 +1791,16 @@ document.getElementById('app').addEventListener('click', e=>{
     else if(a==='ptab'){ /* handled below */ }
     else if(a==='filter-cat'){
       const c=t.dataset.cat; filters.categories.has(c)?filters.categories.delete(c):filters.categories.add(c);
-      renderFilterSheet();
+      renderFilterPanels();
     }
-    else if(a==='filter-loc'){ filters.location = filters.location===t.dataset.loc ? '' : t.dataset.loc; renderFilterSheet(); }
+    else if(a==='filter-loc'){ filters.location = filters.location===t.dataset.loc ? '' : t.dataset.loc; renderFilterPanels(); }
     else if(a==='apply-filters'){
-      filters.priceMin = document.getElementById('priceMin').value;
-      filters.priceMax = document.getElementById('priceMax').value;
+      const scope = t.closest('.sheet, .filter-sidebar') || document;
+      filters.priceMin = scope.querySelector('[data-role="priceMin"]').value;
+      filters.priceMax = scope.querySelector('[data-role="priceMax"]').value;
       closeSheets(); runSearch(false); toast('Filters applied');
     }
-    else if(a==='reset-filters'){ filters={categories:new Set(),location:'',priceMin:'',priceMax:''}; renderFilterSheet(); runSearch(false); }
+    else if(a==='reset-filters'){ filters={categories:new Set(),location:'',priceMin:'',priceMax:''}; renderFilterPanels(); runSearch(false); }
     else if(a==='feed-exit'){ goBack(); }
     else if(a==='feed-search'){ goBack(); openSearch(''); }
     else if(a==='like'){
@@ -1554,10 +1872,23 @@ function renderBottomNavIcons(){
   });
 }
 
+/* ================= STATIC CHROME ICON FILL =================
+   Icon buttons authored directly in markup (not re-rendered by a JS template
+   function) never had their glyphs filled in — they rendered as blank circles.
+   Fixed as part of the v2 visual pass: a button with no icon reads as broken,
+   which undercuts "premium" faster than almost anything else on the screen. */
+function fillStaticIcons(){
+  document.getElementById('homeSearchBtn').innerHTML = icon('search',18);
+  document.querySelector('#searchForm2 button[type="submit"]').innerHTML = icon('search',18);
+  document.querySelectorAll('.search-top [data-action="back"]').forEach(b=>b.innerHTML = icon('back',18));
+  document.getElementById('filterBtn').innerHTML = icon('filter',16);
+}
+
 /* ================= INIT ================= */
 initHome();
 renderBottomNavIcons();
 applyThemeIcon();
+fillStaticIcons();
 updateNavActive('home');
 document.getElementById('locChip').addEventListener('click', ()=>toast('Location picker — Nairobi set as default for this prototype'));
 </script>
