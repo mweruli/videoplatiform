@@ -61,6 +61,19 @@ copy .env.example .env
 npm run dev
 ```
 
+## Running backend tests
+
+```bash
+# Against the live docker-compose stack (real end-to-end verification):
+docker compose exec backend pytest
+
+# Or from an activated backend/.venv (Option B above):
+cd backend
+pytest
+```
+
+Either form is safe to run at any time, including against the stack that has the PM's demo data seeded via `app/db/seed_demo.py` — **tests never touch the `milestech` database.** `backend/tests/conftest.py` automatically redirects the test run to a sibling `milestech_test` database (created and migrated on first use, in the same Postgres container/instance — no extra service) and Redis logical DB 15, before the app's DB engine is ever constructed. This happens unconditionally, regardless of how pytest is invoked; there is no env var to remember to set. See `docs/decisions.md` ("Isolated test database") for the root cause this replaced and how it was verified.
+
 ## Repo layout
 
 ```
