@@ -1,0 +1,165 @@
+"""Product/Service model.
+
+Fields follow PROJECT_BRIEF.md's "Product and Service Management" section:
+name, description, technical specs, images, price/price range, manufacturer/
+supplier (business reference), location, warranty terms, availability,
+related products.
+
+Scoping notes (flagged for Tech Lead/PM — see docs/decisions.md):
+- `specs` is a flexible JSON object (key/value, matching the prototype's
+  `specs: {Capacity: '5,000 Litres', ...}` shape) rather than a fixed
+  per-category spec schema — structured per-category spec templates (needed
+  for the "Product Comparison" module to line up rows cleanly) are Sprint 4
+  work, not this one.
+- `related_products` is an explicit curated many-to-many (business picks
+  which products are related) rather than an auto-computed "same business"
+  list, so a business can point a spare-part at its parent equipment across
+  categories. The public API falls back to same-business products when a
+  product has none curated, so the frontend always gets something useful.
+- Products carry their own optional `category_id` distinct from the owning
+  business's category (e.g. a hardware store's category is "Retail" but an
+  individual product might be "Construction" materials) — this also gives
+  search/filter-by-category something to key off per listing.
+"""
+
+from __future__ import annotations
+
+import enum
+import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Numeric,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.business import Business
+    from app.models.category import Category
+
+
+class ModerationStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class AvailabilityStatus(str, enum.Enum):
+    IN_STOCK = "in_stock"
+    MADE_TO_ORDER = "made_to_order"
+    OUT_OF_STOCK = "out_of_stock"
+    DISCONTINUED = "discontinued"
+
+
+# Self-referential, curated "related products" association. Deliberately
+# asymmetric (A relates to B does not imply B relates to A) since a business
+# may want to point a cheaper accessory at a flagship product without the
+# reverse making sense.
+product_related = Table(
+    "product_related",
+    Base.metadata,
+    Column(
+        "product_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "related_product_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    UniqueConstraint("product_id", "related_product_id", name="uq_product_related_pair"),
+)
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("businesses.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"), index=True
+    )
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(220), nullable=False, unique=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    # Flexible key/value technical specs — see module docstring.
+    specs: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+    # Either a single price (price_min == price_max) or a genuine range.
+    # KES is the launch-market default currency; not hardcoded past that.
+    currency: Mapped[str] = mapped_column(String(3), default="KES", nullable=False)
+    price_min: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    price_max: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+
+    images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+
+    warranty_terms: Mapped[str | None] = mapped_column(String(255))
+    availability_status: Mapped[AvailabilityStatus] = mapped_column(
+        Enum(AvailabilityStatus, name="product_availability_status", native_enum=False, length=20),
+        default=AvailabilityStatus.IN_STOCK,
+        nullable=False,
+    )
+    availability_note: Mapped[str | None] = mapped_column(String(255))
+
+    # Location defaults to the owning business's location in the API layer,
+    # but is stored explicitly here so a business with one HQ can still list
+    # a product only available at a specific branch/depot.
+    county: Mapped[str | None] = mapped_column(String(100), index=True)
+    city: Mapped[str | None] = mapped_column(String(100), index=True)
+
+    moderation_status: Mapped[ModerationStatus] = mapped_column(
+        Enum(ModerationStatus, name="product_moderation_status", native_enum=False, length=20),
+        default=ModerationStatus.PENDING,
+        nullable=False,
+        index=True,
+    )
+    moderation_note: Mapped[str | None] = mapped_column(Text)
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    business: Mapped[Business] = relationship(back_populates="products", lazy="joined")
+    category: Mapped[Category | None] = relationship(lazy="joined")
+
+    related_products: Mapped[list[Product]] = relationship(
+        "Product",
+        secondary=product_related,
+        primaryjoin="Product.id == product_related.c.product_id",
+        secondaryjoin="Product.id == product_related.c.related_product_id",
+        lazy="selectin",
+    )

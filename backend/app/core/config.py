@@ -62,11 +62,28 @@ class Settings(BaseSettings):
     BUNNY_STREAM_API_KEY: str = ""
 
     # --- Object storage for images/docs (Cloudflare R2 or DO Spaces, S3-compatible) ---
+    # Not provisioned yet (see docs/SETUP.md) — app/services/storage.py falls
+    # back to local-disk storage whenever OBJECT_STORAGE_ACCESS_KEY is unset,
+    # so uploads work in dev without an account. Fill these in once the R2/
+    # Spaces account exists; no calling code changes when you do.
     OBJECT_STORAGE_ENDPOINT: str = ""
     OBJECT_STORAGE_REGION: str = "auto"
     OBJECT_STORAGE_BUCKET: str = "miles-tech-media"
     OBJECT_STORAGE_ACCESS_KEY: str = ""
     OBJECT_STORAGE_SECRET_KEY: str = ""
+    # Public base URL to serve local-disk uploads from during dev (mounted as
+    # static files by app/main.py). Not used once OBJECT_STORAGE_* is set.
+    LOCAL_MEDIA_ROOT: str = "media"
+    LOCAL_MEDIA_URL_PREFIX: str = "/media"
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
+
+    # --- Uploads ---
+    MAX_UPLOAD_SIZE_MB: int = 8
+    ALLOWED_IMAGE_CONTENT_TYPES: str = "image/jpeg,image/png,image/webp"
+
+    @property
+    def allowed_image_content_types_list(self) -> list[str]:
+        return [t.strip() for t in self.ALLOWED_IMAGE_CONTENT_TYPES.split(",") if t.strip()]
 
     # --- M-Pesa Daraja (fast-follow, Weeks 13-18 — apply now, lead time is the bottleneck) ---
     MPESA_ENV: str = "sandbox"  # sandbox | production

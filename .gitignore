@@ -29,6 +29,10 @@ build/
 # Alembic (keep versions, ignore local db files)
 backend/*.db
 
+# Local-disk media fallback (app/services/storage.py) — dev-only stand-in
+# until the R2/Spaces object storage account exists; never commit uploads.
+backend/media/
+
 # ---- Node / frontend ----
 node_modules/
 frontend/dist/
