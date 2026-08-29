@@ -139,12 +139,13 @@ def list_products(
         if business is not None and _can_manage(business, current_user):
             show_all_statuses = True
 
+    # is_active (soft-delete) always applies, even for the owner/admin view —
+    # "show me my pending/rejected listings too" should never resurrect a
+    # product the owner already removed. Only the moderation-status filter
+    # relaxes for `show_all_statuses`.
+    stmt = stmt.where(Product.is_active.is_(True), Business.is_active.is_(True))
     if not show_all_statuses:
-        stmt = stmt.where(
-            Product.moderation_status == ModerationStatus.APPROVED,
-            Product.is_active.is_(True),
-            Business.is_active.is_(True),
-        )
+        stmt = stmt.where(Product.moderation_status == ModerationStatus.APPROVED)
 
     if business_id is not None:
         stmt = stmt.where(Product.business_id == business_id)

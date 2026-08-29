@@ -242,6 +242,41 @@ def test_product_lifecycle_and_moderation() -> None:
     assert resp.json()["total"] == 0
 
 
+def test_removed_product_stays_gone_from_owner_view() -> None:
+    """Regression test: `include_unapproved=True` used to drop the is_active
+    filter along with the moderation-status one, so an owner's soft-deleted
+    ("removed") product kept reappearing in their own dashboard forever,
+    indistinguishable from a live pending listing. is_active must always be
+    enforced regardless of include_unapproved."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Soon Removed")},
+        headers=_auth_headers(owner_token),
+    )
+    product = resp.json()
+
+    resp = client.get(
+        "/api/v1/products",
+        params={"business_id": business["id"], "include_unapproved": True},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.json()["total"] == 1
+
+    resp = client.delete(
+        f"/api/v1/products/{product['id']}", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 204
+
+    resp = client.get(
+        "/api/v1/products",
+        params={"business_id": business["id"], "include_unapproved": True},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.json()["total"] == 0
+
+
 def test_product_reject_and_permissions() -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
