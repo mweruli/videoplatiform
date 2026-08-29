@@ -25,6 +25,9 @@ from app.models.user import User, UserRole
 DEMO_OWNER_EMAIL = "demo-owner@miles.tech"
 DEMO_OWNER_PASSWORD = "DemoPass123!"  # noqa: S105 - seed-only, not a real credential
 
+DEMO_ADMIN_EMAIL = "demo-admin@miles.tech"
+DEMO_ADMIN_PASSWORD = "DemoAdmin123!"  # noqa: S105 - seed-only, not a real credential
+
 BUSINESSES = [
     dict(
         slug="aquatank",
@@ -199,6 +202,17 @@ PRODUCTS = [
         availability_status=AvailabilityStatus.IN_STOCK,
         availability_note="Kisumu & Nairobi",
     ),
+    dict(
+        slug="hardware-starter-kit",
+        business_slug="buildright",
+        name="Contractor Starter Toolkit",
+        price=8500,
+        specs={"Pieces": "42", "Case": "Hard-shell carry case"},
+        availability_status=AvailabilityStatus.IN_STOCK,
+        # Deliberately left pending — gives the admin moderation queue a real
+        # product to review, not just the one pending business.
+        moderation_status_override="pending",
+    ),
 ]
 
 
@@ -218,6 +232,20 @@ def seed_demo() -> None:
             db.add(owner)
             db.flush()
             print(f"Created demo owner user ({DEMO_OWNER_EMAIL} / {DEMO_OWNER_PASSWORD}).")
+
+        admin = db.query(User).filter(User.email == DEMO_ADMIN_EMAIL).one_or_none()
+        if admin is None:
+            admin = User(
+                email=DEMO_ADMIN_EMAIL,
+                full_name="Demo Platform Admin",
+                hashed_password=hash_password(DEMO_ADMIN_PASSWORD),
+                role=UserRole.PLATFORM_ADMIN,
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(admin)
+            db.flush()
+            print(f"Created demo admin user ({DEMO_ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}).")
 
         categories_by_slug = {c.slug: c for c in db.query(Category).all()}
 
@@ -264,7 +292,11 @@ def seed_demo() -> None:
                 availability_note=spec.get("availability_note"),
                 county=business.county,
                 city=business.city,
-                moderation_status=ModerationStatus.APPROVED,
+                moderation_status=(
+                    ModerationStatus.PENDING
+                    if spec.get("moderation_status_override") == "pending"
+                    else ModerationStatus.APPROVED
+                ),
             )
             db.add(product)
             prod_created += 1
