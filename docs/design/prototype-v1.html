@@ -1,0 +1,1563 @@
+<title>Miles Tech</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ RESET / BASE ============ */
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;}
+input{font:inherit;color:inherit;}
+ul{list-style:none;margin:0;padding:0;}
+a{color:inherit;text-decoration:none;}
+img{max-width:100%;display:block;}
+::-webkit-scrollbar{width:0;height:0;}
+
+/* ============ OUTER PAGE THEME TOKENS (viewer-theme aware) ============ */
+:root{
+  --page-bg:#EEF1F6;
+  --page-bg-2:#E1E6ED;
+  --page-ink:#0E1729;
+  --page-muted:#5B6B7D;
+  --page-border:#DCE2EA;
+  --page-card:#FFFFFF;
+  --amber:#FABD2E;
+  --teal:#1C8AA8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page-bg:#080D16;
+    --page-bg-2:#0E1729;
+    --page-ink:#F0FAFF;
+    --page-muted:#8A9BB0;
+    --page-border:#1C2740;
+    --page-card:#0F1A2C;
+  }
+}
+:root[data-theme="dark"]{
+  --page-bg:#080D16;
+  --page-bg-2:#0E1729;
+  --page-ink:#F0FAFF;
+  --page-muted:#8A9BB0;
+  --page-border:#1C2740;
+  --page-card:#0F1A2C;
+}
+
+body{
+  background:var(--page-bg);
+  color:var(--page-ink);
+  font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh;
+}
+
+/* ============ OUTER CHROME ============ */
+.page-topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:16px 28px;border-bottom:1px solid var(--page-border);
+  position:sticky;top:0;z-index:40;background:var(--page-bg);
+}
+.page-brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;}
+.page-brand .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);}
+.page-brand small{display:block;font-family:'Inter',sans-serif;font-weight:500;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--page-muted);margin-top:2px;}
+.jumpnav{display:flex;gap:8px;flex-wrap:wrap;}
+.jumpnav button{
+  font-size:.78rem;font-weight:600;padding:8px 14px;border-radius:999px;
+  border:1px solid var(--page-border);color:var(--page-muted);background:var(--page-card);
+  transition:all .18s ease;
+}
+.jumpnav button:hover{color:var(--page-ink);border-color:var(--teal);}
+.jumpnav button.info-btn{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;}
+.stage{
+  display:flex;align-items:flex-start;justify-content:center;gap:28px;
+  padding:40px 20px 80px;max-width:1400px;margin:0 auto;
+}
+.notes-panel{
+  width:300px;flex:0 0 300px;background:var(--page-card);border:1px solid var(--page-border);
+  border-radius:16px;padding:20px 20px 22px;font-size:.83rem;line-height:1.55;color:var(--page-muted);
+  position:sticky;top:88px;display:none;
+}
+.notes-panel.open{display:block;}
+.notes-panel h3{margin:0 0 10px;font-family:'Space Grotesk',sans-serif;color:var(--page-ink);font-size:.95rem;}
+.notes-panel ul{display:flex;flex-direction:column;gap:10px;}
+.notes-panel li{padding-left:14px;position:relative;}
+.notes-panel li::before{content:'';position:absolute;left:0;top:.5em;width:5px;height:5px;border-radius:50%;background:var(--amber);}
+.notes-panel b{color:var(--page-ink);}
+
+/* ============ DEVICE SHELL ============ */
+.device-shell{flex:0 0 auto;position:sticky;top:88px;}
+.device-bezel{
+  width:390px;height:844px;border-radius:46px;background:#050810;
+  padding:12px;box-shadow:0 40px 90px -25px rgba(5,8,16,.55),0 0 0 1px rgba(255,255,255,.04) inset;
+  position:relative;
+}
+.device-notch{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:130px;height:24px;background:#050810;border-radius:0 0 18px 18px;z-index:80;
+}
+.app{
+  width:100%;height:100%;border-radius:36px;overflow:hidden;position:relative;
+  background:var(--bg);color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+}
+
+/* ============ APP DESIGN TOKENS (product's own theme, default light) ============ */
+.app{
+  --bg:#FCFDFE;
+  --panel:#F2F4F8;
+  --card:#FFFFFF;
+  --ink:#0E1729;
+  --ink-soft:#5B6B7D;
+  --line:#E5E9EF;
+  --amber:#FABD2E;
+  --amber-ink:#5C3D00;
+  --navy:#0E1729;
+  --navy-2:#16233D;
+  --teal:#1C8AA8;
+  --ice:#F0FAFF;
+  --danger:#E5484D;
+  --shadow:0 10px 30px -12px rgba(14,23,41,.18);
+  --ease:cubic-bezier(.22,1,.36,1);
+  --sponsor-bg:#FFF8E8;
+  --sponsor-line:#F3D488;
+}
+.app[data-app-theme="dark"]{
+  --bg:#0A1120;
+  --panel:#0F1A2C;
+  --card:#101B30;
+  --ink:#F0FAFF;
+  --ink-soft:#8FA2B8;
+  --line:#1E2C45;
+  --shadow:0 10px 30px -10px rgba(0,0,0,.55);
+  --sponsor-bg:#2A2210;
+  --sponsor-line:#5B4715;
+}
+
+/* ============ STATUS BAR ============ */
+.statusbar{
+  height:30px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 26px;font-size:.72rem;font-weight:700;color:var(--ink);
+  position:relative;z-index:60;background:transparent;
+}
+.screen[data-dark-top="1"] .statusbar-overlay{color:var(--ice);}
+
+/* ============ SCREENS ============ */
+.screens{position:relative;width:100%;height:calc(100% - 30px);}
+.screen{
+  position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:none;background:var(--bg);
+}
+.screen.active{display:block;}
+.screen.anim-slide{animation:screenSlide .42s var(--ease);}
+.screen.anim-scale{animation:screenScale .38s var(--ease);}
+@keyframes screenSlide{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+@keyframes screenScale{from{opacity:0;transform:scale(.93);}to{opacity:1;transform:scale(1);}}
+@media (prefers-reduced-motion:reduce){.anim-slide,.anim-scale{animation:none!important;}}
+.screen-pad{padding:0 20px;}
+
+/* ============ TYPE ============ */
+.display{font-family:'Space Grotesk',sans-serif;font-weight:700;line-height:1.08;letter-spacing:-.01em;}
+.hl{color:var(--amber);}
+.eyebrow{
+  display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex:0 0 auto;}
+.eyebrow.on-dark{color:rgba(240,250,255,.75);}
+.section-title{font-size:1.28rem;margin:0 0 4px;}
+.section-sub{font-size:.86rem;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
+
+/* ============ BUTTONS / PILLS / CHIPS ============ */
+.pill{
+  display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;
+  font-size:.85rem;font-weight:700;white-space:nowrap;transition:transform .18s var(--ease),box-shadow .18s var(--ease),background .18s;
+  border:1.5px solid transparent;
+}
+.pill:active{transform:scale(.96);}
+.pill-amber{background:var(--amber);color:#3A2900;box-shadow:0 6px 18px -6px rgba(250,189,46,.6);}
+.pill-amber:hover{box-shadow:0 8px 22px -6px rgba(250,189,46,.8);}
+.pill-outline{background:transparent;border-color:var(--navy);color:var(--ink);}
+.app[data-app-theme="dark"] .pill-outline{border-color:var(--ice);}
+.pill-outline:hover{background:var(--navy);color:var(--ice);}
+.pill-ghost{background:var(--panel);color:var(--ink);}
+.pill .arrow{transition:transform .18s var(--ease);}
+.pill:hover .arrow{transform:translateX(3px);}
+.pill-sm{padding:6px 12px;font-size:.72rem;}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--line);font-size:.78rem;font-weight:600;color:var(--ink);
+  white-space:nowrap;transition:all .16s var(--ease);
+}
+.chip:hover{border-color:var(--teal);color:var(--teal);}
+.chip.active{background:var(--navy);color:var(--ice);border-color:var(--navy);}
+.icon-btn{
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.14);color:var(--ice);backdrop-filter:blur(6px);transition:background .16s;
+  flex:0 0 auto;
+}
+.icon-btn:hover{background:rgba(255,255,255,.26);}
+.icon-btn.solid{background:var(--panel);color:var(--ink);}
+.icon-btn.solid:hover{background:var(--line);}
+
+/* ============ BADGES ============ */
+.badge-verified,.badge-pending{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;flex:0 0 auto;}
+.badge-verified{background:var(--teal);color:#fff;}
+.badge-pending{background:#C9CFD8;color:#586472;}
+.tag-sponsored{
+  display:inline-flex;align-items:center;gap:5px;font-size:.65rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--amber-ink);background:var(--amber);padding:4px 9px;border-radius:6px;
+}
+.tag-featured{
+  display:inline-flex;align-items:center;gap:5px;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:#fff;background:var(--navy);padding:4px 9px;border-radius:6px;
+}
+.tag-featured .dot{width:5px;height:5px;border-radius:50%;background:var(--amber);}
+.stars{color:var(--amber);font-size:.78rem;letter-spacing:1px;}
+.stars .empty{color:var(--line);}
+
+/* ============ CARDS: shared thumb system ============ */
+.thumb{position:relative;border-radius:16px;overflow:hidden;background:var(--panel);}
+.thumb .grad{position:absolute;inset:0;}
+.thumb .grad::after{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 20% 20%, rgba(255,255,255,.14) 0, transparent 45%),repeating-linear-gradient(115deg, rgba(255,255,255,.045) 0 2px, transparent 2px 26px);}
+.thumb .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.4rem;opacity:.9;filter:drop-shadow(0 6px 14px rgba(0,0,0,.25));}
+.thumb .overlay-label{
+  position:absolute;left:0;right:0;bottom:0;padding:10px 10px 8px;
+  background:linear-gradient(to top, rgba(6,10,18,.88), rgba(6,10,18,0));color:#fff;
+}
+.thumb .overlay-label .t{font-size:.78rem;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.thumb .overlay-label .m{font-size:.68rem;opacity:.8;margin-top:2px;}
+.thumb .playbadge{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+
+.grad-0{background:linear-gradient(135deg,#0E1729,#1C8AA8);}
+.grad-1{background:linear-gradient(135deg,#7A4E00,#FABD2E);}
+.grad-2{background:linear-gradient(135deg,#16233D,#3D5570);}
+.grad-3{background:linear-gradient(135deg,#0B3B2E,#1C8AA8);}
+.grad-4{background:linear-gradient(135deg,#3A1F00,#FABD2E);}
+.grad-5{background:linear-gradient(135deg,#2C1B3D,#5B6B7D);}
+
+/* horizontal scroll rail */
+.hrail{display:flex;gap:12px;overflow-x:auto;padding:2px 20px 6px;margin:0 -20px;scroll-snap-type:x proximity;}
+.hrail::-webkit-scrollbar{display:none;}
+.hrail>*{scroll-snap-align:start;flex:0 0 auto;}
+
+/* ============ HOME ============ */
+.hero{
+  position:relative;padding:18px 20px 26px;color:var(--ice);overflow:hidden;
+  background:radial-gradient(ellipse at top right, hsl(195 80% 28%), hsl(220 60% 10%) 55%, hsl(222 70% 6%) 100%);
+}
+.hero::before{content:'';position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size:26px 26px;mask-image:radial-gradient(ellipse at top right, black, transparent 70%);}
+.hero-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;position:relative;z-index:2;}
+.brand-lockup{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.15rem;}
+.brand-lockup .t{color:var(--amber);}
+.hero-actions{display:flex;align-items:center;gap:8px;}
+.loc-chip{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);padding:7px 12px;border-radius:999px;font-size:.74rem;font-weight:600;}
+.hero h1{position:relative;z-index:2;font-size:1.7rem;margin:0 0 8px;}
+.hero p.sub{position:relative;z-index:2;font-size:.86rem;color:rgba(240,250,255,.72);margin:0 0 18px;max-width:32ch;line-height:1.5;}
+.searchbar{position:relative;z-index:2;display:flex;align-items:center;gap:8px;background:#fff;border-radius:16px;padding:6px 6px 6px 16px;box-shadow:0 14px 30px -10px rgba(0,0,0,.4);}
+.searchbar input{flex:1;border:0;outline:0;background:transparent;font-size:.86rem;color:var(--navy);padding:8px 0;}
+.searchbar input::placeholder{color:#8593A3;}
+.searchbar button{width:40px;height:40px;border-radius:12px;background:var(--amber);color:var(--amber-ink);display:flex;align-items:center;justify-content:center;flex:0 0 auto;transition:transform .15s;}
+.searchbar button:active{transform:scale(.92);}
+.suggest-row{position:relative;z-index:2;display:flex;gap:8px;overflow-x:auto;margin:14px -20px 0;padding:2px 20px 4px;}
+.suggest-row::-webkit-scrollbar{display:none;}
+.suggest-chip{flex:0 0 auto;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:var(--ice);padding:8px 13px;border-radius:999px;font-size:.74rem;font-weight:600;white-space:nowrap;}
+.suggest-chip:hover{background:rgba(255,255,255,.2);}
+
+.catrail-wrap{background:var(--panel);padding:16px 0 18px;}
+.cat-chip{display:flex;flex-direction:column;align-items:center;gap:6px;width:64px;}
+.cat-chip .ico{width:52px;height:52px;border-radius:16px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:1.35rem;box-shadow:var(--shadow);border:1px solid var(--line);transition:transform .16s var(--ease),border-color .16s;}
+.cat-chip:hover .ico{transform:translateY(-2px);border-color:var(--teal);}
+.cat-chip span{font-size:.63rem;font-weight:700;text-align:center;color:var(--ink-soft);line-height:1.15;}
+
+.section{padding:24px 0 6px;background:var(--bg);}
+.section.alt{background:var(--panel);}
+.vid-card{width:168px;}
+.vid-card .thumb{width:168px;height:112px;}
+.biz-card{width:180px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;position:relative;transition:transform .16s var(--ease),box-shadow .16s;}
+.biz-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);}
+.biz-card .logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#fff;margin-bottom:10px;}
+.biz-card .name{font-weight:700;font-size:.86rem;display:flex;align-items:center;gap:5px;line-height:1.25;}
+.biz-card .meta{font-size:.72rem;color:var(--ink-soft);margin-top:4px;}
+.biz-card .tag-featured{position:absolute;top:10px;right:10px;}
+
+.catgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px;}
+.catgrid .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;transition:transform .16s var(--ease);}
+.catgrid .tile:hover{transform:translateY(-2px);border-color:var(--teal);}
+.catgrid .tile .ico{font-size:1.25rem;}
+.catgrid .tile span{font-size:.68rem;font-weight:700;color:var(--ink-soft);line-height:1.2;}
+
+.statsband{background:var(--navy);color:var(--ice);padding:28px 20px 30px;margin-top:8px;display:flex;justify-content:space-between;gap:10px;}
+.stat{text-align:left;}
+.stat .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;color:var(--amber);}
+.stat .c{font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(240,250,255,.7);margin-top:2px;}
+.homefoot{height:90px;background:var(--navy);}
+
+/* ============ BOTTOM NAV ============ */
+.bottomnav{
+  position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:center;justify-content:space-around;
+  background:var(--card);border-top:1px solid var(--line);z-index:70;padding-bottom:6px;
+}
+.bottomnav.hidden{display:none;}
+.navbtn{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-soft);font-size:.6rem;font-weight:700;width:56px;transition:color .15s;}
+.navbtn.active{color:var(--navy);}
+.app[data-app-theme="dark"] .navbtn.active{color:var(--ice);}
+.navbtn.active svg{stroke:var(--amber);}
+.navbtn .fab{width:46px;height:46px;border-radius:50%;background:var(--navy);color:var(--amber);display:flex;align-items:center;justify-content:center;margin-top:-24px;box-shadow:0 8px 18px -6px rgba(14,23,41,.5);border:3px solid var(--bg);}
+
+/* ============ SEARCH ============ */
+.search-top{position:sticky;top:0;z-index:30;background:var(--bg);padding:14px 20px 10px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);}
+.search-top .searchbar{background:var(--panel);box-shadow:none;flex:1;}
+.search-top .searchbar input{color:var(--ink);}
+.search-top .icon-btn.solid{background:var(--panel);color:var(--ink);}
+.tabs-row{display:flex;gap:6px;padding:12px 20px 4px;overflow-x:auto;position:sticky;top:64px;background:var(--bg);z-index:29;}
+.tab-btn{padding:8px 14px;border-radius:999px;font-size:.78rem;font-weight:700;color:var(--ink-soft);white-space:nowrap;border:1px solid transparent;}
+.tab-btn.active{background:var(--navy);color:var(--ice);}
+.results-list{padding:14px 20px 100px;display:flex;flex-direction:column;gap:12px;}
+.section-label{display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-ink);margin:4px 0 -2px;}
+.section-label svg{width:12px;height:12px;}
+
+.result-card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;transition:transform .14s var(--ease),box-shadow .14s;position:relative;}
+.result-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+.result-card.sponsored{background:var(--sponsor-bg);border-color:var(--sponsor-line);}
+.result-card .r-thumb{width:78px;height:78px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#fff;position:relative;}
+.result-card .r-thumb.biz-logo{color:#fff;}
+.result-card .r-body{flex:1;min-width:0;}
+.result-card .r-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.result-card .r-name{font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:5px;}
+.result-card .r-meta{font-size:.74rem;color:var(--ink-soft);margin-top:3px;}
+.result-card .r-desc{font-size:.76rem;color:var(--ink-soft);margin-top:5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.result-card .r-price{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--ink);font-size:.92rem;margin-top:4px;}
+.result-card .r-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px;}
+.cmp-chip{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;padding:5px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink-soft);}
+.cmp-chip.added{background:var(--navy);color:var(--ice);border-color:var(--navy);}
+.cmp-chip svg{width:11px;height:11px;}
+
+.skel{background:linear-gradient(90deg, var(--line) 25%, var(--panel) 37%, var(--line) 63%);background-size:400% 100%;animation:shimmer 1.4s ease infinite;border-radius:16px;}
+@keyframes shimmer{0%{background-position:100% 0;}100%{background-position:0 0;}}
+.skel-card{height:100px;}
+
+.empty-state{padding:50px 20px;text-align:center;}
+.empty-state .e{font-size:2.6rem;margin-bottom:12px;}
+.empty-state h3{font-size:1rem;margin:0 0 6px;}
+.empty-state p{font-size:.82rem;color:var(--ink-soft);margin:0 0 16px;}
+
+/* ============ FEED ============ */
+.feed{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;background:#000;}
+.feed-slide{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;}
+.feed-slide .grad{position:absolute;inset:0;transform:scale(1.06);transition:transform 7s linear;}
+.feed-slide.in-view .grad{transform:scale(1.16);}
+.feed-slide .glyph{font-size:6rem;opacity:.16;}
+.feed-scrim{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,.82) 100%);}
+.feed-topbar{position:absolute;top:8px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:6px 14px;z-index:10;}
+.feed-title{font-weight:700;font-size:.86rem;}
+.feed-progress{position:absolute;top:4px;left:14px;right:14px;display:flex;gap:4px;z-index:10;}
+.feed-progress .dot{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);}
+.feed-progress .dot.done{background:rgba(255,255,255,.75);}
+.feed-progress .dot.now{background:var(--amber);}
+.feed-center-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none;}
+.feed-center-icon svg{width:64px;height:64px;opacity:0;transition:opacity .25s;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));}
+.feed-center-icon.show svg{opacity:.9;}
+.sponsored-tag{position:absolute;top:46px;left:14px;z-index:10;}
+.feed-rail{position:absolute;right:10px;bottom:110px;display:flex;flex-direction:column;align-items:center;gap:20px;z-index:10;}
+.rail-btn{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.rail-btn .rail-icon{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:transform .15s var(--ease);}
+.rail-btn:active .rail-icon{transform:scale(.86);}
+.rail-btn .rail-icon svg{width:22px;height:22px;}
+.rail-btn.liked .rail-icon{background:rgba(250,189,46,.22);}
+.rail-btn.liked .rail-icon svg{fill:var(--amber);stroke:var(--amber);}
+.rail-btn .count{font-size:.66rem;font-weight:700;}
+.rail-btn.avatar .rail-icon{background:var(--navy);font-size:1.1rem;border:2px solid var(--amber);}
+.feed-bottom{position:absolute;left:0;right:74px;bottom:22px;padding:0 14px;z-index:10;}
+.feed-handle{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem;font-weight:700;}
+.feed-handle .pill{padding:5px 12px;font-size:.68rem;}
+.feed-caption{font-size:.82rem;line-height:1.4;margin-bottom:5px;}
+.feed-meta{font-size:.7rem;opacity:.75;display:flex;align-items:center;gap:6px;}
+.heart-burst{position:absolute;width:90px;height:90px;pointer-events:none;z-index:20;transform:translate(-50%,-50%) scale(.4);opacity:0;}
+.heart-burst.go{animation:heartBurst .8s ease forwards;}
+@keyframes heartBurst{0%{transform:translate(-50%,-50%) scale(.3);opacity:0;}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15);}100%{opacity:0;transform:translate(-50%,-50%) scale(1.3);}}
+.feed-exit{position:absolute;top:8px;left:8px;z-index:12;}
+
+/* ============ PROFILE ============ */
+.cover{position:relative;height:190px;color:#fff;}
+.cover .topctl{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;z-index:5;}
+.cover .playhint{position:absolute;bottom:12px;right:14px;display:flex;align-items:center;gap:6px;font-size:.7rem;font-weight:700;background:rgba(0,0,0,.4);padding:6px 11px;border-radius:999px;z-index:5;}
+.identity{padding:0 20px;margin-top:-34px;position:relative;z-index:2;}
+.identity .logo{width:68px;height:68px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:1.9rem;color:#fff;border:4px solid var(--bg);box-shadow:var(--shadow);}
+.identity h2{margin:12px 0 2px;font-size:1.15rem;display:flex;align-items:center;gap:6px;}
+.identity .meta{font-size:.8rem;color:var(--ink-soft);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.identity .rating{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:.78rem;}
+.pending-note{display:flex;gap:8px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:.72rem;color:var(--ink-soft);}
+.desc{padding:12px 20px 0;font-size:.83rem;line-height:1.55;color:var(--ink-soft);}
+.stats-row{display:flex;gap:22px;padding:16px 20px;}
+.actions-row{display:flex;gap:10px;padding:2px 20px 14px;}
+.actions-row .pill{flex:1;justify-content:center;}
+.ptabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;}
+.ptab{padding:12px 6px;font-size:.82rem;font-weight:700;color:var(--ink-soft);border-bottom:2px solid transparent;margin-right:18px;}
+.ptab.active{color:var(--ink);border-color:var(--amber);}
+.ptab-content{padding:16px 20px 100px;}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.pgrid .pcard{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .15s var(--ease);}
+.pgrid .pcard:hover{transform:translateY(-3px);}
+.pgrid .pcard .thumb{height:90px;border-radius:0;}
+.pgrid .pcard .body{padding:10px;}
+.pgrid .pcard .name{font-size:.76rem;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em;}
+.pgrid .pcard .price{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.85rem;margin-top:4px;}
+.pgrid .pcard .cmp{margin-top:8px;width:100%;justify-content:center;}
+.vlist{display:flex;flex-direction:column;gap:12px;}
+.vlist .vrow{display:flex;gap:12px;}
+.vlist .vrow .thumb{width:120px;height:78px;flex:0 0 auto;}
+.vlist .vrow .info{flex:1;}
+.vlist .vrow .info .t{font-size:.82rem;font-weight:700;line-height:1.3;}
+.vlist .vrow .info .m{font-size:.72rem;color:var(--ink-soft);margin-top:4px;}
+.about-block{margin-bottom:18px;}
+.about-block h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:0 0 8px;}
+.about-row{display:flex;gap:10px;align-items:flex-start;font-size:.82rem;padding:8px 0;border-bottom:1px solid var(--line);}
+.about-row svg{flex:0 0 auto;margin-top:2px;color:var(--teal);}
+.chipwrap{display:flex;flex-wrap:wrap;gap:8px;}
+
+/* ============ PRODUCT ============ */
+.p-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--line);}
+.p-top .biz-link{font-size:.78rem;font-weight:700;color:var(--teal);display:flex;align-items:center;gap:5px;}
+.p-gallery{position:relative;height:220px;}
+.p-dots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;}
+.p-dots .d{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5);}
+.p-dots .d.active{background:#fff;width:16px;border-radius:4px;}
+.p-body{padding:16px 20px 0;}
+.p-title{font-size:1.15rem;margin:0 0 4px;}
+.p-price{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;color:var(--ink);margin:6px 0;}
+.p-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.badge-instock{background:#E4F4EE;color:#0B6B4E;font-size:.68rem;font-weight:800;padding:5px 10px;border-radius:6px;text-transform:uppercase;letter-spacing:.05em;}
+.app[data-app-theme="dark"] .badge-instock{background:#0B3B2E;color:#7FE0C0;}
+.p-compare-btn{width:100%;justify-content:center;margin-bottom:16px;}
+.spec-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-bottom:20px;}
+.spec-table tr{border-bottom:1px solid var(--line);}
+.spec-table td{padding:10px 0;}
+.spec-table td:first-child{color:var(--ink-soft);width:42%;font-weight:600;}
+.spec-table td:last-child{font-weight:700;text-align:right;}
+.supplier-card{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:12px;margin-bottom:20px;}
+.supplier-card .logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;}
+.supplier-card .info{flex:1;}
+.supplier-card .info .n{font-weight:700;font-size:.85rem;display:flex;gap:5px;align-items:center;}
+.supplier-card .info .m{font-size:.7rem;color:var(--ink-soft);}
+.related-title{font-size:.85rem;font-weight:700;margin:0 0 10px;}
+.rel-card{width:130px;}
+.rel-card .thumb{height:86px;}
+.rel-card .n{font-size:.72rem;font-weight:700;margin-top:6px;line-height:1.3;}
+.rel-card .p{font-size:.76rem;font-weight:700;color:var(--ink);margin-top:2px;}
+.p-cta-bar{position:sticky;bottom:0;background:linear-gradient(to top, var(--bg) 60%, transparent);padding:16px 20px 20px;margin-top:10px;display:flex;gap:10px;}
+.p-cta-bar .pill{flex:1;justify-content:center;}
+
+/* ============ SHEETS ============ */
+.sheet-backdrop{position:absolute;inset:0;background:rgba(6,10,18,.55);opacity:0;pointer-events:none;transition:opacity .25s var(--ease);z-index:90;}
+.sheet-backdrop.show{opacity:1;pointer-events:auto;}
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:22px 22px 0 0;
+  transform:translateY(105%);transition:transform .32s var(--ease);z-index:95;max-height:82%;overflow-y:auto;
+  padding:10px 20px 26px;box-shadow:0 -10px 40px rgba(0,0,0,.25);
+}
+.sheet.show{transform:translateY(0);}
+.sheet .grabber{width:38px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 16px;}
+.sheet h3{font-size:1.02rem;margin:0 0 4px;}
+.sheet .sheet-sub{font-size:.78rem;color:var(--ink-soft);margin:0 0 16px;}
+.sheet-row{margin-bottom:18px;}
+.sheet-row label{display:block;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:9px;}
+.sheet-actions{display:flex;gap:10px;margin-top:6px;}
+.sheet-actions .pill{flex:1;justify-content:center;}
+.price-inputs{display:flex;align-items:center;gap:8px;}
+.price-inputs input{width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:.8rem;}
+.role-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;transition:border-color .15s;}
+.role-card:hover{border-color:var(--teal);}
+.role-card .e{font-size:1.4rem;}
+.role-card .t{font-weight:700;font-size:.86rem;}
+.role-card .d{font-size:.72rem;color:var(--ink-soft);margin-top:2px;}
+
+/* compare sheet */
+.cmp-table-wrap{overflow-x:auto;margin:0 -20px;padding:0 20px;}
+.cmp-table{border-collapse:collapse;width:100%;min-width:420px;}
+.cmp-table th{text-align:left;font-size:.68rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;padding:6px 10px 10px 0;font-weight:800;}
+.cmp-table td{padding:9px 10px 9px 0;border-top:1px solid var(--line);font-size:.78rem;vertical-align:top;}
+.cmp-col-head{width:150px;}
+.cmp-col-head .thumb{width:100%;height:70px;margin-bottom:8px;}
+.cmp-col-head .n{font-size:.78rem;font-weight:700;line-height:1.3;}
+.cmp-col-head .rm{font-size:.66rem;color:var(--danger);font-weight:700;margin-top:6px;display:inline-block;}
+.cmp-label{color:var(--ink-soft);font-weight:700;white-space:nowrap;}
+
+/* compare tray */
+.compare-tray{position:absolute;left:20px;right:20px;bottom:88px;z-index:60;display:flex;justify-content:center;transform:translateY(140%);transition:transform .3s var(--ease);}
+.compare-tray.show{transform:translateY(0);}
+.compare-tray .inner{display:flex;align-items:center;gap:10px;background:var(--navy);color:var(--ice);padding:10px 10px 10px 16px;border-radius:999px;box-shadow:0 12px 26px -8px rgba(0,0,0,.4);}
+.compare-tray b{color:var(--amber);}
+
+/* toast */
+.toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,20px);background:var(--navy);color:var(--ice);padding:10px 18px;border-radius:999px;font-size:.78rem;font-weight:600;opacity:0;transition:all .28s var(--ease);z-index:99;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translate(-50%,0);}
+
+/* ============ RESPONSIVE: real mobile viewport ============ */
+@media (max-width:760px){
+  .page-topbar{padding:12px 14px;}
+  .jumpnav{display:none;}
+  .notes-panel{display:none!important;}
+  .stage{padding:0;}
+  .device-shell{position:static;width:100%;}
+  .device-bezel{width:100%;height:100dvh;border-radius:0;padding:0;box-shadow:none;}
+  .device-notch{display:none;}
+  .app{border-radius:0;height:100dvh;}
+}
+@media (min-width:761px){
+  .notes-panel.open{display:block;}
+}
+</style>
+
+<div class="page">
+  <header class="page-topbar">
+    <div class="page-brand">
+      <span class="dot"></span>
+      <div>
+        Miles Tech — Design Prototype
+        <small>Search · Discover · Watch · Compare · Connect</small>
+      </div>
+    </div>
+    <nav class="jumpnav" id="jumpnav">
+      <button data-jump="home">Home</button>
+      <button data-jump="search">Search Results</button>
+      <button data-jump="feed">Video Feed</button>
+      <button data-jump="profile">Business Profile</button>
+      <button data-jump="product">Product Detail</button>
+      <button class="info-btn" id="notesToggle" title="Design notes">i</button>
+    </nav>
+  </header>
+
+  <div class="stage">
+    <div class="device-shell">
+      <div class="device-bezel">
+        <div class="device-notch"></div>
+        <div class="app" id="app" data-app-theme="light">
+          <div class="statusbar" id="statusbar"><span>9:41</span><span>●●●● Safaricom  ▮▮▮▮</span></div>
+          <div class="screens" id="screens">
+
+            <!-- ============ HOME ============ -->
+            <section class="screen active" id="screen-home" data-screen="home">
+              <div class="hero">
+                <div class="hero-row">
+                  <div class="brand-lockup">Miles<span class="t">Tech</span></div>
+                  <div class="hero-actions">
+                    <button class="loc-chip" id="locChip">📍 Nairobi <span style="opacity:.7">▾</span></button>
+                    <button class="icon-btn" id="themeToggle" title="Toggle app theme"></button>
+                  </div>
+                </div>
+                <div class="eyebrow on-dark"><span class="dot"></span>SEARCH · DISCOVER · WATCH · COMPARE · CONNECT</div>
+                <h1 class="display">Find it. Watch it. <span class="hl">Connect.</span></h1>
+                <p class="sub">Kenya's video-first marketplace for products, suppliers &amp; services — from water tanks to solar pumps.</p>
+                <form class="searchbar" id="homeSearchForm">
+                  <input id="homeSearchInput" type="text" placeholder="Search products, businesses, videos…" autocomplete="off">
+                  <button type="submit" id="homeSearchBtn"></button>
+                </form>
+                <div class="suggest-row" id="suggestRow"></div>
+              </div>
+
+              <div class="catrail-wrap">
+                <div class="screen-pad eyebrow"><span class="dot"></span>Browse categories</div>
+                <div class="hrail" id="catRailHome"></div>
+              </div>
+
+              <div class="section">
+                <div class="screen-pad">
+                  <div class="eyebrow"><span class="dot"></span>Trending now</div>
+                  <h2 class="section-title">Videos everyone's watching</h2>
+                </div>
+                <div class="hrail" id="trendingRail"></div>
+              </div>
+
+              <div class="section alt">
+                <div class="screen-pad">
+                  <div class="eyebrow"><span class="dot"></span>Digital showrooms</div>
+                  <h2 class="section-title">Featured businesses</h2>
+                </div>
+                <div class="hrail" id="featuredBizRail"></div>
+              </div>
+
+              <div class="section">
+                <div class="screen-pad">
+                  <div class="eyebrow"><span class="dot"></span>18 categories, growing</div>
+                  <h2 class="section-title">Explore categories</h2>
+                </div>
+                <div class="catgrid" id="catGridHome"></div>
+              </div>
+
+              <div class="statsband">
+                <div class="stat"><div class="n">1,240+</div><div class="c">Verified businesses</div></div>
+                <div class="stat"><div class="n">8,600+</div><div class="c">Product listings</div></div>
+                <div class="stat"><div class="n">18</div><div class="c">Categories live</div></div>
+              </div>
+              <div class="homefoot"></div>
+            </section>
+
+            <!-- ============ SEARCH ============ -->
+            <section class="screen" id="screen-search" data-screen="search">
+              <div class="search-top">
+                <button class="icon-btn solid" data-action="back"></button>
+                <form class="searchbar" id="searchForm2" style="flex:1;">
+                  <input id="searchInput2" type="text" placeholder="Search products, businesses, videos…" autocomplete="off">
+                  <button type="submit"></button>
+                </form>
+                <button class="icon-btn solid" id="filterBtn"></button>
+              </div>
+              <div class="tabs-row" id="tabsRow"></div>
+              <div class="results-list" id="resultsList"></div>
+            </section>
+
+            <!-- ============ FEED ============ -->
+            <section class="screen" id="screen-feed" data-screen="feed">
+              <div class="feed" id="feed"></div>
+            </section>
+
+            <!-- ============ PROFILE ============ -->
+            <section class="screen" id="screen-profile" data-screen="profile">
+              <div id="profileContent"></div>
+            </section>
+
+            <!-- ============ PRODUCT ============ -->
+            <section class="screen" id="screen-product" data-screen="product">
+              <div id="productContent"></div>
+            </section>
+
+          </div>
+
+          <!-- bottom nav -->
+          <nav class="bottomnav" id="bottomnav">
+            <button class="navbtn" data-nav="home"></button>
+            <button class="navbtn" data-nav="searchtab"></button>
+            <button class="navbtn" data-nav="feedtab"><span class="fab"></span></button>
+            <button class="navbtn" data-nav="comparetab"></button>
+            <button class="navbtn" data-nav="account"></button>
+          </nav>
+
+          <!-- compare tray -->
+          <div class="compare-tray" id="compareTray"></div>
+
+          <!-- toast -->
+          <div class="toast" id="toast"></div>
+
+          <!-- sheets -->
+          <div class="sheet-backdrop" id="sheetBackdrop"></div>
+          <div class="sheet" id="filterSheet"></div>
+          <div class="sheet" id="accountSheet"></div>
+          <div class="sheet" id="compareSheet"></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="notes-panel" id="notesPanel">
+      <h3>Design notes for PM review</h3>
+      <ul>
+        <li><b>Status:</b> Draft — ready for first-pass review, not yet approved for build.</li>
+        <li><b>Sponsored vs Featured:</b> amber is used consistently for anything paid — "Sponsored" in search/feed, "Featured" on home showroom row — per the palette's stated role for accent color.</li>
+        <li><b>No real photography:</b> thumbnails use brand-gradient + icon in place of product photos/video frames, since none exist yet. Swap 1:1 once real assets land.</li>
+        <li><b>Verification states:</b> teal check = verified, grey clock = pending review. Search "construction" or "hardware" to see the pending state (BuildRight Hardware).</li>
+        <li><b>Compare</b> is modelled as a persistent cross-screen tray (add from any product card, up to 3) rather than a dedicated page — confirm this matches intent vs. a full comparison screen.</li>
+        <li><b>Account tab</b> and location picker are stubbed with a toast — onboarding/auth is a separate flow per the brief.</li>
+        <li>Try the suggested searches, scroll the video feed, and tap into a business to see the full loop.</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const CATEGORIES = [
+  {id:'manufacturing',label:'Manufacturing',icon:'🏭'},
+  {id:'agriculture',label:'Agriculture',icon:'🌾'},
+  {id:'education',label:'Education',icon:'🎓'},
+  {id:'health',label:'Health',icon:'🩺'},
+  {id:'technology',label:'Technology',icon:'💻'},
+  {id:'science',label:'Science',icon:'🔬'},
+  {id:'construction',label:'Construction',icon:'🏗️'},
+  {id:'automotive',label:'Automotive',icon:'🚗'},
+  {id:'retail',label:'Retail',icon:'🛍️'},
+  {id:'beauty',label:'Beauty & Lifestyle',icon:'💄'},
+  {id:'energy',label:'Energy',icon:'⚡'},
+  {id:'finance',label:'Finance',icon:'💰'},
+  {id:'hospitality',label:'Hospitality',icon:'🏨'},
+  {id:'arts',label:'Arts & Culture',icon:'🎨'},
+  {id:'books',label:'Books & Journals',icon:'📚'},
+  {id:'entertainment',label:'Entertainment',icon:'🎬'},
+  {id:'diy',label:'DIY',icon:'🔧'},
+  {id:'professional',label:'Professional Services',icon:'💼'},
+];
+
+const BUSINESSES = [
+  {id:'aquatank',name:'AquaTank Kenya Ltd',categories:['Manufacturing','Construction'],location:'Industrial Area, Nairobi',verified:true,rating:4.8,ratingCount:212,grad:0,icon:'🛢️',
+    description:'Rotomoulded water storage tanks for homes, farms and industry. ISO-certified production with nationwide delivery and a 5-year warranty on every tank.',
+    products:34,videosCount:12,phone:'+254 711 224 560',hours:'Mon–Sat · 8:00–17:00',
+    tags:['water tank','water tanks','tank','tanks','water storage','rotomoulding','poly tank','storage tank','suppliers'],
+    featured:false,sponsoredKeywords:['water','tank','tanks','storage','suppliers']},
+  {id:'sunflow',name:'SunFlow Irrigation',categories:['Energy','Agriculture'],location:'Nakuru',verified:true,rating:4.6,ratingCount:98,grad:1,icon:'☀️',
+    description:'Solar-powered irrigation systems engineered for Kenyan smallholder and commercial farms — pumps, drip kits and control panels.',
+    products:21,videosCount:9,phone:'+254 722 981 034',hours:'Mon–Fri · 8:00–17:00',
+    tags:['solar irrigation','irrigation','solar pump','drip kit','farm','agriculture','solar','systems'],
+    featured:false,sponsoredKeywords:['solar','irrigation','systems']},
+  {id:'nairobisteel',name:'Nairobi Steel Works',categories:['Manufacturing','Construction'],location:'Baba Dogo, Nairobi',verified:true,rating:4.5,ratingCount:74,grad:2,icon:'⚙️',
+    description:'Structural steel fabrication, roofing sheets and wire mesh for contractors across East Africa.',
+    products:16,videosCount:5,phone:'+254 733 445 210',hours:'Mon–Sat · 7:30–17:30',
+    tags:['steel','fabrication','roofing sheets','wire mesh','construction','manufacturing'],featured:false},
+  {id:'greengrow',name:'GreenGrow Agrovet',categories:['Agriculture'],location:'Eldoret',verified:true,rating:4.7,ratingCount:56,grad:3,icon:'🌱',
+    description:'Certified seed, agrochemicals and farm advisory for smallholder farmers across the Rift Valley.',
+    products:40,videosCount:7,phone:'+254 700 112 883',hours:'Mon–Sat · 8:00–18:00',
+    tags:['agrovet','seed','maize','fertilizer','farming','agriculture','soil'],featured:false},
+  {id:'solaris',name:'Solaris Power Kenya',categories:['Energy'],location:'Kisumu',verified:true,rating:4.9,ratingCount:143,grad:4,icon:'🔋',
+    description:'Hybrid solar inverters and battery systems for homes and businesses, with installation and after-sales support.',
+    products:18,videosCount:11,phone:'+254 720 556 907',hours:'Mon–Sat · 8:00–17:00',
+    tags:['solar','inverter','battery','power','energy','hybrid'],featured:true},
+  {id:'buildright',name:'BuildRight Hardware',categories:['Construction','Retail'],location:'Mombasa',verified:false,pending:true,rating:4.2,ratingCount:19,grad:5,icon:'🧱',
+    description:'General building materials and hardware supplies for contractors and homeowners on the coast.',
+    products:120,videosCount:2,phone:'+254 741 902 244',hours:'Mon–Sat · 8:00–18:00',
+    tags:['hardware','construction','building materials','cement'],featured:false},
+];
+
+const PRODUCTS = [
+  {id:'tank5000',businessId:'aquatank',name:'5,000L Vertical Water Tank',price:42500,grad:0,icon:'🛢️',
+    specs:{Capacity:'5,000 Litres',Material:'Polyethylene (Rotomoulded)',Warranty:'5 Years',Availability:'In stock — Nairobi & Nakuru depots'},
+    tags:['water tank','tank','5000l','storage','water']},
+  {id:'tank10000',businessId:'aquatank',name:'10,000L Loft Water Tank',price:78000,grad:0,icon:'🛢️',
+    specs:{Capacity:'10,000 Litres',Material:'Polyethylene (Rotomoulded)',Warranty:'5 Years',Availability:'Made to order — 5 days'},
+    tags:['water tank','tank','10000l','loft tank','water']},
+  {id:'tank1000',businessId:'aquatank',name:'1,000L Slimline Tank',price:14200,grad:2,icon:'🛢️',
+    specs:{Capacity:'1,000 Litres',Material:'Polyethylene (Rotomoulded)',Warranty:'3 Years',Availability:'In stock — Nairobi'},
+    tags:['water tank','slimline','tank','water']},
+  {id:'solarpump',businessId:'sunflow',name:'Solar Water Pump SP-200',price:68000,grad:1,icon:'☀️',
+    specs:{Capacity:'200 L/min',Power:'1.5kW solar array',Warranty:'3 Years',Availability:'Made to order — 7 days'},
+    tags:['solar pump','irrigation','solar irrigation','systems']},
+  {id:'dripkit',businessId:'sunflow',name:'Drip Irrigation Starter Kit (1 Acre)',price:24000,grad:1,icon:'💧',
+    specs:{Coverage:'1 Acre',Components:'Pump, filters, driplines, timer',Warranty:'1 Year',Availability:'In stock — Nakuru'},
+    tags:['drip irrigation','irrigation','solar irrigation','farm','systems']},
+  {id:'steelsheet',businessId:'nairobisteel',name:'Steel Roofing Sheets — Gauge 28',price:980,grad:2,icon:'⚙️',
+    specs:{Gauge:'28',Length:'Cut to order',Warranty:'10 Years',Availability:'In stock'},tags:['steel','roofing','construction']},
+  {id:'maizeseed',businessId:'greengrow',name:'Certified Maize Seed — Hybrid 614',price:650,grad:3,icon:'🌽',
+    specs:{Variety:'H614',Maturity:'120–140 days',Pack:'2kg bag',Availability:'In stock'},tags:['seed','maize','agriculture']},
+  {id:'inverter',businessId:'solaris',name:'5kW Hybrid Solar Inverter',price:145000,grad:4,icon:'🔋',
+    specs:{Output:'5kW',Battery:'Lithium/Lead-acid compatible',Warranty:'5 Years',Availability:'In stock — Kisumu & Nairobi'},tags:['solar','inverter','power','energy']},
+];
+
+const VIDEOS = [
+  {id:'v1',businessId:'aquatank',title:"Inside Our Rotomoulding Plant — How It's Made",category:'Manufacturing',views:82000,grad:0,icon:'🏭',sponsored:false},
+  {id:'v2',businessId:'sunflow',title:'Solar Irrigation Setup in 10 Minutes',category:'Energy · Agriculture',views:54000,grad:1,icon:'☀️',sponsored:false},
+  {id:'v3',businessId:null,creator:'Fundi Josephat',title:'DIY: Fixing a Leaking Water Tank Valve',category:'DIY',views:121000,grad:5,icon:'🔧',sponsored:false},
+  {id:'v4',businessId:'nairobisteel',title:'Steel Fabrication Floor Tour',category:'Manufacturing',views:19000,grad:2,icon:'⚙️',sponsored:false},
+  {id:'v5',businessId:'aquatank',title:'New 2026 Tank Range Launch',category:'Manufacturing',views:8000,grad:0,icon:'🛢️',sponsored:true},
+  {id:'v6',businessId:'solaris',title:'How Solar Hybrid Systems Work',category:'Energy',views:33000,grad:4,icon:'🔋',sponsored:false},
+  {id:'v7',businessId:'greengrow',title:'Testing Your Soil pH at Home',category:'Agriculture · Education',views:45000,grad:3,icon:'🌱',sponsored:false},
+];
+
+const FEED_ORDER = ['v3','v1','v5','v2','v6','v4','v7'];
+const TRENDING_ORDER = ['v1','v2','v3','v7'];
+const FEATURED_BIZ_ORDER = ['solaris','aquatank','sunflow','nairobisteel'];
+const HOME_CATS = ['manufacturing','agriculture','construction','energy','automotive','health','technology','retail','beauty','diy'];
+const SUGGESTIONS = ['water tank suppliers near Nairobi','solar irrigation systems','steel fabricators','car spare parts Mombasa'];
+
+const bizById = id => BUSINESSES.find(b=>b.id===id);
+const prodById = id => PRODUCTS.find(p=>p.id===id);
+const vidById = id => VIDEOS.find(v=>v.id===id);
+const catById = id => CATEGORIES.find(c=>c.id===id);
+
+/* ================= ICONS ================= */
+const ICONS = {
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  close:'<path d="M18 6L6 18M6 6l12 12"/>',
+  heart:'<path d="M12 20.6l-1.16-1.06C6.24 15.4 3 12.44 3 8.9 3 6.09 5.2 4 8 4c1.6 0 3.15.75 4 1.94A4.98 4.98 0 0116 4c2.8 0 5 2.09 5 4.9 0 3.54-3.24 6.5-7.84 10.64L12 20.6z"/>',
+  comment:'<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/>',
+  play:'<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>',
+  pause:'<rect x="6" y="5" width="4" height="14" fill="currentColor" stroke="none"/><rect x="14" y="5" width="4" height="14" fill="currentColor" stroke="none"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>',
+  filter:'<path d="M3 4h18l-7 9v6l-4 2v-8z"/>',
+  check:'<path d="M5 13l4 4L19 7"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  chev:'<path d="M9 6l6 6-6 6"/>',
+  pin:'<path d="M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  bookmark:'<path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/>',
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  compare:'<path d="M8 3v18M16 3v18"/><path d="M4 8h8M4 16h8M12 8h8M12 16h8"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  phone:'<path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.3 1.8.6 2.7a2 2 0 01-.5 2.1L8 9.7a16 16 0 006 6l1.2-1.2a2 2 0 012.1-.5c.9.3 1.8.5 2.7.6a2 2 0 011.7 2z"/>',
+};
+function icon(name,size=20){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;}
+const SPONSOR_DOT = '<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;flex:0 0 auto;"></span>';
+
+function verifiedBadge(biz){
+  if(biz.verified) return `<span class="badge-verified" title="Verified by Miles Tech">${icon('check',9)}</span>`;
+  if(biz.pending) return `<span class="badge-pending" title="Verification pending">${icon('clock',9)}</span>`;
+  return '';
+}
+function fmtKES(n){return 'KES '+String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function fmtViews(n){return n>=1000 ? (n/1000).toFixed(n%1000===0?0:1)+'K' : String(n);}
+function stars(rating){
+  let out='';
+  for(let i=1;i<=5;i++){out += i<=Math.round(rating) ? '★' : '<span class="empty">★</span>';}
+  return `<span class="stars">${out}</span>`;
+}
+
+/* ================= STATE ================= */
+let navStack = ['home'];
+let activeQuery = '';
+let activeCategoryFilter = null;
+let activeTab = 'all';
+let filters = {categories:new Set(), location:'', priceMin:'', priceMax:''};
+let compareSet = [];
+let likedVideos = new Set();
+let followedBiz = new Set();
+let currentProfileId = null;
+let currentProductId = null;
+let feedObserver = null;
+
+/* ================= NAV ================= */
+function navigate(name, opts={}){
+  const {mode='slide', reset=false} = opts;
+  const cur = document.querySelector('.screen.active');
+  if(cur) cur.classList.remove('active','anim-slide','anim-scale');
+  const el = document.getElementById('screen-'+name);
+  el.classList.add('active');
+  void el.offsetWidth;
+  el.classList.add(mode==='scale' ? 'anim-scale' : 'anim-slide');
+  el.scrollTop = 0;
+  if(reset) navStack = [name]; else if(navStack[navStack.length-1]!==name) navStack.push(name);
+  document.getElementById('bottomnav').classList.toggle('hidden', name==='feed' || name==='product');
+  updateNavActive(name);
+}
+function goBack(){
+  navStack.pop();
+  const prev = navStack[navStack.length-1] || 'home';
+  navStack.pop();
+  navigate(prev);
+}
+function updateNavActive(name){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  const map = {home:'home',search:'searchtab',feed:'feedtab'};
+  const key = map[name];
+  if(key) document.querySelector(`.navbtn[data-nav="${key}"]`)?.classList.add('active');
+}
+
+/* ================= TOAST ================= */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1900);
+}
+
+/* ================= SHEETS ================= */
+function openSheet(id){
+  document.getElementById('sheetBackdrop').classList.add('show');
+  document.getElementById(id).classList.add('show');
+}
+function closeSheets(){
+  document.getElementById('sheetBackdrop').classList.remove('show');
+  document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));
+}
+
+/* ================= RENDER: chips/cards ================= */
+function renderCatChipHome(cat){
+  return `<button class="cat-chip" data-action="go-category" data-cat="${cat.id}">
+    <span class="ico">${cat.icon}</span><span>${cat.label}</span>
+  </button>`;
+}
+function renderCatTile(cat){
+  return `<button class="tile" data-action="go-category" data-cat="${cat.id}">
+    <span class="ico">${cat.icon}</span><span>${cat.label}</span>
+  </button>`;
+}
+function renderVidCardHome(v){
+  const biz = v.businessId ? bizById(v.businessId) : null;
+  const by = biz ? biz.name : v.creator;
+  return `<div class="vid-card" data-action="open-feed" data-vid="${v.id}">
+    <div class="thumb">
+      <div class="grad grad-${v.grad}"></div>
+      <div class="glyph">${v.icon}</div>
+      ${v.sponsored?`<div style="position:absolute;top:8px;left:8px;"><span class="tag-sponsored">${SPONSOR_DOT}Sponsored</span></div>`:''}
+      <div class="playbadge">${icon('play',13)}</div>
+      <div class="overlay-label"><div class="t">${v.title}</div><div class="m">${by} · ${fmtViews(v.views)} views</div></div>
+    </div>
+  </div>`;
+}
+function renderBizCardHome(biz){
+  return `<div class="biz-card" data-action="open-profile" data-biz="${biz.id}">
+    ${biz.featured?`<span class="tag-featured"><span class="dot"></span>Featured</span>`:''}
+    <div class="logo grad-${biz.grad}">${biz.icon}</div>
+    <div class="name">${biz.name} ${verifiedBadge(biz)}</div>
+    <div class="meta">${biz.categories[0]} · ${biz.location}</div>
+    <div class="meta">${stars(biz.rating)} ${biz.rating}</div>
+  </div>`;
+}
+
+/* ================= HOME INIT ================= */
+function initHome(){
+  document.getElementById('catRailHome').innerHTML = HOME_CATS.map(id=>renderCatChipHome(catById(id))).join('') +
+    `<button class="cat-chip" data-action="open-more-cats"><span class="ico">${icon('plus',18)}</span><span>More</span></button>`;
+  document.getElementById('trendingRail').innerHTML = TRENDING_ORDER.map(id=>renderVidCardHome(vidById(id))).join('');
+  document.getElementById('featuredBizRail').innerHTML = FEATURED_BIZ_ORDER.map(id=>renderBizCardHome(bizById(id))).join('');
+  document.getElementById('catGridHome').innerHTML = CATEGORIES.map(renderCatTile).join('');
+  document.getElementById('suggestRow').innerHTML = SUGGESTIONS.map(s=>`<button class="suggest-chip" data-query="${s}">${s}</button>`).join('');
+}
+
+/* ================= SEARCH ================= */
+function tokenize(q){
+  const stop = new Set(['near','the','a','for','and','in','of','to']);
+  return q.toLowerCase().split(/\s+/).filter(t=>t.length>1 && !stop.has(t));
+}
+function textOf(item, type){
+  if(type==='business') return [item.name, item.location, ...item.categories, ...item.tags].join(' ').toLowerCase();
+  if(type==='product'){ const biz=bizById(item.businessId); return [item.name, biz?biz.name:'', ...item.tags].join(' ').toLowerCase(); }
+  if(type==='video'){ const biz=item.businessId?bizById(item.businessId):null; return [item.title, item.category, biz?biz.name:(item.creator||'')].join(' ').toLowerCase(); }
+}
+function scoreItem(item, type, tokens){
+  const text = textOf(item, type);
+  let score = 0;
+  tokens.forEach(t=>{ if(text.includes(t)) score++; });
+  return score;
+}
+function runSearch(showLoading){
+  const q = activeQuery.trim();
+  const tokens = tokenize(q);
+  const list = document.getElementById('resultsList');
+
+  const doRender = ()=>{
+    let orgBiz = [], orgProd = [], orgVid = [], sponsored = [];
+
+    if(tokens.length===0 && !activeCategoryFilter){
+      orgBiz = BUSINESSES.slice(); orgProd = PRODUCTS.slice(); orgVid = VIDEOS.slice();
+    } else {
+      BUSINESSES.forEach(b=>{
+        const catMatch = activeCategoryFilter ? b.categories.some(c=>c.toLowerCase()===activeCategoryFilter.toLowerCase()) : true;
+        const s = tokens.length ? scoreItem(b,'business',tokens) : (catMatch?1:0);
+        if((tokens.length===0 && catMatch) || (tokens.length>0 && s>0 && catMatch)) orgBiz.push({item:b,score:s});
+      });
+      PRODUCTS.forEach(p=>{
+        const biz = bizById(p.businessId);
+        const catMatch = activeCategoryFilter ? biz.categories.some(c=>c.toLowerCase()===activeCategoryFilter.toLowerCase()) : true;
+        const s = tokens.length ? scoreItem(p,'product',tokens) : (catMatch?1:0);
+        if((tokens.length===0 && catMatch) || (tokens.length>0 && s>0 && catMatch)) orgProd.push({item:p,score:s});
+      });
+      VIDEOS.forEach(v=>{
+        const biz = v.businessId?bizById(v.businessId):null;
+        const catMatch = activeCategoryFilter ? (biz? biz.categories.some(c=>c.toLowerCase()===activeCategoryFilter.toLowerCase()) : v.category.toLowerCase().includes(activeCategoryFilter.toLowerCase())) : true;
+        const s = tokens.length ? scoreItem(v,'video',tokens) : (catMatch?1:0);
+        if((tokens.length===0 && catMatch) || (tokens.length>0 && s>0 && catMatch)) orgVid.push({item:v,score:s});
+      });
+      orgBiz.sort((a,b)=>b.score-a.score); orgBiz = orgBiz.map(x=>x.item);
+      orgProd.sort((a,b)=>b.score-a.score); orgProd = orgProd.map(x=>x.item);
+      orgVid.sort((a,b)=>b.score-a.score); orgVid = orgVid.map(x=>x.item);
+
+      if(tokens.length){
+        BUSINESSES.forEach(b=>{
+          if(!b.sponsoredKeywords) return;
+          const hit = tokens.some(t=>b.sponsoredKeywords.some(k=>k.includes(t)||t.includes(k)));
+          if(hit) sponsored.push(b);
+        });
+      }
+    }
+    // apply filter sheet (category multiselect, location, price)
+    if(filters.categories.size){
+      orgBiz = orgBiz.filter(b=>b.categories.some(c=>filters.categories.has(c)));
+      orgProd = orgProd.filter(p=>bizById(p.businessId).categories.some(c=>filters.categories.has(c)));
+      orgVid = orgVid.filter(v=>{const biz=v.businessId?bizById(v.businessId):null; return biz ? biz.categories.some(c=>filters.categories.has(c)) : true;});
+    }
+    if(filters.location){
+      orgBiz = orgBiz.filter(b=>b.location.toLowerCase().includes(filters.location.toLowerCase()));
+      orgProd = orgProd.filter(p=>bizById(p.businessId).location.toLowerCase().includes(filters.location.toLowerCase()));
+    }
+    if(filters.priceMin) orgProd = orgProd.filter(p=>p.price >= Number(filters.priceMin));
+    if(filters.priceMax) orgProd = orgProd.filter(p=>p.price <= Number(filters.priceMax));
+
+    renderTabs(orgBiz.length+orgProd.length+orgVid.length, orgProd.length, orgBiz.length, orgVid.length);
+    renderResults({sponsored, orgBiz, orgProd, orgVid});
+  };
+
+  if(showLoading){
+    list.innerHTML = `<div class="skel skel-card"></div><div class="skel skel-card"></div><div class="skel skel-card"></div>`;
+    setTimeout(doRender, 480);
+  } else {
+    doRender();
+  }
+}
+function renderTabs(all, prod, biz, vid){
+  const tabs = [
+    {id:'all',label:'All',count:all},
+    {id:'products',label:'Products',count:prod},
+    {id:'businesses',label:'Businesses',count:biz},
+    {id:'videos',label:'Videos',count:vid},
+  ];
+  document.getElementById('tabsRow').innerHTML = tabs.map(t=>
+    `<button class="tab-btn ${activeTab===t.id?'active':''}" data-tab="${t.id}">${t.label} <span style="opacity:.6">${t.count}</span></button>`
+  ).join('');
+}
+function resultBizCard(b, sponsored){
+  return `<div class="result-card ${sponsored?'sponsored':''}" data-action="open-profile" data-biz="${b.id}">
+    <div class="r-thumb grad-${b.grad}">${b.icon}</div>
+    <div class="r-body">
+      <div class="r-top">
+        <div>
+          <div class="r-name">${b.name} ${verifiedBadge(b)}</div>
+          <div class="r-meta">${b.categories.join(' · ')} · ${b.location}</div>
+        </div>
+        ${sponsored?`<span class="tag-sponsored">${SPONSOR_DOT}Sponsored</span>`:''}
+      </div>
+      <div class="r-desc">${b.description}</div>
+      <div class="r-bottom">
+        <span class="r-meta">${stars(b.rating)} ${b.rating} (${b.ratingCount})</span>
+        <span class="pill pill-ghost pill-sm">Visit showroom <span class="arrow">${icon('chev',11)}</span></span>
+      </div>
+    </div>
+  </div>`;
+}
+function resultProdCard(p){
+  const biz = bizById(p.businessId);
+  const added = compareSet.includes(p.id);
+  return `<div class="result-card" data-action="open-product" data-prod="${p.id}">
+    <div class="r-thumb grad-${p.grad}">${p.icon}</div>
+    <div class="r-body">
+      <div class="r-name">${p.name}</div>
+      <div class="r-meta">${biz.name} ${verifiedBadge(biz)} · ${biz.location}</div>
+      <div class="r-price">${fmtKES(p.price)}</div>
+      <div class="r-bottom">
+        <span class="r-meta">${p.specs.Capacity||p.specs.Coverage||p.specs.Output||''}</span>
+        <button class="cmp-chip ${added?'added':''}" data-action="toggle-compare" data-prod="${p.id}">${icon(added?'check':'plus',11)} ${added?'Added':'Compare'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+function resultVidCard(v){
+  const biz = v.businessId?bizById(v.businessId):null;
+  const by = biz?biz.name:v.creator;
+  return `<div class="result-card" data-action="open-feed" data-vid="${v.id}">
+    <div class="r-thumb grad-${v.grad}">${icon('play',18)}</div>
+    <div class="r-body">
+      <div class="r-name">${v.title}</div>
+      <div class="r-meta">${by}${biz?' '+verifiedBadge(biz):''} · ${v.category}</div>
+      <div class="r-meta" style="margin-top:6px;">${fmtViews(v.views)} views ${v.sponsored?' · <span class="tag-sponsored">Sponsored</span>':''}</div>
+    </div>
+  </div>`;
+}
+function renderResults({sponsored, orgBiz, orgProd, orgVid}){
+  const list = document.getElementById('resultsList');
+  let items = [];
+  if(activeTab==='all' || activeTab==='businesses') orgBiz.forEach(b=>items.push({t:'business',v:b}));
+  if(activeTab==='all' || activeTab==='products') orgProd.forEach(p=>items.push({t:'product',v:p}));
+  if(activeTab==='all' || activeTab==='videos') orgVid.forEach(v=>items.push({t:'video',v}));
+
+  let html = '';
+  if((activeTab==='all' || activeTab==='businesses') && sponsored.length){
+    html += `<div class="section-label">${SPONSOR_DOT}Sponsored</div>`;
+    html += sponsored.map(b=>resultBizCard(b,true)).join('');
+    if(items.length) html += `<div class="section-label" style="margin-top:6px;color:var(--ink-soft);">Search results</div>`;
+  }
+  if(items.length===0 && sponsored.length===0){
+    const emptyTitle = activeQuery ? `No results for "${activeQuery}"` : (activeCategoryFilter ? `Nothing in ${activeCategoryFilter} yet` : 'No results');
+    html += `<div class="empty-state">
+      <div class="e">🔍</div>
+      <h3>${emptyTitle}</h3>
+      <p>Try one of these, or browse a category from the home screen.</p>
+      <div class="suggest-row" style="justify-content:center;flex-wrap:wrap;">${SUGGESTIONS.map(s=>`<button class="chip" data-query="${s}">${s}</button>`).join('')}</div>
+    </div>`;
+  } else {
+    items.forEach(it=>{
+      if(it.t==='business') html += resultBizCard(it.v,false);
+      if(it.t==='product') html += resultProdCard(it.v);
+      if(it.t==='video') html += resultVidCard(it.v);
+    });
+  }
+  list.innerHTML = html;
+}
+function openSearch(query, category){
+  activeQuery = query||''; activeCategoryFilter = category||null; activeTab='all';
+  document.getElementById('searchInput2').value = activeQuery;
+  navigate('search');
+  runSearch(true);
+}
+
+/* ================= FEED ================= */
+function buildFeed(startId){
+  const container = document.getElementById('feed');
+  container.innerHTML = FEED_ORDER.map((id,i)=>renderFeedSlide(vidById(id), i)).join('');
+  navigate('feed', {mode:'scale'});
+  requestAnimationFrame(()=>{
+    const idx = FEED_ORDER.indexOf(startId);
+    const target = container.children[idx>=0?idx:0];
+    target.scrollIntoView({block:'start'});
+    setupFeedObserver();
+  });
+}
+function renderFeedSlide(v, idx){
+  const biz = v.businessId?bizById(v.businessId):null;
+  const liked = likedVideos.has(v.id);
+  const following = biz && followedBiz.has(biz.id);
+  const dots = FEED_ORDER.map((id,i)=>`<span class="dot ${i<idx?'done':''} ${i===idx?'now':''}"></span>`).join('');
+  return `<div class="feed-slide" data-vid="${v.id}" data-idx="${idx}">
+    <div class="grad grad-${v.grad}"></div>
+    <div class="glyph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">${v.icon}</div>
+    <div class="feed-scrim"></div>
+    <div class="feed-progress">${dots}</div>
+    <div class="feed-topbar" style="margin-top:8px;">
+      <button class="icon-btn" data-action="feed-exit">${icon('back',18)}</button>
+      <div class="feed-title">Shorts</div>
+      <button class="icon-btn" data-action="feed-search">${icon('search',18)}</button>
+    </div>
+    ${v.sponsored?`<div class="sponsored-tag"><span class="tag-sponsored">${SPONSOR_DOT}Sponsored</span></div>`:''}
+    <div class="feed-center-icon" data-role="ppicon">${icon('pause',56)}</div>
+    <div class="feed-rail">
+      <button class="rail-btn avatar" data-action="open-profile" data-biz="${biz?biz.id:''}">
+        <span class="rail-icon">${biz?biz.icon:'🎬'}</span>
+      </button>
+      <button class="rail-btn ${liked?'liked':''}" data-action="like" data-vid="${v.id}">
+        <span class="rail-icon">${icon('heart',20)}</span><span class="count">${fmtViews((v.views/9|0)+(liked?1:0))}</span>
+      </button>
+      <button class="rail-btn" data-action="comment">
+        <span class="rail-icon">${icon('comment',20)}</span><span class="count">${fmtViews(v.views/40|0)}</span>
+      </button>
+      <button class="rail-btn" data-action="share">
+        <span class="rail-icon">${icon('share',20)}</span><span class="count">Share</span>
+      </button>
+    </div>
+    <div class="feed-bottom">
+      <div class="feed-handle">
+        <span>${biz?biz.name:v.creator}</span> ${biz?verifiedBadge(biz):''}
+        ${biz?`<button class="pill ${following?'pill-amber':'pill-outline'}" style="color:#fff;border-color:#fff;" data-action="follow" data-biz="${biz.id}">${following?'Following':'Follow'}</button>`:''}
+      </div>
+      <div class="feed-caption">${v.title}</div>
+      <div class="feed-meta">${v.category} · ${fmtViews(v.views)} views</div>
+    </div>
+  </div>`;
+}
+function setupFeedObserver(){
+  const slides = document.querySelectorAll('.feed-slide');
+  if(feedObserver) feedObserver.disconnect();
+  feedObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting && e.intersectionRatio>0.6){
+        slides.forEach(s=>s.classList.remove('in-view'));
+        e.target.classList.add('in-view');
+      }
+    });
+  }, {root:document.getElementById('feed'), threshold:[0,0.6,1]});
+  slides.forEach(s=>feedObserver.observe(s));
+}
+
+/* ================= PROFILE ================= */
+function openProfile(bizId, tab){
+  if(!bizId) { toast('Creator profiles are coming in a fast-follow release.'); return; }
+  currentProfileId = bizId;
+  activeTab = 'products';
+  renderProfile(tab||'products');
+  navigate('profile');
+}
+function renderProfile(tab){
+  activeTab = tab;
+  const b = bizById(currentProfileId);
+  const el = document.getElementById('profileContent');
+  el.innerHTML = `
+    <div class="cover grad-${b.grad}">
+      <div class="topctl">
+        <button class="icon-btn" data-action="back">${icon('back',18)}</button>
+        <button class="icon-btn" data-action="share">${icon('share',18)}</button>
+      </div>
+      <button class="playhint" data-action="open-feed-biz" data-biz="${b.id}">${icon('play',13)} Watch cover video</button>
+    </div>
+    <div class="identity">
+      <div class="logo grad-${b.grad}">${b.icon}</div>
+      <h2>${b.name} ${verifiedBadge(b)}</h2>
+      <div class="meta">${b.categories.join(' · ')} · ${icon('pin',12)} ${b.location}</div>
+      <div class="rating">${stars(b.rating)} <b>${b.rating}</b> <span style="color:var(--ink-soft)">(${b.ratingCount} reviews)</span></div>
+      ${b.pending?`<div class="pending-note">${icon('clock',15)} <div>Verification pending — this profile is under Miles Tech's manual review and not yet marked verified.</div></div>`:''}
+    </div>
+    <p class="desc">${b.description}</p>
+    <div class="stats-row">
+      <div class="stat"><div class="n" style="color:var(--amber)">${b.products}</div><div class="c" style="color:var(--ink-soft)">Products</div></div>
+      <div class="stat"><div class="n" style="color:var(--amber)">${b.videosCount}</div><div class="c" style="color:var(--ink-soft)">Videos</div></div>
+      <div class="stat"><div class="n" style="color:var(--amber)">${b.rating}★</div><div class="c" style="color:var(--ink-soft)">Rating</div></div>
+    </div>
+    <div class="actions-row">
+      <button class="pill pill-amber" data-action="contact">${icon('phone',15)} Contact</button>
+      <button class="pill pill-outline" data-action="save-biz" data-biz="${b.id}">${icon('bookmark',15)} Save</button>
+    </div>
+    <div class="ptabs">
+      <button class="ptab ${tab==='products'?'active':''}" data-ptab="products">Products</button>
+      <button class="ptab ${tab==='videos'?'active':''}" data-ptab="videos">Videos</button>
+      <button class="ptab ${tab==='about'?'active':''}" data-ptab="about">About</button>
+    </div>
+    <div class="ptab-content" id="ptabContent"></div>
+  `;
+  renderProfileTab(tab);
+}
+function renderProfileTab(tab){
+  const b = bizById(currentProfileId);
+  const el = document.getElementById('ptabContent');
+  if(tab==='products'){
+    const prods = PRODUCTS.filter(p=>p.businessId===b.id);
+    el.innerHTML = `<div class="pgrid">${prods.map(p=>{
+      const added = compareSet.includes(p.id);
+      return `<div class="pcard" data-action="open-product" data-prod="${p.id}">
+        <div class="thumb"><div class="grad grad-${p.grad}"></div><div class="glyph" style="font-size:1.8rem;">${p.icon}</div></div>
+        <div class="body">
+          <div class="name">${p.name}</div>
+          <div class="price">${fmtKES(p.price)}</div>
+          <button class="cmp-chip pill-sm cmp ${added?'added':''}" data-action="toggle-compare" data-prod="${p.id}">${icon(added?'check':'plus',11)} ${added?'Added to compare':'Add to compare'}</button>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  } else if(tab==='videos'){
+    const vids = VIDEOS.filter(v=>v.businessId===b.id);
+    el.innerHTML = `<div class="vlist">${vids.map(v=>`
+      <div class="vrow" data-action="open-feed" data-vid="${v.id}">
+        <div class="thumb"><div class="grad grad-${v.grad}"></div><div class="glyph" style="font-size:1.5rem;">${v.icon}</div><div class="playbadge">${icon('play',12)}</div>${v.sponsored?`<div style="position:absolute;top:6px;left:6px;"><span class="tag-sponsored" style="font-size:.58rem;padding:3px 7px;">Sponsored</span></div>`:''}</div>
+        <div class="info"><div class="t">${v.title}</div><div class="m">${v.category} · ${fmtViews(v.views)} views</div></div>
+      </div>`).join('')}</div>`;
+  } else {
+    el.innerHTML = `
+      <div class="about-block">
+        <h4>Overview</h4>
+        <p style="font-size:.83rem;color:var(--ink-soft);line-height:1.6;">${b.description}</p>
+      </div>
+      <div class="about-block">
+        <h4>Contact &amp; location</h4>
+        <div class="about-row">${icon('pin',16)} ${b.location}</div>
+        <div class="about-row">${icon('phone',16)} ${b.phone}</div>
+        <div class="about-row">${icon('clock',16)} ${b.hours}</div>
+      </div>
+      <div class="about-block">
+        <h4>Categories served</h4>
+        <div class="chipwrap">${b.categories.map(c=>`<span class="chip">${c}</span>`).join('')}</div>
+      </div>
+      <div class="about-block">
+        <h4>Verification</h4>
+        <div class="about-row">${b.verified?icon('check',16):icon('clock',16)} ${b.verified?'Verified by Miles Tech — business documents and contact details confirmed.':'Verification in progress — Miles Tech moderators are reviewing this business.'}</div>
+      </div>
+    `;
+  }
+}
+
+/* ================= PRODUCT ================= */
+function openProduct(prodId){
+  currentProductId = prodId;
+  renderProduct();
+  navigate('product');
+}
+function renderProduct(){
+  const p = prodById(currentProductId);
+  const b = bizById(p.businessId);
+  const added = compareSet.includes(p.id);
+  const related = PRODUCTS.filter(x=>x.businessId===b.id && x.id!==p.id).slice(0,3);
+  const el = document.getElementById('productContent');
+  el.innerHTML = `
+    <div class="p-top">
+      <button class="icon-btn solid" data-action="back">${icon('back',18)}</button>
+      <button class="biz-link" data-action="open-profile" data-biz="${b.id}">${b.name} ${verifiedBadge(b)}</button>
+      <button class="icon-btn solid" data-action="share">${icon('share',18)}</button>
+    </div>
+    <div class="p-gallery grad-${p.grad}">
+      <div class="glyph" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:4rem;">${p.icon}</div>
+      <div class="p-dots"><span class="d active"></span><span class="d"></span><span class="d"></span></div>
+    </div>
+    <div class="p-body">
+      <h2 class="p-title">${p.name}</h2>
+      <div class="p-badges">
+        <span class="chip">${b.categories[0]}</span>
+        <span class="badge-instock">${(p.specs.Availability||'').split('—')[0].trim()||'Available'}</span>
+      </div>
+      <div class="p-price">${fmtKES(p.price)}</div>
+      <button class="pill ${added?'pill-amber':'pill-outline'} p-compare-btn" data-action="toggle-compare" data-prod="${p.id}">
+        ${icon(added?'check':'plus',15)} ${added?`Added — Compare (${compareSet.length})`:'Add to Compare'}
+      </button>
+      <table class="spec-table">
+        ${Object.entries(p.specs).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}
+      </table>
+      <div class="supplier-card" data-action="open-profile" data-biz="${b.id}">
+        <div class="logo grad-${b.grad}">${b.icon}</div>
+        <div class="info">
+          <div class="n">${b.name} ${verifiedBadge(b)}</div>
+          <div class="m">${b.location} · ${stars(b.rating)} ${b.rating}</div>
+        </div>
+        ${icon('chev',16)}
+      </div>
+      ${related.length?`<div class="related-title">More from ${b.name}</div>
+      <div class="hrail" style="margin-bottom:6px;">${related.map(r=>`
+        <div class="rel-card" data-action="open-product" data-prod="${r.id}">
+          <div class="thumb"><div class="grad grad-${r.grad}"></div><div class="glyph" style="font-size:1.6rem;">${r.icon}</div></div>
+          <div class="n">${r.name}</div><div class="p">${fmtKES(r.price)}</div>
+        </div>`).join('')}</div>`:''}
+    </div>
+    <div class="p-cta-bar">
+      <button class="pill pill-outline" data-action="open-profile" data-biz="${b.id}">View showroom</button>
+      <button class="pill pill-amber" data-action="contact">${icon('phone',15)} Contact supplier</button>
+    </div>
+  `;
+}
+
+/* ================= COMPARE ================= */
+function toggleCompare(prodId){
+  const idx = compareSet.indexOf(prodId);
+  if(idx>=0){ compareSet.splice(idx,1); toast('Removed from compare'); }
+  else {
+    if(compareSet.length>=3){ toast('You can compare up to 3 products at a time'); return; }
+    compareSet.push(prodId); toast('Added to compare');
+  }
+  renderCompareTray();
+  refreshCurrentScreen();
+}
+function renderCompareTray(){
+  const tray = document.getElementById('compareTray');
+  if(compareSet.length===0){ tray.classList.remove('show'); tray.innerHTML=''; return; }
+  tray.innerHTML = `<div class="inner">
+    <span>Compare <b>(${compareSet.length})</b></span>
+    <button class="pill pill-amber pill-sm" data-action="open-compare-sheet">View <span class="arrow">${icon('chev',12)}</span></button>
+    <button class="icon-btn" data-action="clear-compare">${icon('close',14)}</button>
+  </div>`;
+  tray.classList.add('show');
+}
+function renderCompareSheet(){
+  const sheet = document.getElementById('compareSheet');
+  if(compareSet.length===0){
+    sheet.innerHTML = `<div class="grabber"></div><h3>Nothing to compare yet</h3><p class="sheet-sub">Add 2–3 products from any listing to compare price, specs and warranty side by side.</p>`;
+    return;
+  }
+  const prods = compareSet.map(prodById);
+  const specKeys = [...new Set(prods.flatMap(p=>Object.keys(p.specs)))];
+  sheet.innerHTML = `
+    <div class="grabber"></div>
+    <h3>Compare products</h3>
+    <p class="sheet-sub">${prods.length} of 3 selected</p>
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <tr><th></th>${prods.map(p=>`<th class="cmp-col-head">
+          <div class="thumb grad-${p.grad}"><div class="glyph" style="font-size:1.4rem;">${p.icon}</div></div>
+          <div class="n">${p.name}</div>
+          <button class="rm" data-action="remove-compare" data-prod="${p.id}">Remove</button>
+        </th>`).join('')}</tr>
+        <tr><td class="cmp-label">Price</td>${prods.map(p=>`<td><b>${fmtKES(p.price)}</b></td>`).join('')}</tr>
+        ${specKeys.map(k=>`<tr><td class="cmp-label">${k}</td>${prods.map(p=>`<td>${p.specs[k]||'—'}</td>`).join('')}</tr>`).join('')}
+        <tr><td class="cmp-label">Supplier</td>${prods.map(p=>{const b=bizById(p.businessId);return `<td>${b.name} ${verifiedBadge(b)}</td>`;}).join('')}</tr>
+        <tr><td class="cmp-label">Location</td>${prods.map(p=>`<td>${bizById(p.businessId).location}</td>`).join('')}</tr>
+        <tr><td class="cmp-label">Rating</td>${prods.map(p=>`<td>${stars(bizById(p.businessId).rating)}</td>`).join('')}</tr>
+      </table>
+    </div>
+    <div class="sheet-actions">
+      <button class="pill pill-outline" data-action="clear-compare" style="flex:1;justify-content:center;">Clear all</button>
+      <button class="pill pill-amber" data-action="request-quotes" style="flex:1;justify-content:center;">Request Quotes</button>
+    </div>
+  `;
+}
+
+/* ================= FILTER SHEET ================= */
+function renderFilterSheet(){
+  const cats = ['Manufacturing','Agriculture','Construction','Energy','Retail','Automotive'];
+  document.getElementById('filterSheet').innerHTML = `
+    <div class="grabber"></div>
+    <h3>Filter results</h3>
+    <p class="sheet-sub">Narrow down by category, location or price.</p>
+    <div class="sheet-row">
+      <label>Category</label>
+      <div class="chipwrap">${cats.map(c=>`<button class="chip ${filters.categories.has(c)?'active':''}" data-action="filter-cat" data-cat="${c}">${c}</button>`).join('')}</div>
+    </div>
+    <div class="sheet-row">
+      <label>Location</label>
+      <div class="chipwrap">${['Nairobi','Nakuru','Kisumu','Mombasa','Eldoret'].map(l=>`<button class="chip ${filters.location===l?'active':''}" data-action="filter-loc" data-loc="${l}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="sheet-row">
+      <label>Price range (KES)</label>
+      <div class="price-inputs">
+        <input type="number" id="priceMin" placeholder="Min" value="${filters.priceMin}">
+        <span>–</span>
+        <input type="number" id="priceMax" placeholder="Max" value="${filters.priceMax}">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="pill pill-outline" data-action="reset-filters" style="flex:1;justify-content:center;">Reset</button>
+      <button class="pill pill-amber" data-action="apply-filters" style="flex:1;justify-content:center;">Apply</button>
+    </div>
+  `;
+}
+
+/* ================= ACCOUNT SHEET ================= */
+function renderAccountSheet(){
+  document.getElementById('accountSheet').innerHTML = `
+    <div class="grabber"></div>
+    <h3>Sign in to Miles Tech</h3>
+    <p class="sheet-sub">Save favourites, follow businesses, or manage a company showroom.</p>
+    <div class="role-card" data-action="account-stub">
+      <span class="e">🙂</span>
+      <div><div class="t">Continue as a General User</div><div class="d">Search, watch, compare — free, always.</div></div>
+    </div>
+    <div class="role-card" data-action="account-stub">
+      <span class="e">🏢</span>
+      <div><div class="t">I run a business</div><div class="d">Register a digital showroom — manual verification required.</div></div>
+    </div>
+    <p class="sheet-sub" style="margin-top:4px;">Full onboarding &amp; auth flow is a separate design pass — out of scope here.</p>
+  `;
+}
+
+function refreshCurrentScreen(){
+  const active = document.querySelector('.screen.active').dataset.screen;
+  if(active==='search') runSearch(false);
+  if(active==='profile') renderProfileTab(activeTab);
+  if(active==='product') renderProduct();
+}
+
+/* ================= THEME ================= */
+function applyThemeIcon(){
+  const dark = document.getElementById('app').dataset.appTheme==='dark';
+  document.getElementById('themeToggle').innerHTML = icon(dark?'sun':'moon',17);
+}
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const app = document.getElementById('app');
+  app.dataset.appTheme = app.dataset.appTheme==='dark' ? 'light' : 'dark';
+  applyThemeIcon();
+});
+
+/* ================= EVENT WIRING ================= */
+document.getElementById('homeSearchForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  openSearch(document.getElementById('homeSearchInput').value);
+});
+document.getElementById('searchForm2').addEventListener('submit', e=>e.preventDefault());
+document.getElementById('searchInput2').addEventListener('input', e=>{
+  activeQuery = e.target.value; activeCategoryFilter=null;
+  clearTimeout(window.__st);
+  window.__st = setTimeout(()=>runSearch(false), 140);
+});
+document.getElementById('filterBtn').addEventListener('click', ()=>{ renderFilterSheet(); openSheet('filterSheet'); });
+document.getElementById('sheetBackdrop').addEventListener('click', closeSheets);
+document.getElementById('notesToggle').addEventListener('click', ()=>document.getElementById('notesPanel').classList.toggle('open'));
+
+document.getElementById('jumpnav').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-jump]'); if(!btn) return;
+  const j = btn.dataset.jump;
+  if(j==='home') navigate('home',{reset:true});
+  if(j==='search') openSearch('water tank suppliers near Nairobi');
+  if(j==='feed') buildFeed('v3');
+  if(j==='profile') openProfile('aquatank');
+  if(j==='product') openProduct('tank5000');
+});
+
+document.getElementById('bottomnav').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-nav]'); if(!btn) return;
+  const n = btn.dataset.nav;
+  if(n==='home') navigate('home',{reset:true});
+  if(n==='searchtab') openSearch('');
+  if(n==='feedtab') buildFeed(FEED_ORDER[0]);
+  if(n==='comparetab'){ if(compareSet.length){ renderCompareSheet(); openSheet('compareSheet'); } else toast('Add products to compare from any listing first'); }
+  if(n==='account'){ renderAccountSheet(); openSheet('accountSheet'); }
+});
+
+document.getElementById('app').addEventListener('click', e=>{
+  const t = e.target.closest('[data-action]');
+  if(t){
+    const a = t.dataset.action;
+    if(a==='back'){ goBack(); }
+    else if(a==='go-category'){ openSearch('', catById(t.dataset.cat).label); }
+    else if(a==='open-more-cats'){ openSearch(''); toast('Showing everything — refine with the filter icon'); }
+    else if(a==='open-profile'){ openProfile(t.dataset.biz); }
+    else if(a==='open-feed'){ buildFeed(t.dataset.vid); }
+    else if(a==='open-feed-biz'){ const vids=VIDEOS.filter(v=>v.businessId===t.dataset.biz); buildFeed(vids[0]?vids[0].id:FEED_ORDER[0]); }
+    else if(a==='open-product'){ openProduct(t.dataset.prod); }
+    else if(a==='toggle-compare'){ toggleCompare(t.dataset.prod); }
+    else if(a==='remove-compare'){ toggleCompare(t.dataset.prod); renderCompareSheet(); if(compareSet.length===0) closeSheets(); }
+    else if(a==='clear-compare'){ compareSet=[]; renderCompareTray(); refreshCurrentScreen(); closeSheets(); toast('Compare list cleared'); }
+    else if(a==='open-compare-sheet'){ renderCompareSheet(); openSheet('compareSheet'); }
+    else if(a==='request-quotes'){ toast('Lead sent to suppliers — wiring to backend in build phase'); }
+    else if(a==='contact'){ toast('Contact options (call / WhatsApp) — wired at build time'); }
+    else if(a==='share'){ toast('Share sheet — native share API at build time'); }
+    else if(a==='save-biz'){ toast('Saved to your favourites'); }
+    else if(a==='account-stub'){ toast('Full onboarding flow — separate design pass'); closeSheets(); }
+    else if(a==='ptab'){ /* handled below */ }
+    else if(a==='filter-cat'){
+      const c=t.dataset.cat; filters.categories.has(c)?filters.categories.delete(c):filters.categories.add(c);
+      renderFilterSheet();
+    }
+    else if(a==='filter-loc'){ filters.location = filters.location===t.dataset.loc ? '' : t.dataset.loc; renderFilterSheet(); }
+    else if(a==='apply-filters'){
+      filters.priceMin = document.getElementById('priceMin').value;
+      filters.priceMax = document.getElementById('priceMax').value;
+      closeSheets(); runSearch(false); toast('Filters applied');
+    }
+    else if(a==='reset-filters'){ filters={categories:new Set(),location:'',priceMin:'',priceMax:''}; renderFilterSheet(); runSearch(false); }
+    else if(a==='feed-exit'){ goBack(); }
+    else if(a==='feed-search'){ goBack(); openSearch(''); }
+    else if(a==='like'){
+      const id=t.dataset.vid;
+      likedVideos.has(id)?likedVideos.delete(id):likedVideos.add(id);
+      t.classList.toggle('liked');
+      const cEl = t.querySelector('.count');
+      const v = vidById(id);
+      cEl.textContent = fmtViews((v.views/9|0)+(likedVideos.has(id)?1:0));
+    }
+    else if(a==='follow'){
+      const id=t.dataset.biz;
+      followedBiz.has(id)?followedBiz.delete(id):followedBiz.add(id);
+      const following = followedBiz.has(id);
+      t.textContent = following?'Following':'Follow';
+      t.classList.toggle('pill-amber', following);
+      t.classList.toggle('pill-outline', !following);
+    }
+    else if(a==='comment'){ toast('Comments — moderation-reviewed, coming with content ecosystem'); }
+    return;
+  }
+  const ptab = e.target.closest('[data-ptab]');
+  if(ptab){ renderProfile(ptab.dataset.ptab); return; }
+  const tabBtn = e.target.closest('[data-tab]');
+  if(tabBtn){ activeTab = tabBtn.dataset.tab; runSearch(false); return; }
+  const sq = e.target.closest('[data-query]');
+  if(sq){ openSearch(sq.dataset.query); return; }
+  const slide = e.target.closest('.feed-slide');
+  if(slide){
+    const ppIcon = slide.querySelector('[data-role="ppicon"]');
+    const nowPaused = ppIcon.classList.toggle('show');
+    ppIcon.innerHTML = icon(nowPaused?'play':'pause',56);
+  }
+});
+document.getElementById('app').addEventListener('dblclick', e=>{
+  const slide = e.target.closest('.feed-slide');
+  if(!slide) return;
+  const id = slide.dataset.vid;
+  likedVideos.add(id);
+  const railBtn = slide.querySelector('.rail-btn[data-action="like"]');
+  railBtn.classList.add('liked');
+  const cEl = railBtn.querySelector('.count');
+  const v = vidById(id);
+  cEl.textContent = fmtViews((v.views/9|0)+1);
+  const burst = document.createElement('div');
+  burst.className='heart-burst go';
+  burst.innerHTML = `<svg viewBox="0 0 24 24" width="90" height="90" fill="#FABD2E"><path d="M12 20.6l-1.16-1.06C6.24 15.4 3 12.44 3 8.9 3 6.09 5.2 4 8 4c1.6 0 3.15.75 4 1.94A4.98 4.98 0 0116 4c2.8 0 5 2.09 5 4.9 0 3.54-3.24 6.5-7.84 10.64L12 20.6z"/></svg>`;
+  const rect = slide.getBoundingClientRect();
+  burst.style.left = (e.clientX-rect.left)+'px';
+  burst.style.top = (e.clientY-rect.top)+'px';
+  slide.appendChild(burst);
+  setTimeout(()=>burst.remove(), 820);
+});
+
+/* ================= BOTTOM NAV ICON FILL ================= */
+function renderBottomNavIcons(){
+  const map = {
+    home: icon('home',20),
+    searchtab: icon('search',20),
+    feedtab: '<span class="fab">'+icon('play',18)+'</span>',
+    comparetab: icon('compare',20),
+    account: icon('user',20),
+  };
+  const labels = {home:'Home',searchtab:'Search',feedtab:'Shorts',comparetab:'Compare',account:'Account'};
+  document.querySelectorAll('.navbtn').forEach(btn=>{
+    const n = btn.dataset.nav;
+    if(n==='feedtab'){ btn.innerHTML = `<span class="fab">${icon('play',18)}</span>`; }
+    else { btn.innerHTML = map[n] + `<span>${labels[n]}</span>`; }
+  });
+}
+
+/* ================= INIT ================= */
+initHome();
+renderBottomNavIcons();
+applyThemeIcon();
+updateNavActive('home');
+document.getElementById('locChip').addEventListener('click', ()=>toast('Location picker — Nairobi set as default for this prototype'));
+</script>
