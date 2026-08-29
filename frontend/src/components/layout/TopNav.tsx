@@ -28,6 +28,7 @@ export default function TopNav() {
   const { showToast } = useToast()
   const { status, user, openAuthModal } = useAuth()
   const navigate = useNavigate()
+  const isStaff = status === 'authenticated' && (user?.role === 'platform_admin' || user?.role === 'content_moderator')
 
   // A signed-in visitor clicking "List your business" already has an account
   // — send them straight to the dashboard rather than back through Register.
@@ -72,6 +73,11 @@ export default function TopNav() {
         <Pill variant="outline" size="sm" onClick={() => openAuthModal()}>
           {status === 'authenticated' && user ? (user.full_name?.split(' ')[0] ?? 'Account') : 'Account'}
         </Pill>
+        {isStaff && (
+          <Pill variant="outline" size="sm" onClick={() => navigate('/admin')}>
+            Admin
+          </Pill>
+        )}
         <Pill variant="amber" size="sm" onClick={handleListYourBusiness}>
           {status === 'authenticated' ? 'My business' : 'List your business'}
         </Pill>

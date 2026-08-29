@@ -29,3 +29,16 @@ export const ROLE_META: Record<SelfRegisterableRole, RoleMeta> = {
 }
 
 export const OTHER_ROLES: SelfRegisterableRole[] = ['business_admin', 'advertiser', 'content_creator', 'publisher']
+
+/**
+ * Metadata for the two staff-assigned roles (never self-registered — see
+ * ROLE_META's docstring). Kept as a separate map rather than widening
+ * ROLE_META's type, since ROLE_META backs RolePicker's registration flow,
+ * which must stay restricted to SelfRegisterableRole. Used by
+ * AccountHomeView to render a real badge/label for a signed-in admin or
+ * moderator instead of silently falling back to "General User".
+ */
+export const STAFF_ROLE_META: Record<'platform_admin' | 'content_moderator', RoleMeta> = {
+  platform_admin: { emoji: '🛡️', label: 'Platform Admin', description: 'Full system management, configuration and oversight.' },
+  content_moderator: { emoji: '🛡️', label: 'Content Moderator', description: 'Reviews, approves and rejects uploaded content.' },
+}

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 
 import type { UserRead } from '../../../lib/api'
-import { ROLE_META } from '../roles'
+import { ROLE_META, STAFF_ROLE_META } from '../roles'
 import Icon from '../../icons/Icon'
 import { useToast } from '../../../lib/toast'
 
@@ -40,13 +40,18 @@ const ROLE_QUICK_LINKS: Record<string, QuickLink[]> = {
     { emoji: '📚', label: 'My publications' },
     { emoji: '📝', label: 'Submissions' },
   ],
+  platform_admin: [{ emoji: '🛡️', label: 'Moderation queue', to: '/admin' }],
+  content_moderator: [{ emoji: '🛡️', label: 'Moderation queue', to: '/admin' }],
 }
 
 /** Signed-in state of the account sheet — identity, role, verification badge, role-specific quick links (business_admin's link to a real destination now that the Business Dashboard exists; the rest stubbed until their own screens are built), and sign out. */
 export default function AccountHomeView({ user, onSignOut, onNavigateAway }: AccountHomeViewProps) {
   const { showToast } = useToast()
   const navigate = useNavigate()
-  const meta = ROLE_META[user.role as keyof typeof ROLE_META] ?? ROLE_META.general_user
+  const meta =
+    ROLE_META[user.role as keyof typeof ROLE_META] ??
+    STAFF_ROLE_META[user.role as keyof typeof STAFF_ROLE_META] ??
+    ROLE_META.general_user
   const links = ROLE_QUICK_LINKS[user.role] ?? ROLE_QUICK_LINKS.general_user
 
   function handleLinkClick(link: QuickLink) {

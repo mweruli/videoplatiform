@@ -536,3 +536,75 @@ export function uploadProductImages(token: string, productId: string, files: Fil
   for (const file of files) formData.append('files', file)
   return apiUpload<ProductDto>(`${V1}/products/${productId}/images`, token, formData)
 }
+
+/**
+ * Admin moderation queue — mirrors app/api/v1/endpoints/admin.py 1:1. Every
+ * route requires `require_moderator` (platform_admin or content_moderator)
+ * server-side; the client-side role check in pages/Admin.tsx exists purely
+ * for UX (a clean "no access" state instead of a raw 403), the real gate is
+ * the backend's.
+ */
+
+export interface AdminListBusinessesParams {
+  status?: VerificationStatus
+  category_id?: number
+  q?: string
+  page?: number
+  page_size?: number
+}
+
+export function adminListBusinesses(token: string, params: AdminListBusinessesParams = {}): Promise<Page<BusinessDto>> {
+  return apiFetch<Page<BusinessDto>>(`${V1}/admin/businesses${toQuery(params)}`, { headers: authHeaders(token) })
+}
+
+export interface ModerationActionPayload {
+  note?: string | null
+}
+
+export interface ModerationRejectPayload {
+  reason: string
+}
+
+export function approveBusinessAdmin(token: string, businessId: string, payload: ModerationActionPayload = {}): Promise<BusinessDto> {
+  return apiFetch<BusinessDto>(`${V1}/admin/businesses/${businessId}/approve`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function rejectBusinessAdmin(token: string, businessId: string, payload: ModerationRejectPayload): Promise<BusinessDto> {
+  return apiFetch<BusinessDto>(`${V1}/admin/businesses/${businessId}/reject`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface AdminListProductsParams {
+  status?: ModerationStatus
+  business_id?: string
+  q?: string
+  page?: number
+  page_size?: number
+}
+
+export function adminListProducts(token: string, params: AdminListProductsParams = {}): Promise<Page<ProductDto>> {
+  return apiFetch<Page<ProductDto>>(`${V1}/admin/products${toQuery(params)}`, { headers: authHeaders(token) })
+}
+
+export function approveProductAdmin(token: string, productId: string, payload: ModerationActionPayload = {}): Promise<ProductDto> {
+  return apiFetch<ProductDto>(`${V1}/admin/products/${productId}/approve`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function rejectProductAdmin(token: string, productId: string, payload: ModerationRejectPayload): Promise<ProductDto> {
+  return apiFetch<ProductDto>(`${V1}/admin/products/${productId}/reject`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}

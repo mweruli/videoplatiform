@@ -4,7 +4,13 @@ import BusinessForm from '../components/dashboard/BusinessForm'
 import BusinessPanel from '../components/dashboard/BusinessPanel'
 import BusinessSwitcher from '../components/dashboard/BusinessSwitcher'
 import ProductForm from '../components/dashboard/ProductForm'
+import ProductManageCard from '../components/dashboard/ProductManageCard'
 import ProductsSection from '../components/dashboard/ProductsSection'
+import DashboardShell from '../components/dashboardshell/DashboardShell'
+import type { DashNavItem } from '../components/dashboardshell/DashboardShell'
+import DashSection from '../components/dashboardshell/DashSection'
+import GateShell from '../components/dashboardshell/GateShell'
+import KpiCard from '../components/dashboardshell/KpiCard'
 import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
 import Skeleton from '../components/ui/Skeleton'
@@ -25,12 +31,32 @@ import { useAuth } from '../lib/auth'
 import { useToast } from '../lib/toast'
 
 type ProductModalState = { mode: 'create' } | { mode: 'edit'; product: ProductDto } | null
+type DashSectionId = 'overview' | 'profile' | 'products'
+
+const NAV_ITEMS: DashNavItem[] = [
+  { id: 'overview', label: 'Overview', icon: 'grid' },
+  { id: 'profile', label: 'Business Profile', icon: 'building' },
+  { id: 'products', label: 'Products', icon: 'box' },
+  { id: 'analytics', label: 'Analytics', icon: 'chart', soon: true },
+  { id: 'orders', label: 'Orders', icon: 'truck', soon: true },
+]
+
+const SECTION_TITLES: Record<DashSectionId, string> = {
+  overview: 'Overview',
+  profile: 'Business Profile',
+  products: 'Products',
+}
 
 /**
  * Business Dashboard — where a signed-in owner manages their business(es)
  * and products. Real backend throughout (GET /businesses/mine,
  * POST/PATCH /businesses, submit-for-verification, logo/cover upload, and
- * the matching product set) — see hooks/useDashboard.ts.
+ * the matching product set) — see hooks/useDashboard.ts. Data-fetching and
+ * mutation logic is unchanged from the previous build; this pass rehouses
+ * it inside DashboardShell (sidebar + topbar + footer), the shared
+ * internal-tool layout also used by the Admin Panel — see
+ * docs/decisions.md's "Process incident" entry for why that rebuild
+ * happened.
  *
  * Ownership note: the backend gates every write to "is the business's
  * owner, or a platform admin" (app/api/v1/endpoints/businesses.py's
@@ -49,11 +75,11 @@ export default function BusinessDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status])
 
-  if (status === 'loading') return <DashboardSkeleton />
+  if (status === 'loading') return <GateShell><DashboardGateSkeleton /></GateShell>
 
   if (status === 'anonymous') {
     return (
-      <div className="mx-auto flex w-full max-w-lg flex-col px-5 py-16 lg:px-8">
+      <GateShell>
         <EmptyState
           icon="🔐"
           title="Sign in to manage your business"
@@ -67,21 +93,19 @@ export default function BusinessDashboard() {
             Sign in
           </button>
         </EmptyState>
-      </div>
+      </GateShell>
     )
   }
 
   return <DashboardContent />
 }
 
-function DashboardSkeleton() {
+function DashboardGateSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
+    <div className="w-full max-w-lg">
       <Skeleton className="h-8 w-56" />
-      <Skeleton className="mt-3 h-9 w-full max-w-md" />
-      <Skeleton className="mt-5 h-56 w-full" />
-      <Skeleton className="mt-6 h-24 w-full" />
-      <Skeleton className="mt-3 h-24 w-full" />
+      <Skeleton className="mt-3 h-9 w-full" />
+      <Skeleton className="mt-5 h-40 w-full" />
     </div>
   )
 }
@@ -91,6 +115,7 @@ function DashboardContent() {
   const businessesQuery = useMyBusinesses()
   const businesses = businessesQuery.data ?? []
 
+  const [dashSection, setDashSection] = useState<DashSectionId>('overview')
   const [explicitSelectedId, setExplicitSelectedId] = useState<string | null>(null)
   const [showCreateBusiness, setShowCreateBusiness] = useState(false)
   const [editingBusiness, setEditingBusiness] = useState(false)
@@ -114,12 +139,44 @@ function DashboardContent() {
 
   const selectedBusiness = businesses.find((b) => b.id === selectedId) ?? null
   const productsQuery = useMyBusinessProducts(selectedBusiness?.id)
+  const products = productsQuery.data?.items ?? []
+  const ownPending = products.filter((p) => p.moderation_status === 'pending').length
 
-  if (businessesQuery.isLoading) return <DashboardSkeleton />
+  const statusLabel = !selectedBusiness
+    ? '—'
+    : selectedBusiness.verification_status === 'verified'
+      ? 'Verified'
+      : selectedBusiness.verification_status === 'pending'
+        ? 'Pending'
+        : selectedBusiness.verification_status === 'rejected'
+          ? 'Rejected'
+          : 'Unverified'
+
+  const stats = [
+    { value: ownPending, label: 'Pending', warn: ownPending > 0 },
+    { value: statusLabel, label: 'Status' },
+  ]
+
+  function handleSubmitVerification() {
+    if (!selectedBusiness) return
+    setVerificationError(null)
+    submitVerificationMutation.mutate(selectedBusiness.id, {
+      onSuccess: () => showToast('Submitted for verification'),
+      onError: (err) => setVerificationError(err instanceof ApiError ? err.message : 'Could not submit for verification.'),
+    })
+  }
+
+  if (businessesQuery.isLoading) {
+    return (
+      <GateShell>
+        <DashboardGateSkeleton />
+      </GateShell>
+    )
+  }
 
   if (businessesQuery.isError) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-5 py-16 lg:px-8">
+      <GateShell>
         <EmptyState tone="error" title="Couldn't load your businesses" subtitle="Check your connection and try again.">
           <button
             type="button"
@@ -129,15 +186,25 @@ function DashboardContent() {
             Retry
           </button>
         </EmptyState>
-      </div>
+      </GateShell>
     )
   }
 
-  // No business yet — a focused onboarding step, not a modal, since this is the primary action on first visit.
+  // No business yet — a focused onboarding step inside the same shell, since
+  // the Business Console is still the right context (an owner who just
+  // registered), just without a business to navigate between sections for
+  // yet.
   if (businesses.length === 0) {
-    if (!showCreateBusiness) {
-      return (
-        <div className="mx-auto w-full max-w-lg px-5 py-16 lg:px-8">
+    return (
+      <DashboardShell
+        mode="business"
+        navItems={NAV_ITEMS}
+        activeSection="overview"
+        onNavigate={() => {}}
+        breadcrumb="Business Dashboard"
+        title="Overview"
+      >
+        {!showCreateBusiness ? (
           <EmptyState
             icon="🏢"
             title="Create your business profile"
@@ -151,68 +218,133 @@ function DashboardContent() {
               Create your business profile
             </button>
           </EmptyState>
-        </div>
-      )
-    }
-    return (
-      <div className="mx-auto w-full max-w-xl px-5 py-8 lg:px-8 lg:py-10">
-        <button
-          type="button"
-          onClick={() => setShowCreateBusiness(false)}
-          className="mb-3 text-sm font-bold text-muted-foreground transition-colors duration-150 ease-brand hover:text-foreground"
-        >
-          &larr; Back
-        </button>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Create your business profile</h1>
-        <p className="mt-1.5 mb-5 text-sm text-muted-foreground">
-          This becomes your public showroom once verified — you can keep editing it any time.
-        </p>
-        <BusinessForm
-          onSubmit={async (payload) => {
-            const business = await createBusinessMutation.mutateAsync(payload)
-            setExplicitSelectedId(business.id)
-          }}
-          onDone={() => {
-            setShowCreateBusiness(false)
-            showToast('Business profile created')
-          }}
-          submitLabel="Create business"
-          submittingLabel="Creating…"
-        />
-      </div>
+        ) : (
+          <div className="mx-auto w-full max-w-xl">
+            <button
+              type="button"
+              onClick={() => setShowCreateBusiness(false)}
+              className="mb-3 text-sm font-bold text-muted-foreground transition-colors duration-150 ease-brand hover:text-foreground"
+            >
+              &larr; Back
+            </button>
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground">Create your business profile</h2>
+            <p className="mt-1.5 mb-5 text-sm text-muted-foreground">
+              This becomes your public showroom once verified — you can keep editing it any time.
+            </p>
+            <BusinessForm
+              onSubmit={async (payload) => {
+                const business = await createBusinessMutation.mutateAsync(payload)
+                setExplicitSelectedId(business.id)
+              }}
+              onDone={() => {
+                setShowCreateBusiness(false)
+                showToast('Business profile created')
+              }}
+              submitLabel="Create business"
+              submittingLabel="Creating…"
+            />
+          </div>
+        )}
+      </DashboardShell>
     )
   }
 
-  function handleSubmitVerification() {
-    if (!selectedBusiness) return
-    setVerificationError(null)
-    submitVerificationMutation.mutate(selectedBusiness.id, {
-      onSuccess: () => showToast('Submitted for verification'),
-      onError: (err) => setVerificationError(err instanceof ApiError ? err.message : 'Could not submit for verification.'),
-    })
-  }
-
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-6 lg:px-8 lg:py-10">
-      <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Business Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage your company profile, products and verification status.</p>
-      </header>
+    <DashboardShell
+      mode="business"
+      navItems={NAV_ITEMS}
+      activeSection={dashSection}
+      onNavigate={(id) => setDashSection(id as DashSectionId)}
+      breadcrumb="Business Dashboard"
+      title={SECTION_TITLES[dashSection]}
+      stats={stats}
+    >
+      <BusinessSwitcher
+        businesses={businesses}
+        selectedId={selectedId}
+        onSelect={(id) => {
+          setExplicitSelectedId(id)
+          setVerificationError(null)
+        }}
+        onAddNew={() => setShowCreateBusiness(true)}
+      />
 
-      <div className="mt-5">
-        <BusinessSwitcher
-          businesses={businesses}
-          selectedId={selectedId}
-          onSelect={(id) => {
-            setExplicitSelectedId(id)
-            setVerificationError(null)
-          }}
-          onAddNew={() => setShowCreateBusiness(true)}
-        />
-      </div>
+      {selectedBusiness && dashSection === 'overview' && (
+        <div className="mt-4">
+          <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            <KpiCard value={selectedBusiness.product_count} label="Product Listings" />
+            <KpiCard value={ownPending} label="Pending Review" accent={ownPending > 0} />
+            <KpiCard value={statusLabel} label="Verification" />
+            <KpiCard value={selectedBusiness.is_active ? 'Active' : 'Inactive'} label="Listing Status" />
+          </div>
 
-      {selectedBusiness && (
-        <>
+          {selectedBusiness.verification_status === 'pending' && (
+            <DashSection tone="warn">
+              <div className="flex items-start gap-3">
+                <span className="text-lg" aria-hidden="true">⏳</span>
+                <div>
+                  <h2 className="font-display text-[0.95rem] font-bold tracking-tight text-foreground">Verification pending</h2>
+                  <p className="mt-0.5 text-[13px] text-muted-foreground">
+                    Your submission is in the moderation queue — most reviews complete within a few business days.
+                  </p>
+                </div>
+              </div>
+            </DashSection>
+          )}
+
+          <DashSection
+            title={selectedBusiness.name}
+            subtitle={[selectedBusiness.category?.name, [selectedBusiness.city, selectedBusiness.county].filter(Boolean).join(', ')]
+              .filter(Boolean)
+              .join(' · ')}
+          >
+            {selectedBusiness.description && (
+              <p className="mb-3.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{selectedBusiness.description}</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setDashSection('profile')}
+              className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-foreground px-4 py-2 text-sm font-bold text-foreground transition-colors duration-150 ease-brand hover:bg-foreground hover:text-background"
+            >
+              Manage profile
+            </button>
+          </DashSection>
+
+          <DashSection
+            title="Recent listings"
+            subtitle={`${products.length} product${products.length === 1 ? '' : 's'} in your showroom`}
+            action={
+              <button
+                type="button"
+                onClick={() => setDashSection('products')}
+                className="flex-none rounded-full bg-panel px-3.5 py-1.5 text-xs font-bold text-foreground transition-colors duration-150 ease-brand hover:bg-border/70"
+              >
+                View all
+              </button>
+            }
+          >
+            {productsQuery.isLoading && (
+              <div className="flex flex-col gap-2.5">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+            )}
+            {!productsQuery.isLoading && products.length === 0 && (
+              <p className="py-6 text-center text-sm text-muted-foreground">No products yet — add your first listing.</p>
+            )}
+            {!productsQuery.isLoading && products.length > 0 && (
+              <div className="flex flex-col gap-2.5">
+                {products.slice(0, 4).map((product) => (
+                  <ProductManageCard key={product.id} product={product} onEdit={() => setProductModal({ mode: 'edit', product })} />
+                ))}
+              </div>
+            )}
+          </DashSection>
+        </div>
+      )}
+
+      {selectedBusiness && dashSection === 'profile' && (
+        <div className="mt-4">
           <BusinessPanel
             business={selectedBusiness}
             onEdit={() => setEditingBusiness(true)}
@@ -240,13 +372,17 @@ function DashboardContent() {
             submittingVerification={submitVerificationMutation.isPending}
             verificationError={verificationError}
           />
+        </div>
+      )}
 
+      {selectedBusiness && dashSection === 'products' && (
+        <div className="mt-4">
           <ProductsSection
             productsQuery={productsQuery}
             onAdd={() => setProductModal({ mode: 'create' })}
             onEditProduct={(product) => setProductModal({ mode: 'edit', product })}
           />
-        </>
+        </div>
       )}
 
       <Modal open={showCreateBusiness} onClose={() => setShowCreateBusiness(false)} title="Add another business">
@@ -304,6 +440,6 @@ function DashboardContent() {
           />
         )}
       </Modal>
-    </div>
+    </DashboardShell>
   )
 }
