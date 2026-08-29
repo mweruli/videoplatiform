@@ -1,12 +1,16 @@
 """DEV-ONLY auth stub.
 
-Real registration + phone/email OTP + login is outstanding backlog from
-Sprint 1 (see docs/decisions.md and app/core/security.py's docstring) — this
-endpoint exists solely so Sprint 2's business/product ownership and
-RBAC-gated endpoints are exercisable end-to-end without that flow existing
-yet. It is hard-disabled (404) unless settings.DEBUG is true, so it can never
-reach a production deployment by accident. DELETE THIS FILE once real auth
-ships; nothing else in the codebase should come to depend on it.
+Real registration + phone/email OTP + login now exists in
+app/api/v1/endpoints/auth.py (see docs/decisions.md's Sprint 2 auth
+follow-up entry) — this endpoint is kept only as a fast shortcut for
+manually testing *other* endpoints without going through the full
+register -> verify -> login flow each time. It is hard-disabled (404)
+unless settings.DEBUG is true, so it can never reach a production
+deployment by accident. DELETE THIS FILE once the rest of the in-flight
+work that still uses it for quick testing is done; nothing in app/api/deps.py
+or any business/product endpoint depends on it specifically — they all just
+consume the standard Authorization: Bearer <jwt> contract that real login
+also produces.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status

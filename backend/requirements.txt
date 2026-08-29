@@ -9,6 +9,11 @@ psycopg[binary]==3.2.2
 redis==5.0.8
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# Pinned explicitly: passlib 1.7.4's bcrypt backend self-test crashes with
+# bcrypt>=4.1 ("password cannot be longer than 72 bytes") on the very first
+# hash() call, unrelated to any password we actually pass in — a known
+# passlib/bcrypt compatibility break. See docs/decisions.md.
+bcrypt==4.0.1
 python-multipart==0.0.9
 meilisearch==0.31.5
 httpx==0.27.2
