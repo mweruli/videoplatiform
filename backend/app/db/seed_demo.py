@@ -63,7 +63,10 @@ BUSINESSES = [
         county="Nairobi",
         address_line="Baba Dogo",
         phone="+254 733 445 210",
-        description="Structural steel fabrication, roofing sheets and wire mesh for contractors across East Africa.",
+        description=(
+            "Structural steel fabrication, roofing sheets and wire mesh "
+            "for contractors across East Africa."
+        ),
         verification_status=VerificationStatus.VERIFIED,
     ),
     dict(
@@ -73,7 +76,10 @@ BUSINESSES = [
         city="Eldoret",
         county="Uasin Gishu",
         phone="+254 700 112 883",
-        description="Certified seed, agrochemicals and farm advisory for smallholder farmers across the Rift Valley.",
+        description=(
+            "Certified seed, agrochemicals and farm advisory for "
+            "smallholder farmers across the Rift Valley."
+        ),
         verification_status=VerificationStatus.VERIFIED,
     ),
     dict(
@@ -83,7 +89,10 @@ BUSINESSES = [
         city="Kisumu",
         county="Kisumu",
         phone="+254 720 556 907",
-        description="Hybrid solar inverters and battery systems for homes and businesses, with installation and after-sales support.",
+        description=(
+            "Hybrid solar inverters and battery systems for homes and "
+            "businesses, with installation and after-sales support."
+        ),
         verification_status=VerificationStatus.VERIFIED,
     ),
     dict(
@@ -93,7 +102,10 @@ BUSINESSES = [
         city="Mombasa",
         county="Mombasa",
         phone="+254 741 902 244",
-        description="General building materials and hardware supplies for contractors and homeowners on the coast.",
+        description=(
+            "General building materials and hardware supplies for "
+            "contractors and homeowners on the coast."
+        ),
         # Deliberately left pending — demonstrates the pending-verification
         # badge/state in the UI rather than every seeded business being green.
         verification_status=VerificationStatus.PENDING,
@@ -154,7 +166,11 @@ PRODUCTS = [
         business_slug="sunflow",
         name="Drip Irrigation Starter Kit (1 Acre)",
         price=24000,
-        specs={"Coverage": "1 Acre", "Components": "Pump, filters, driplines, timer", "Warranty": "1 Year"},
+        specs={
+            "Coverage": "1 Acre",
+            "Components": "Pump, filters, driplines, timer",
+            "Warranty": "1 Year",
+        },
         availability_status=AvailabilityStatus.IN_STOCK,
         availability_note="Nakuru",
     ),
@@ -254,9 +270,11 @@ def seed_demo() -> None:
             prod_created += 1
         db.commit()
 
+        biz_skipped = len(BUSINESSES) - biz_created
+        prod_skipped = len(PRODUCTS) - prod_created
         print(
-            f"Seeded {biz_created} new businesses ({len(BUSINESSES) - biz_created} already present), "
-            f"{prod_created} new products ({len(PRODUCTS) - prod_created} already present)."
+            f"Seeded {biz_created} new businesses ({biz_skipped} already present), "
+            f"{prod_created} new products ({prod_skipped} already present)."
         )
     finally:
         db.close()
