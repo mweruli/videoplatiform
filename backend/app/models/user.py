@@ -22,6 +22,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.models.otp import OtpChannel
 
 
 class UserRole(str, enum.Enum):
@@ -59,6 +60,15 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )  # phone/email OTP verified — not to be confused with business verification
+    # Schema-only for now (see docs/decisions.md's 2026-08-29 email-OTP-follow-up
+    # entry) — nothing reads/writes this yet. NULL means "infer from what's
+    # available, phone preferred", matching today's actual behaviour in
+    # app/api/v1/endpoints/auth.py. Lets a future "choose SMS vs email"
+    # feature (PM idea) land as an endpoint-only change, not another
+    # migration.
+    preferred_otp_channel: Mapped[OtpChannel | None] = mapped_column(
+        Enum(OtpChannel, name="otp_channel", native_enum=False, length=10), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

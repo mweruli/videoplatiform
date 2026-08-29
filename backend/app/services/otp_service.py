@@ -113,7 +113,7 @@ def request_otp(
     db.commit()
     db.refresh(otp)
 
-    get_otp_sender().send(
+    get_otp_sender(channel).send(
         channel=channel, destination=destination, code=code, purpose=purpose.value
     )
     _record_request(purpose, destination)

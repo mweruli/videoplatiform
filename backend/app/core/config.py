@@ -44,11 +44,23 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24h
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days
 
-    # --- OTP provider (SMS/email one-time-passcode delivery) ---
-    OTP_PROVIDER: str = "africastalking"  # africastalking | twilio | console (dev)
+    # --- OTP delivery — chosen per-channel, each degrades to `console` (dev:
+    # logs the code, never fails) when its provider isn't configured. See
+    # app/services/otp.py and docs/decisions.md for the full rationale. ---
+    OTP_SMS_PROVIDER: str = "africastalking"  # africastalking | console (dev)
     OTP_SENDER_ID: str = ""
     AFRICASTALKING_USERNAME: str = ""
     AFRICASTALKING_API_KEY: str = ""
+
+    # Email channel — real SMTP account provisioned (cael.co.ke mail server).
+    OTP_EMAIL_PROVIDER: str = "smtp"  # smtp | console (dev)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "Miles Tech"
+    SMTP_USE_TLS: bool = True
 
     # --- Search (Meilisearch) ---
     MEILISEARCH_URL: str = "http://localhost:7700"
