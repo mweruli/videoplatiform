@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   getBusinessBySlug,
@@ -9,7 +9,7 @@ import {
   listVideos,
   recordVideoView,
 } from '../lib/api'
-import type { ListProductsParams, ListVideosParams } from '../lib/api'
+import type { ListProductsParams, ListVideosParams, Page, VideoDto } from '../lib/api'
 
 /**
  * TanStack Query hooks over the real backend catalog endpoints
@@ -83,9 +83,28 @@ export function useVideoFeed(params: ListVideosParams = {}) {
   })
 }
 
-/** Fire-and-forget view counter — see recordVideoView's docstring for why this is a dedicated POST rather than an implicit GET side effect. */
+/**
+ * View counter — see recordVideoView's docstring for why this is a dedicated
+ * POST rather than an implicit GET side effect. The response already carries
+ * the server-confirmed new count, so on success this patches every cached
+ * video list/detail with that exact number (immediate feedback — no need to
+ * guess at a local +1) and then invalidates the same keys so a later
+ * background refetch stays the source of truth, matching the
+ * useInvalidateCatalog convention in hooks/useDashboard.ts.
+ */
 export function useRecordVideoView() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (videoId: string) => recordVideoView(videoId),
+    onSuccess: (result, videoId) => {
+      queryClient.setQueriesData<Page<VideoDto>>({ queryKey: ['videos'] }, (page) => {
+        if (!page) return page
+        return {
+          ...page,
+          items: page.items.map((v) => (v.id === videoId ? { ...v, view_count: result.view_count } : v)),
+        }
+      })
+      queryClient.invalidateQueries({ queryKey: ['videos'] })
+    },
   })
 }

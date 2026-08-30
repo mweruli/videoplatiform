@@ -35,6 +35,8 @@ export type IconName =
   | 'logout'
   | 'video'
   | 'upload'
+  | 'volumeOn'
+  | 'volumeOff'
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -69,6 +71,10 @@ const PATHS: Record<IconName, string> = {
   logout: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
   video: '<rect x="2.5" y="6" width="14" height="12" rx="2"/><path d="M21.5 9.2l-5 2.8 5 2.8z" fill="currentColor" stroke="none"/>',
   upload: '<path d="M12 16V4M12 4l-5 5M12 4l5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>',
+  volumeOn:
+    '<path d="M4 9v6h3.5l4.5 4V5l-4.5 4H4z" fill="currentColor" stroke="none"/><path d="M15.5 9a4 4 0 010 6"/><path d="M18 6.5a8 8 0 010 11"/>',
+  volumeOff:
+    '<path d="M4 9v6h3.5l4.5 4V5l-4.5 4H4z" fill="currentColor" stroke="none"/><line x1="15" y1="9" x2="20" y2="14"/><line x1="20" y1="9" x2="15" y2="14"/>',
 }
 
 interface IconProps {

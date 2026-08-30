@@ -6,6 +6,8 @@ import { SponsoredTag } from './Tags'
 
 interface ThumbProps {
   grad: number
+  /** Real poster/thumbnail image, when one exists — layered over the gradient (which stays visible as the loading/fallback color) rather than replacing it, same treatment as BusinessCard's logo and ProductResultCard's primary image. */
+  imageUrl?: string
   glyph?: string
   duration?: string
   sponsored?: boolean
@@ -22,7 +24,7 @@ interface ThumbProps {
  * replace the gradient+glyph placeholder once media upload lands; the
  * grain/vignette/duration/sponsored chrome stays.
  */
-export default function Thumb({ grad, glyph, duration, sponsored, showPlayBadge, className = '', overlay }: ThumbProps) {
+export default function Thumb({ grad, imageUrl, glyph, duration, sponsored, showPlayBadge, className = '', overlay }: ThumbProps) {
   return (
     <div className={`group/thumb relative isolate overflow-hidden rounded-2xl bg-panel ${className}`}>
       <div
@@ -38,9 +40,12 @@ export default function Thumb({ grad, glyph, duration, sponsored, showPlayBadge,
           }}
           aria-hidden="true"
         />
+        {imageUrl && (
+          <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+        )}
       </div>
 
-      {glyph && (
+      {glyph && !imageUrl && (
         <div
           className="absolute inset-0 flex translate-y-0.5 items-center justify-center text-4xl opacity-85 drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
           aria-hidden="true"

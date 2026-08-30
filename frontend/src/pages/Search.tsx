@@ -20,6 +20,9 @@ import { VIDEOS } from '../data/videos'
 import { filterBusinesses, filterProducts, filterVideos } from '../lib/searchCatalog'
 import { tokenize } from '../lib/searchMatch'
 
+/** How long to wait after the visitor stops typing before a live search re-runs — long enough to not thrash on every keystroke, short enough to feel instant. Submitting the form (Enter/tap Search) still applies immediately, bypassing this. */
+const SEARCH_DEBOUNCE_MS = 280
+
 /**
  * Search & Discovery — unified results across businesses and products (real
  * backend: GET /businesses, GET /products, GET /categories) plus videos
@@ -86,6 +89,30 @@ export default function Search() {
       { replace: true },
     )
   }
+
+  // Live search: re-run automatically shortly after the visitor stops
+  // typing, rather than only on Enter/submit. Bails out immediately once
+  // `queryInput` already matches `activeQuery` (e.g. right after
+  // handleSubmit/runSuggestion already applied it), so this never fights
+  // with — or double-fires behind — an explicit submit.
+  useEffect(() => {
+    const trimmed = queryInput.trim()
+    if (trimmed === activeQuery) return
+    const timeout = window.setTimeout(() => {
+      setActiveQuery(trimmed)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (trimmed) next.set('q', trimmed)
+          else next.delete('q')
+          return next
+        },
+        { replace: true },
+      )
+    }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryInput, activeQuery])
 
   function runSuggestion(suggestion: string) {
     setQueryInput(suggestion)

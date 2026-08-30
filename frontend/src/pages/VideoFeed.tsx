@@ -88,6 +88,10 @@ function VideoFeedPlayer({ videos, requestedId }: VideoFeedPlayerProps) {
   const [currentId, setCurrentId] = useState(initialId)
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [followedBizIds, setFollowedBizIds] = useState<Set<string>>(new Set())
+  // Lifted above FeedSlide (rather than local state per-slide) so tapping the
+  // speaker on one slide keeps sound on/off as the visitor scrolls to the
+  // next one, instead of every new slide resetting to muted.
+  const [muted, setMuted] = useState(true)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const slideRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -179,8 +183,10 @@ function VideoFeedPlayer({ videos, requestedId }: VideoFeedPlayerProps) {
             following={followedBizIds.has(video.business.id)}
             inView={video.id === currentId}
             shouldLoad={Math.abs(index - currentIndex) <= 1}
+            muted={muted}
             onToggleLike={() => toggleLike(video.id)}
             onToggleFollow={() => toggleFollow(video.business.id)}
+            onToggleMute={() => setMuted((m) => !m)}
           />
         ))}
       </div>
