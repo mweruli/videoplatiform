@@ -140,6 +140,9 @@ PRODUCTS = [
         },
         availability_status=AvailabilityStatus.IN_STOCK,
         availability_note="Nairobi & Nakuru depots",
+        # Demonstrates multi-category: a water tank is manufacturing output
+        # that also serves the agriculture market (farm water storage).
+        extra_category_slugs=["agriculture"],
     ),
     dict(
         slug="tank10000",
@@ -238,6 +241,8 @@ VIDEOS = [
         ),
         asset_filename="aquatank_manufacturing.mp4",
         thumbnail_filename="aquatank_manufacturing.jpg",
+        # Demonstrates multi-category, same reasoning as the tank5000 product.
+        extra_category_slugs=["agriculture"],
     ),
     dict(
         title="Solaris 5kW Hybrid Inverter — Setup & Demo",
@@ -328,9 +333,20 @@ def seed_demo() -> None:
             if existing is not None:
                 continue
             business = businesses_by_slug[spec["business_slug"]]
+            # Product categories default to the owning business's single
+            # category, plus whatever `extra_category_slugs` the spec
+            # declares (a product/video can carry more than one category —
+            # see docs/decisions.md's multi-category note).
+            product_categories_list = []
+            if business.category is not None:
+                product_categories_list.append(business.category)
+            for extra_slug in spec.get("extra_category_slugs", []):
+                extra_category = categories_by_slug.get(extra_slug)
+                if extra_category is not None and extra_category not in product_categories_list:
+                    product_categories_list.append(extra_category)
+
             product = Product(
                 business_id=business.id,
-                category_id=business.category_id,
                 name=spec["name"],
                 slug=spec["slug"],
                 specs=spec["specs"],
@@ -346,6 +362,7 @@ def seed_demo() -> None:
                     else ModerationStatus.APPROVED
                 ),
             )
+            product.categories = product_categories_list
             db.add(product)
             prod_created += 1
         db.commit()
@@ -366,6 +383,16 @@ def seed_demo() -> None:
 
             business = businesses_by_slug[spec["business_slug"]]
             product = products_by_slug.get(spec["product_slug"])
+
+            # Same category-defaulting logic as products above — see
+            # docs/decisions.md's multi-category note.
+            video_categories_list = []
+            if business.category is not None:
+                video_categories_list.append(business.category)
+            for extra_slug in spec.get("extra_category_slugs", []):
+                extra_category = categories_by_slug.get(extra_slug)
+                if extra_category is not None and extra_category not in video_categories_list:
+                    video_categories_list.append(extra_category)
 
             asset = video_backend.upload(
                 content=asset_path.read_bytes(),
@@ -389,7 +416,6 @@ def seed_demo() -> None:
 
             video = Video(
                 business_id=business.id,
-                category_id=business.category_id,
                 product_id=product.id if product else None,
                 title=spec["title"],
                 description=spec.get("description"),
@@ -399,6 +425,7 @@ def seed_demo() -> None:
                 duration_seconds=asset.duration_seconds,
                 moderation_status=ModerationStatus.APPROVED,
             )
+            video.categories = video_categories_list
             db.add(video)
             video_created += 1
         db.commit()

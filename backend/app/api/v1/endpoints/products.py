@@ -23,7 +23,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_current_user_optional
 from app.db.session import get_db
 from app.models.business import Business
-from app.models.product import ModerationStatus, Product
+from app.models.category import Category
+from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
 from app.schemas.common import Page
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
@@ -50,6 +51,20 @@ def _get_product_or_404(db: Session, product_id: uuid.UUID) -> Product:
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
     return product
+
+
+def _resolve_categories(db: Session, category_ids: list[int]) -> list[Category]:
+    if not category_ids:
+        return []
+    ids = set(category_ids)
+    found = list(db.scalars(select(Category).where(Category.id.in_(ids))).all())
+    missing = ids - {c.id for c in found}
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"category_ids not found: {sorted(missing)}",
+        )
+    return found
 
 
 def _resolve_related_products(
@@ -85,7 +100,7 @@ def create_product(
     if not _can_manage(business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your business.")
 
-    data = payload.model_dump(exclude={"related_product_ids"})
+    data = payload.model_dump(exclude={"related_product_ids", "category_ids"})
     related_ids = payload.related_product_ids
     slug = unique_slug(
         payload.name, lambda s: db.scalar(select(Product).where(Product.slug == s)) is not None
@@ -102,6 +117,7 @@ def create_product(
         moderation_status=ModerationStatus.PENDING,
         **data,
     )
+    product.categories = _resolve_categories(db, payload.category_ids)
     product.related_products = _resolve_related_products(db, None, related_ids, business.id)
     db.add(product)
     db.commit()
@@ -150,7 +166,13 @@ def list_products(
     if business_id is not None:
         stmt = stmt.where(Product.business_id == business_id)
     if category_id is not None:
-        stmt = stmt.where(Product.category_id == category_id)
+        stmt = stmt.where(
+            Product.id.in_(
+                select(product_categories.c.product_id).where(
+                    product_categories.c.category_id == category_id
+                )
+            )
+        )
     if county:
         stmt = stmt.where(func.lower(Product.county) == county.lower())
     if city:
@@ -224,7 +246,9 @@ def update_product(
     if not _can_manage(business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your product.")
 
-    update_data = payload.model_dump(exclude_unset=True, exclude={"related_product_ids"})
+    update_data = payload.model_dump(
+        exclude_unset=True, exclude={"related_product_ids", "category_ids"}
+    )
     for field, value in update_data.items():
         setattr(product, field, value)
 
@@ -232,6 +256,15 @@ def update_product(
         product.related_products = _resolve_related_products(
             db, product.id, payload.related_product_ids, business.id
         )
+
+    if payload.category_ids is not None:
+        product.categories = _resolve_categories(db, payload.category_ids)
+        # category_id was a plain (non-excluded) field on the old single-FK
+        # ProductUpdate, so changing it always counted toward the re-review
+        # trigger below — category_ids preserves that, unlike
+        # related_product_ids (curation, not reviewed content) which
+        # deliberately doesn't.
+        update_data["category_ids"] = payload.category_ids
 
     # Re-review on edit unless it's an admin making the change — see module
     # docstring for the reasoning/flag.

@@ -30,11 +30,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    Column,
     DateTime,
     Enum,
     ForeignKey,
     Integer,
     String,
+    Table,
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -49,6 +51,27 @@ if TYPE_CHECKING:
     from app.models.product import Product
 
 
+# Video <-> Category, many-to-many. A video can carry zero or more
+# categories — mirrors app/models/product.py's product_categories table
+# exactly (same reasoning: a video can genuinely belong in more than one
+# category, see docs/decisions.md).
+video_categories = Table(
+    "video_categories",
+    Base.metadata,
+    Column(
+        "video_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("videos.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "category_id",
+        ForeignKey("categories.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Video(Base):
     __tablename__ = "videos"
 
@@ -60,9 +83,6 @@ class Video(Base):
         ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-    )
-    category_id: Mapped[int | None] = mapped_column(
-        ForeignKey("categories.id", ondelete="SET NULL"), index=True
     )
     # A video can showcase one specific product, or just the business
     # generally (NULL) — see module docstring.
@@ -108,5 +128,7 @@ class Video(Base):
     )
 
     business: Mapped[Business] = relationship(lazy="joined")
-    category: Mapped[Category | None] = relationship(lazy="joined")
+    categories: Mapped[list[Category]] = relationship(
+        "Category", secondary=video_categories, lazy="selectin"
+    )
     product: Mapped[Product | None] = relationship(lazy="joined")

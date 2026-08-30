@@ -14,7 +14,9 @@ import uuid
 
 from fastapi.testclient import TestClient
 
+from app.db.session import SessionLocal
 from app.main import app
+from app.models.category import Category
 
 client = TestClient(app)
 
@@ -336,3 +338,88 @@ def test_categories_endpoint_returns_list() -> None:
     resp = client.get("/api/v1/categories")
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+def _two_category_ids() -> tuple[int, int]:
+    """Ensure at least 2 categories exist and return their ids. The isolated
+    test database (see tests/conftest.py) only runs Alembic migrations, not
+    `app/db/seed.py`'s 18 launch categories, so tests can't assume any
+    category rows already exist — get-or-create two fixed ones directly."""
+    db = SessionLocal()
+    try:
+        ids = []
+        for slug, name in (("test-cat-a", "Test Category A"), ("test-cat-b", "Test Category B")):
+            category = db.query(Category).filter(Category.slug == slug).one_or_none()
+            if category is None:
+                category = Category(name=name, slug=slug)
+                db.add(category)
+                db.flush()
+            ids.append(category.id)
+        db.commit()
+        return ids[0], ids[1]
+    finally:
+        db.close()
+
+
+def test_product_can_have_multiple_categories() -> None:
+    """A product must be able to carry 2+ categories (many-to-many), and be
+    returned when filtering by *either* one — this replaced the old
+    single-`category_id` FK (see docs/decisions.md)."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    cat_a, cat_b = _two_category_ids()
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Multi-Category Widget"), "category_ids": [cat_a, cat_b]},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 201, resp.text
+    product = resp.json()
+    returned_ids = {c["id"] for c in product["categories"]}
+    assert returned_ids == {cat_a, cat_b}
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+
+    # Visible when filtering by either category.
+    for cat_id in (cat_a, cat_b):
+        resp = client.get(
+            "/api/v1/products",
+            params={"business_id": business["id"], "category_id": cat_id},
+        )
+        assert resp.json()["total"] == 1, f"expected product under category {cat_id}"
+
+    # A category the product isn't in shouldn't return it — pick a 3rd
+    # category if one exists, otherwise skip this half of the assertion.
+    resp = client.get("/api/v1/categories")
+    all_categories = resp.json()
+    other = next((c for c in all_categories if c["id"] not in (cat_a, cat_b)), None)
+    if other is not None:
+        resp = client.get(
+            "/api/v1/products",
+            params={"business_id": business["id"], "category_id": other["id"]},
+        )
+        assert resp.json()["total"] == 0
+
+    # Updating category_ids replaces the set (PATCH semantics).
+    resp = client.patch(
+        f"/api/v1/products/{product['id']}",
+        json={"category_ids": [cat_a]},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200
+    assert {c["id"] for c in resp.json()["categories"]} == {cat_a}
+
+    # Rejects unknown category ids.
+    resp = client.patch(
+        f"/api/v1/products/{product['id']}",
+        json={"category_ids": [999999]},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 400

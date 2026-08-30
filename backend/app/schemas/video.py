@@ -18,7 +18,7 @@ class VideoUpdate(BaseModel):
 
     title: str | None = Field(default=None, min_length=2, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
-    category_id: int | None = None
+    category_ids: list[int] | None = Field(default=None, max_length=10)
     product_id: uuid.UUID | None = None
 
 
@@ -28,7 +28,7 @@ class VideoRead(BaseModel):
     id: uuid.UUID
     business_id: uuid.UUID
     business: BusinessSummary
-    category: CategoryRead | None
+    categories: list[CategoryRead] = Field(default_factory=list)
     product_id: uuid.UUID | None
     product: ProductSummary | None
     title: str

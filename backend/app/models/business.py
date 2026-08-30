@@ -13,9 +13,10 @@ Scoping notes (flagged for Tech Lead/PM — see docs/decisions.md):
 - `category_id` is a single FK to the existing Category model (an industry
   can only be one of the 18 launch categories) even though the design
   prototype's mock data shows a business with two categories
-  (`categories: ['Manufacturing','Construction']`). Products can carry their
-  own category, which covers most of the "we sell into two industries" case
-  without needing a business-category many-to-many at launch.
+  (`categories: ['Manufacturing','Construction']`). This is deliberately
+  unchanged even though Product/Video moved to many-to-many categories (see
+  docs/decisions.md, 2026-08-30) — that change was scoped to Product/Video
+  only; a business-category many-to-many hasn't been raised/requested.
 """
 
 from __future__ import annotations

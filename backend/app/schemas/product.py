@@ -14,7 +14,7 @@ from app.schemas.category import CategoryRead
 class ProductBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
-    category_id: int | None = None
+    category_ids: list[int] = Field(default_factory=list)
     specs: dict[str, str] = Field(default_factory=dict)
     currency: str = Field(default="KES", min_length=3, max_length=3)
     price_min: Decimal | None = Field(default=None, ge=0)
@@ -40,6 +40,14 @@ class ProductBase(BaseModel):
             raise ValueError("A product can have at most 10 curated related products.")
         return value
 
+    @field_validator("category_ids")
+    @classmethod
+    def _dedupe_categories(cls, value: list[int]) -> list[int]:
+        if len(value) > 10:
+            raise ValueError("A product can have at most 10 categories.")
+        # Preserve order, drop duplicates.
+        return list(dict.fromkeys(value))
+
 
 class ProductCreate(ProductBase):
     pass
@@ -51,7 +59,7 @@ class ProductUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=2, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
-    category_id: int | None = None
+    category_ids: list[int] | None = Field(default=None, max_length=10)
     specs: dict[str, str] | None = None
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     price_min: Decimal | None = Field(default=None, ge=0)
@@ -94,7 +102,7 @@ class ProductRead(BaseModel):
     id: uuid.UUID
     business_id: uuid.UUID
     business: BusinessSummary
-    category: CategoryRead | None
+    categories: list[CategoryRead] = Field(default_factory=list)
     name: str
     slug: str
     description: str | None

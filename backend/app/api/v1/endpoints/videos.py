@@ -31,9 +31,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_current_user_optional
 from app.db.session import get_db
 from app.models.business import Business
+from app.models.category import Category
 from app.models.product import ModerationStatus, Product
 from app.models.user import User, UserRole
-from app.models.video import Video
+from app.models.video import Video, video_categories
 from app.schemas.common import Page
 from app.schemas.video import VideoRead, VideoUpdate, VideoViewResult
 from app.services.uploads import read_and_validate_video
@@ -60,6 +61,20 @@ def _get_video_or_404(db: Session, video_id: uuid.UUID) -> Video:
     return video
 
 
+def _resolve_categories(db: Session, category_ids: list[int]) -> list[Category]:
+    if not category_ids:
+        return []
+    ids = set(category_ids)
+    found = list(db.scalars(select(Category).where(Category.id.in_(ids))).all())
+    missing = ids - {c.id for c in found}
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"category_ids not found: {sorted(missing)}",
+        )
+    return found
+
+
 def _resolve_product(
     db: Session, business_id: uuid.UUID, product_id: uuid.UUID | None
 ) -> Product | None:
@@ -84,7 +99,7 @@ async def upload_video(
     business_id: uuid.UUID,
     title: str = Form(..., min_length=2, max_length=200),
     description: str | None = Form(default=None, max_length=5000),
-    category_id: int | None = Form(default=None),
+    category_ids: list[int] = Form(default_factory=list),
     product_id: uuid.UUID | None = Form(default=None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -94,6 +109,12 @@ async def upload_video(
     if not _can_manage(business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your business.")
 
+    if len(category_ids) > 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A video can have at most 10 categories.",
+        )
+    categories = _resolve_categories(db, category_ids)
     _resolve_product(db, business.id, product_id)
 
     content = await read_and_validate_video(file)
@@ -106,7 +127,7 @@ async def upload_video(
 
     video = Video(
         business_id=business.id,
-        category_id=category_id,
+        categories=categories,
         product_id=product_id,
         title=title,
         description=description,
@@ -158,7 +179,13 @@ def list_videos(
     if business_id is not None:
         stmt = stmt.where(Video.business_id == business_id)
     if category_id is not None:
-        stmt = stmt.where(Video.category_id == category_id)
+        stmt = stmt.where(
+            Video.id.in_(
+                select(video_categories.c.video_id).where(
+                    video_categories.c.category_id == category_id
+                )
+            )
+        )
     if product_id is not None:
         stmt = stmt.where(Video.product_id == product_id)
 
@@ -209,12 +236,16 @@ def update_video(
     if not _can_manage(business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your video.")
 
-    update_data = payload.model_dump(exclude_unset=True)
+    update_data = payload.model_dump(exclude_unset=True, exclude={"category_ids"})
     if "product_id" in update_data:
         _resolve_product(db, business.id, update_data["product_id"])
 
     for field, value in update_data.items():
         setattr(video, field, value)
+
+    if payload.category_ids is not None:
+        video.categories = _resolve_categories(db, payload.category_ids)
+        update_data["category_ids"] = payload.category_ids
 
     # Re-review on edit unless it's an admin making the change — same policy
     # as products.py.

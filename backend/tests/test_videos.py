@@ -14,7 +14,9 @@ import uuid
 
 from fastapi.testclient import TestClient
 
+from app.db.session import SessionLocal
 from app.main import app
+from app.models.category import Category
 
 client = TestClient(app)
 
@@ -66,12 +68,19 @@ def _video_file():
     return {"file": ("clip.mp4", io.BytesIO(_TINY_MP4_BYTES), "video/mp4")}
 
 
-def _upload_video(token: str, business_id: str, **form_overrides) -> dict:
+def _upload_video(
+    token: str, business_id: str, category_ids: list[int] | None = None, **form_overrides
+) -> dict:
     form = {"title": _unique("Demo Video")}
     form.update(form_overrides)
+    # httpx repeats a form field for each item of a list value, which is how
+    # FastAPI's `list[int] = Form(...)` parses multiple category_ids.
+    data: dict = dict(form)
+    if category_ids is not None:
+        data["category_ids"] = [str(c) for c in category_ids]
     resp = client.post(
         f"/api/v1/businesses/{business_id}/videos",
-        data=form,
+        data=data,
         files=_video_file(),
         headers=_auth_headers(token),
     )
@@ -277,6 +286,71 @@ def test_video_can_be_associated_with_a_product() -> None:
         f"/api/v1/businesses/{business['id']}/videos",
         data={"title": _unique("Cross-business"), "product_id": other_product["id"]},
         files=_video_file(),
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 400
+
+
+def _two_category_ids() -> tuple[int, int]:
+    """Get-or-create two fixed categories directly — same helper/reasoning as
+    tests/test_businesses_products.py's `_two_category_ids`."""
+    db = SessionLocal()
+    try:
+        ids = []
+        for slug, name in (("test-cat-a", "Test Category A"), ("test-cat-b", "Test Category B")):
+            category = db.query(Category).filter(Category.slug == slug).one_or_none()
+            if category is None:
+                category = Category(name=name, slug=slug)
+                db.add(category)
+                db.flush()
+            ids.append(category.id)
+        db.commit()
+        return ids[0], ids[1]
+    finally:
+        db.close()
+
+
+def test_video_can_have_multiple_categories() -> None:
+    """A video must be able to carry 2+ categories (many-to-many), and be
+    returned when filtering by *either* one — mirrors
+    test_product_can_have_multiple_categories in
+    tests/test_businesses_products.py."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    cat_a, cat_b = _two_category_ids()
+
+    video = _upload_video(owner_token, business["id"], category_ids=[cat_a, cat_b])
+    returned_ids = {c["id"] for c in video["categories"]}
+    assert returned_ids == {cat_a, cat_b}
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.post(
+        f"/api/v1/admin/videos/{video['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+
+    for cat_id in (cat_a, cat_b):
+        resp = client.get(
+            "/api/v1/videos",
+            params={"business_id": business["id"], "category_id": cat_id},
+        )
+        assert resp.json()["total"] == 1, f"expected video under category {cat_id}"
+
+    # Updating category_ids replaces the set (PATCH semantics).
+    resp = client.patch(
+        f"/api/v1/videos/{video['id']}",
+        json={"category_ids": [cat_a]},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200
+    assert {c["id"] for c in resp.json()["categories"]} == {cat_a}
+
+    # Rejects unknown category ids.
+    resp = client.patch(
+        f"/api/v1/videos/{video['id']}",
+        json={"category_ids": [999999]},
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 400

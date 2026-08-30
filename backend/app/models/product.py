@@ -16,10 +16,13 @@ Scoping notes (flagged for Tech Lead/PM — see docs/decisions.md):
   list, so a business can point a spare-part at its parent equipment across
   categories. The public API falls back to same-business products when a
   product has none curated, so the frontend always gets something useful.
-- Products carry their own optional `category_id` distinct from the owning
-  business's category (e.g. a hardware store's category is "Retail" but an
-  individual product might be "Construction" materials) — this also gives
-  search/filter-by-category something to key off per listing.
+- Products carry their own `categories` (many-to-many, zero or more)
+  distinct from the owning business's single category (e.g. a hardware
+  store's category is "Retail" but an individual product might belong to
+  both "Construction" and "DIY") — this also gives search/filter-by-category
+  something to key off per listing. This reverses the original Sprint 2
+  single-`category_id` decision (see docs/decisions.md) once real usage
+  showed a product/video can genuinely belong in more than one category.
 """
 
 from __future__ import annotations
@@ -89,6 +92,26 @@ product_related = Table(
 )
 
 
+# Product <-> Category, many-to-many. A product can carry zero or more
+# categories (see module docstring for why this replaced a single
+# `category_id` FK). Matches product_related's style exactly.
+product_categories = Table(
+    "product_categories",
+    Base.metadata,
+    Column(
+        "product_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "category_id",
+        ForeignKey("categories.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -101,10 +124,6 @@ class Product(Base):
         nullable=False,
         index=True,
     )
-    category_id: Mapped[int | None] = mapped_column(
-        ForeignKey("categories.id", ondelete="SET NULL"), index=True
-    )
-
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(220), nullable=False, unique=True, index=True)
     description: Mapped[str | None] = mapped_column(Text)
@@ -154,7 +173,9 @@ class Product(Base):
     )
 
     business: Mapped[Business] = relationship(back_populates="products", lazy="joined")
-    category: Mapped[Category | None] = relationship(lazy="joined")
+    categories: Mapped[list[Category]] = relationship(
+        "Category", secondary=product_categories, lazy="selectin"
+    )
 
     related_products: Mapped[list[Product]] = relationship(
         "Product",
