@@ -586,10 +586,15 @@ body{
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:7px;}
 .field label span.opt{text-transform:none;font-weight:600;opacity:.7;letter-spacing:0;}
-.field input{width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);font-size:.86rem;color:var(--ink);transition:border-color .15s var(--ease),box-shadow .15s var(--ease);}
-.field input::placeholder{color:var(--ink-soft);opacity:.7;}
-.field input:focus{outline:0;border-color:var(--brand-blue);box-shadow:0 0 0 3px rgba(16,52,166,.15);}
-.app[data-app-theme="dark"] .field input:focus{box-shadow:0 0 0 3px rgba(21,66,214,.3);}
+.field input,.field textarea,.field select{width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);font-size:.86rem;color:var(--ink);font-family:inherit;transition:border-color .15s var(--ease),box-shadow .15s var(--ease);}
+.field textarea{resize:vertical;min-height:76px;line-height:1.45;}
+.field select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6B7D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:36px;}
+/* dark theme needs its own arrow tint (--ink-soft flips lighter) — the data-uri
+   above is baked at build time so it can't read the CSS variable directly. */
+.app[data-app-theme="dark"] .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238FA2B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");}
+.field input::placeholder,.field textarea::placeholder{color:var(--ink-soft);opacity:.7;}
+.field input:focus,.field textarea:focus,.field select:focus{outline:0;border-color:var(--brand-blue);box-shadow:0 0 0 3px rgba(16,52,166,.15);}
+.app[data-app-theme="dark"] .field input:focus,.app[data-app-theme="dark"] .field textarea:focus,.app[data-app-theme="dark"] .field select:focus{box-shadow:0 0 0 3px rgba(21,66,214,.3);}
 .field.error input{border-color:var(--danger);}
 .field .hint{font-size:.7rem;color:var(--ink-soft);margin-top:6px;}
 .field .input-wrap{position:relative;}
@@ -758,16 +763,58 @@ body{
 .status-pill.rejected{background:rgba(229,72,77,.12);color:var(--danger);}
 .status-pill.unverified{background:var(--panel);color:var(--ink-soft);}
 .dash-row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
-.dash-btn-sm{padding:6px 12px;border-radius:999px;font-size:.7rem;font-weight:700;white-space:nowrap;transition:transform .15s var(--ease);}
+.dash-btn-sm{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:6px 12px;border-radius:999px;font-size:.7rem;font-weight:700;white-space:nowrap;transition:transform .15s var(--ease);}
 .dash-btn-sm:active{transform:scale(.94);}
 .dash-btn-approve{background:var(--teal);color:#fff;}
-.dash-btn-reject{background:rgba(229,72,77,.1);color:var(--danger);}
+.dash-btn-reject,.dash-btn-danger{background:rgba(229,72,77,.1);color:var(--danger);}
+.dash-btn-danger.confirming{background:var(--danger);color:#fff;box-shadow:0 4px 12px -4px rgba(229,72,77,.6);}
 .dash-btn-ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line);}
 .dash-empty{padding:26px 10px;text-align:center;color:var(--ink-soft);font-size:.8rem;}
 .dash-tabbar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
 .dash-tabbar button{padding:7px 13px;border-radius:999px;font-size:.74rem;font-weight:700;color:var(--ink-soft);background:var(--panel);border:1px solid transparent;}
 .dash-tabbar button.active{background:var(--brand-blue);color:#fff;}
 .dash-biz-switch{margin-bottom:16px;}
+/* row description clamp — used by the admin Video Moderation queue rows so a
+   moderator gets enough context (title + business + a line of description)
+   to judge a submission without leaving the table, same information density
+   principle as the product/business rows' single meta line, just one line
+   taller since "judge this video" needs more than a price or a location. */
+.dash-row-entity .d{font-size:.7rem;color:var(--ink-soft);margin-top:3px;line-height:1.4;max-width:46ch;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+
+/* ---- Business Dashboard "Videos": card grid, not a data table — a video's
+   thumbnail IS the primary judgeable content, so it gets the same out-of-focus
+   thumb treatment used everywhere else in the app (feed/search/profile),
+   not reduced to a small square icon like the Products table's rows. ---- */
+.vid-manage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.vid-manage-card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);transition:transform .16s var(--ease),box-shadow .16s;}
+.vid-manage-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);}
+.vid-manage-card .thumb{width:100%;height:112px;border-radius:0;}
+.vid-manage-card .vmc-body{padding:11px 12px 12px;}
+.vid-manage-card .vmc-status{margin-bottom:7px;}
+.vid-manage-card .vmc-title{font-size:.8rem;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.1em;}
+.vid-manage-card .vmc-meta{font-size:.68rem;color:var(--ink-soft);margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.vid-manage-card .vmc-link{display:inline-flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-weight:700;color:var(--ink-soft);}
+.vid-manage-card .vmc-actions{display:flex;gap:6px;margin-top:10px;}
+.vid-manage-card .vmc-actions .dash-btn-sm{flex:1;justify-content:center;}
+.vid-manage-card .vmc-rejected-note{font-size:.68rem;color:var(--danger);margin-top:6px;line-height:1.4;background:rgba(229,72,77,.08);border-radius:8px;padding:6px 8px;}
+
+/* ---- video file picker (Upload video sheet) — a styled dropzone standing
+   in for a real file input, matching the field/card language rather than a
+   bare OS file-input control. Click target is the whole box; the native
+   <input type=file> underneath stays visually hidden. ---- */
+.filedrop{border:1.5px dashed var(--line);border-radius:14px;padding:22px 14px;text-align:center;color:var(--ink-soft);font-size:.78rem;line-height:1.5;transition:border-color .15s var(--ease),background .15s var(--ease),color .15s;background:var(--panel);}
+.filedrop:hover{border-color:var(--teal);color:var(--ink);}
+.filedrop svg{margin-bottom:6px;opacity:.75;}
+.filedrop .fd-name{font-weight:700;color:var(--ink);margin-top:2px;word-break:break-all;}
+.filedrop.has-file{border-style:solid;border-color:var(--teal);background:rgba(28,138,168,.08);color:var(--ink);}
+.filedrop.field-error{border-color:var(--danger);}
+
+/* generic danger-toned full-width pill — used by the reject-with-reason
+   sheet's confirm action; amber/outline/ghost all read as neutral-to-positive
+   elsewhere, so a rejection needs its own tone rather than borrowing one of
+   those and diluting its meaning. */
+.pill-danger{background:linear-gradient(155deg,#F0787B,var(--danger) 60%,#C93338);color:#fff;box-shadow:0 8px 20px -6px rgba(229,72,77,.55),inset 0 1px 0 rgba(255,255,255,.25);}
+.pill-danger:hover{box-shadow:0 10px 26px -6px rgba(229,72,77,.75),inset 0 1px 0 rgba(255,255,255,.25);}
 
 /* ---- portal mode: consumer desktop-nav is retired while inside the shell ---- */
 .app.portal .desktop-nav{display:none!important;}
@@ -856,7 +903,10 @@ body{
   .dash-topbar-stats{display:flex;align-items:center;}
   .dash-main{padding:24px 32px 48px;}
   .dash-footer{padding:12px 32px;}
-  .kpi-grid{grid-template-columns:repeat(4,1fr);}
+  /* auto-fit rather than a hardcoded repeat(4,1fr): the Business Dashboard's
+     Overview has 4 KPI cards, the Admin Overview now has 5 (Pending Videos
+     added) — this reflows both correctly at ~150px/card without two grids. */
+  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
 
   /* -- desktop top nav replaces the bottom tab bar -- */
   .desktop-nav{display:flex;}
@@ -1113,6 +1163,12 @@ body{
           <div class="sheet" id="filterSheet"></div>
           <div class="sheet" id="accountSheet"></div>
           <div class="sheet" id="compareSheet"></div>
+          <!-- Business Dashboard: upload a video (title/description/category/
+               linked product/file) — see renderVideoUploadSheet(). -->
+          <div class="sheet" id="videoUploadSheet"></div>
+          <!-- Admin Panel: capture a required reason when rejecting a pending
+               video — see renderRejectVideoSheet(). -->
+          <div class="sheet" id="videoRejectSheet"></div>
           <!-- shared mobile drawer for the Business Dashboard / Admin Panel sidebar —
                reuses the sheet-backdrop/openSheet mechanism, slides from the left
                instead of up from the bottom (see .sheet-side) -->
@@ -1122,8 +1178,16 @@ body{
     </div>
 
     <aside class="notes-panel" id="notesPanel">
-      <h3>Design notes for PM review — v6</h3>
+      <h3>Design notes for PM review — v7</h3>
       <ul>
+        <li><b>New in v7 — Real video support added to the v6 internal-tool shell (2026-08-30), status: draft, first pass, not yet reviewed. This is additive only</b> — the v6 sidebar/topbar/footer shell, both nav lists' existing items, and every other screen are untouched; per the Business Dashboard incident (see docs/decisions.md's "shipped without a design pass" entry), this got a real design pass before any build work, same as v6 did.
+        <br><br><b>Business Dashboard → new "Videos" nav item</b>, placed between Products and Analytics (Overview / Business Profile / Products / <b>Videos</b> / Analytics <i>Soon</i> / Orders <i>Soon</i>) — video sits with the other content-you-manage items, ahead of the two not-yet-built placeholders. Content is a card grid, not a data table like Products — a video's thumbnail is the point, so each card gets the same out-of-focus-footage thumb treatment (grain/bokeh/vignette + duration badge) used everywhere else in the app, not shrunk to a small square icon. Each card shows the thumb, title, the exact pending/approved/rejected <code>.status-pill</code> used by Products and Business Moderation (a rejected card also surfaces its rejection reason inline), view count, and a linked-product chip when one was set at upload. <b>Upload video</b> opens a sheet — file picker (a real native file input behind a styled dropzone; filename+size shown once picked, no real upload target, same "wired at build time" honesty as every other stubbed action in this file), title (required), description, category and "link to a product" (both optional, product list scoped to the current business) — this is the one genuinely new interactive flow in this pass, not a stub: submitting pushes a real <code>pending</code> video into the shared data, so it shows up immediately both in this grid and in the Admin Panel's new Video Moderation queue. <b>Edit</b> intentionally stays a stub (identical "not in this sprint" toast Products' own Edit button already uses) — no working edit form exists for Products either, and building one only for Videos would be inconsistent, not extra credit. <b>Remove</b> is a real two-click soft-delete (button turns solid red "Confirm remove?" for 4s, then removes on a second click) — deliberately named and shaped to match the "two-click-remove" pattern already shipped in the real product-management build per docs/decisions.md, so this design stays consistent with what's already live, not just internally consistent with itself. The Overview's "Videos" KPI card is now computed live from the same video list (previously a static fixture field) so an upload or a removal visibly moves the number right next to where it happened.
+        <br><br><b>Admin Panel → new "Video Moderation" nav item</b>, placed after Product Moderation (Overview / Business Moderation / Product Moderation / <b>Video Moderation</b>) — mirrors Business/Product Moderation's exact tab pattern (Pending / Approved / Rejected, with a live count in each tab label) and table layout. Each row gives a moderator enough to judge without leaving the table: a real video-still thumbnail (not the small square icon business/product rows use), title, business name, "Submitted N days ago", and a one-line clamp of the submitted description. <b>Approve is one click</b>, same as Business/Product Moderation. <b>Reject is the one deliberate departure from mirroring those exactly</b>: instead of rejecting instantly with no reason (what Business/Product Moderation still do today), it opens a small sheet requiring a reason before it will submit — a reason field reuses the exact same <code>.field</code>/<code>.err-msg</code>/<code>setFieldError</code> validation as every form already in this file. Rationale flagged for the PM: asking a business to re-shoot or re-edit a video is a much bigger ask than fixing a product field, so a silent reject felt like it'd generate support tickets instead of resubmissions — worth considering backporting reason-capture to Business/Product reject too, but that's a call for the PM, not something changed unasked in this pass.
+        <br><br><b>Admin Overview</b> — the "Needs your review" combined queue now interleaves pending videos with pending businesses/products, and this pass made the "oldest submissions first" copy actually true: previously the queue just concatenated businesses then products with no real sort (it only ever looked ordered because there was exactly one pending item of each). A <code>submittedDaysAgo</code> field now drives a real sort across all three types, so e.g. a business pending 6 days shows above a video pending 5 days, which shows above a product pending 4 days, which shows above a video pending 2 days — a real interleaved order, not three stacked lists. Added a 5th KPI card, <b>Pending Videos</b>, alongside the existing Pending Businesses/Pending Products/Verified Businesses/Live Categories cards; the KPI grid's desktop CSS moved from a hardcoded 4-column grid to <code>auto-fit</code> so both this 5-card Overview and the Business Dashboard's unchanged 4-card Overview reflow correctly from one shared rule. The sidebar's amber pending-count badge pattern (already on Business/Product Moderation) now also applies to Video Moderation, same mechanism, no new code path.
+        <br><br><b>Demo data added</b>, matching the existing fixture's real Kenyan-business voice rather than lorem ipsum: two pending videos — AquaTank's <i>"Tank Installation Walkthrough — Nairobi Site"</i> (linked to the 10,000L tank product, submitted 5 days ago) and BuildRight's <i>"Choosing the Right Hardware for Your Build"</i> (linked to the hardware starter kit, submitted 2 days ago, on the same already-pending business used to demo Business/Product Moderation) — plus one rejected video, SunFlow's <i>"Why Our Panels Outlast Cheap Imports"</i>, with a realistic rejection reason (unsubstantiated comparative claims) to demonstrate that state without needing a live rejection first. BuildRight's business and its pending product listing both picked up a <code>submittedDaysAgo</code> (6 and 4 respectively) purely so the new real sort has real numbers to work with.
+        <br><br><b>Judgment call to flag for the PM:</b> pending/rejected videos are deliberately visible on their business's public profile "Videos" tab and in search, with only their status badge marking them as not-yet-live — this matches how pending products and unverified/pending businesses already behave everywhere else in this prototype (nothing is actually hidden pre-approval; everything is shown, clearly labelled). Flagging because a real backend would more likely hide unapproved content entirely from public listing pages and only show it to the owner/admin — if that's the intended real behaviour, it's a pre-existing gap that applies equally to pending products and unverified businesses today, not something new to video, and probably worth one consolidated fix rather than three separate ones.
+        <br><br><b>Component states added to the design system by this pass</b> (for reuse beyond video): <code>&lt;textarea&gt;</code> and <code>&lt;select&gt;</code> now share the exact same field/focus/error styling <code>&lt;input&gt;</code> already had (previously undefined — this file had no styled select or textarea anywhere before the upload form needed one); a dashed-border <code>.filedrop</code> file-picker component (default/hover/has-file/error states); a <code>.pill-danger</code> variant for destructive confirmations (reject sheet's submit) — amber/outline/ghost all read neutral-to-positive elsewhere, so a rejection needed its own tone rather than diluting one of those.
+        <br><br>Not yet touched, deliberately out of scope for this pass: the Video Feed screen, home "Trending videos" rail and search's "Videos" tab still read from the same fixture videos as before v7 (v1–v7) — none of the new pending/rejected demo videos were added to <code>FEED_ORDER</code>/<code>TRENDING_ORDER</code>, so the public Shorts experience is visually unchanged.</li>
         <li><b>New in v6 — Business Dashboard &amp; Admin Panel get a real internal-tool shell (2026-08-30), status: draft, first pass, not yet reviewed — this directly answers the rejection of the build that reused the consumer TopNav/BottomNav shell ("that's not a Dashboard… a dashboard should have a Sidebar, navbar and footer"):</b> a brand-new layout grammar — <b>sidebar + topbar + content + footer</b> — deliberately distinct from every consumer screen above, which use the phone bottom-tab-bar (mobile) / marketing top-nav (desktop) pattern instead. Same tokens throughout (Egyptian Blue, amber, Space Grotesk/Inter, the shared shadow system) — this is a new IA/layout for internal tooling, not a new visual identity. <b>ONE shared shell</b> (<code>renderDashSidebar()</code> / <code>dashTopbarHTML()</code> / <code>dashFooterHTML()</code> in the script) powers both screens with role-appropriate nav config, the same way this file already shares filter-panel logic between the mobile filter sheet and the desktop filter sidebar — so Business Dashboard and Admin Panel read as one coherent product, not two off-brand one-offs.
         <br><br><b>Sidebar</b> — a dark, near-black rail (hardcoded <code>#0A0F1C</code>, not the theme-flipping <code>--ink</code> token — see the code comment above <code>.dash-shell</code> for why) with the Miles Tech wordmark + a "Business Console"/"Staff Console" subtitle, then role-appropriate nav links: <b>Business Dashboard</b> gets Overview, Business Profile, Products, plus Analytics and Orders shown disabled with a "Soon" tag (present so the IA feels complete without over-building features not in this sprint's scope); <b>Admin Panel</b> gets Overview, Business Moderation, Product Moderation, with a live amber count badge on the moderation items whenever something's pending. Persistent/sticky on desktop (≥1024px, same sticky-column mechanism as the search filter sidebar and profile info column); collapses to a left-edge slide-in drawer below that, opened via a hamburger button in the topbar — reuses the existing sheet/backdrop system wholesale (<code>openSheet('dashDrawer')</code>), just with a new <code>.sheet-side</code> modifier that slides from the left edge instead of up from the bottom, so no new interaction plumbing was needed for the drawer's open/close/backdrop behaviour.
         <br><br><b>Topbar</b> — a breadcrumb ("Business Dashboard / Overview") + page title on the left, a couple of quick-stat callouts (pending-count, verification status for the dashboard; pending-business/pending-product counts for the admin panel — amber-highlighted when nonzero) on the right at desktop, and the account button on the far right reusing the exact avatar-role-icon + name pattern from the consumer Account sheet (clicking it opens that same sheet, layered on top of the dashboard). Quick-stats are hidden below 1024px to keep the mobile topbar to one row.
@@ -1150,7 +1214,7 @@ body{
         <li><b>Verification states:</b> unchanged — teal check = verified, grey clock = pending. Search "construction" or "hardware" to see the pending state (BuildRight Hardware).</li>
         <li><b>Compare</b> remains the persistent cross-screen tray (up to 3 products) — untouched per the approved interaction model.</li>
         <li><b>Account tab</b> now opens the full Login/Register/Verify/Reset flow described above (v5) — only the location picker remains stubbed with a toast.</li>
-        <li>Toggle light/dark with the moon/sun icon in the hero, then re-run the same walkthrough: search "water tank suppliers near Nairobi", scroll the video feed, open AquaTank Kenya's profile, open a product, add 2–3 to compare. Use the new <b>Business Dashboard</b> / <b>Admin Panel</b> buttons above to jump straight in (auto-signs you in as the matching demo account) — resize past/under 1024px once there to see the sidebar go from a persistent column to a hamburger-triggered drawer.</li>
+        <li>Toggle light/dark with the moon/sun icon in the hero, then re-run the same walkthrough: search "water tank suppliers near Nairobi", scroll the video feed, open AquaTank Kenya's profile, open a product, add 2–3 to compare. Use the new <b>Business Dashboard</b> / <b>Admin Panel</b> buttons above to jump straight in (auto-signs you in as the matching demo account) — resize past/under 1024px once there to see the sidebar go from a persistent column to a hamburger-triggered drawer. <b>For the new v7 video work specifically:</b> in the Business Dashboard, click <b>Videos</b> in the sidebar (AquaTank has one pending video already; try <b>Upload video</b> to add another, and Remove's two-click confirm on an existing one); in the Admin Panel, click <b>Video Moderation</b> to see the Pending/Approved/Rejected tabs (SunFlow's panel video demos the Rejected state with a reason already attached), try rejecting AquaTank's or BuildRight's pending video to see the required-reason sheet, then check the Overview tab to see it drop out of the "Pending Videos" KPI and the combined queue.</li>
       </ul>
     </aside>
   </div>
@@ -1205,7 +1269,12 @@ const BUSINESSES = [
   {id:'buildright',name:'BuildRight Hardware',categories:['Construction','Retail'],location:'Mombasa',verified:false,pending:true,rating:4.2,ratingCount:19,grad:5,icon:'🧱',
     description:'General building materials and hardware supplies for contractors and homeowners on the coast.',
     products:120,videosCount:2,phone:'+254 741 902 244',hours:'Mon–Sat · 8:00–18:00',
-    tags:['hardware','construction','building materials','cement'],featured:false},
+    tags:['hardware','construction','building materials','cement'],featured:false,
+    // Submitted-when for the Admin Overview's combined "Needs your review"
+    // queue (see renderAdminOverview) — lets business/product/video pending
+    // items interleave in a real oldest-first order instead of just being
+    // three separately-concatenated lists.
+    submittedDaysAgo:6},
 ];
 
 const PRODUCTS = [
@@ -1237,7 +1306,7 @@ const PRODUCTS = [
   // field at all, which every render treats as "approved" — see prodById() usage.
   {id:'hardwarekit',businessId:'buildright',name:"Builder's Hardware Starter Kit",price:8500,grad:5,icon:'🧰',
     specs:{Contents:'Hammer, tape measure, spirit level, utility knife, work gloves',Warranty:'1 Year',Availability:'In stock — Mombasa'},
-    tags:['hardware','tools','construction','starter kit'],moderationStatus:'pending'},
+    tags:['hardware','tools','construction','starter kit'],moderationStatus:'pending',submittedDaysAgo:4},
 ];
 
 const VIDEOS = [
@@ -1248,6 +1317,22 @@ const VIDEOS = [
   {id:'v5',businessId:'aquatank',title:'New 2026 Tank Range Launch',category:'Manufacturing',views:8000,grad:0,icon:'🛢️',sponsored:true,duration:'1:58'},
   {id:'v6',businessId:'solaris',title:'How Solar Hybrid Systems Work',category:'Energy',views:33000,grad:4,icon:'🔋',sponsored:false,duration:'7:20'},
   {id:'v7',businessId:'greengrow',title:'Testing Your Soil pH at Home',category:'Agriculture · Education',views:45000,grad:3,icon:'🌱',sponsored:false,duration:'5:10'},
+  // Pending/rejected videos, deliberately unapproved — mirrors PRODUCTS'
+  // 'hardwarekit' fixture above so the Admin Panel's new Video Moderation
+  // queue (and the Overview's combined "Needs your review" queue) have real,
+  // varied content on first load, not just the one pending business/product.
+  // v1–v7 above have no moderationStatus field at all, which every render
+  // treats as "approved" — see vidById()/(v.moderationStatus||'approved') usage.
+  {id:'v8',businessId:'aquatank',title:'Tank Installation Walkthrough — Nairobi Site',category:'Manufacturing',views:0,grad:0,icon:'🛢️',sponsored:false,duration:'Processing…',
+    moderationStatus:'pending',submittedDaysAgo:5,productId:'tank10000',
+    description:"Step-by-step walkthrough of a 10,000L tank installation for a commercial client — site prep, positioning and plumbing connections."},
+  {id:'v9',businessId:'buildright',title:'Choosing the Right Hardware for Your Build',category:'Construction · DIY',views:0,grad:5,icon:'🧱',sponsored:false,duration:'Processing…',
+    moderationStatus:'pending',submittedDaysAgo:2,productId:'hardwarekit',
+    description:"A quick buyer's guide to picking hammers, fasteners and safety gear for a home renovation project."},
+  {id:'v10',businessId:'sunflow',title:'Why Our Panels Outlast Cheap Imports',category:'Energy',views:0,grad:1,icon:'☀️',sponsored:false,duration:'3:40',
+    moderationStatus:'rejected',submittedDaysAgo:9,
+    description:'A side-by-side comparison against unnamed imported panel brands.',
+    rejectionReason:'Comparative claims about named/implied competitors need supporting evidence — resubmit with substantiation or remove the claim.'},
 ];
 
 const FEED_ORDER = ['v3','v1','v5','v2','v6','v4','v7'];
@@ -1295,6 +1380,11 @@ const ICONS = {
   chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
   truck:'<rect x="1" y="7" width="13" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="5.5" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  /* ---- video moderation / upload (added for Business Dashboard "Videos" +
+     Admin "Video Moderation" — see DASH_NAV and renderBizVideos()/renderAdminVidMod()) ---- */
+  video:'<rect x="2.5" y="6" width="14" height="12" rx="2"/><path d="M21.5 9.2l-5 2.8 5 2.8z"/>',
+  upload:'<path d="M12 16V4M12 4l-4.5 4.5M12 4l4.5 4.5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>',
+  trash:'<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/>',
 };
 function icon(name,size=20){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;}
 const SPONSOR_DOT = '<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;flex:0 0 auto;"></span>';
@@ -2494,6 +2584,7 @@ const DASH_NAV = {
     {id:'overview', label:'Overview', icon:'grid'},
     {id:'profile', label:'Business Profile', icon:'building'},
     {id:'products', label:'Products', icon:'box'},
+    {id:'videos', label:'Videos', icon:'video'},
     {id:'analytics', label:'Analytics', icon:'chart', soon:true},
     {id:'orders', label:'Orders', icon:'truck', soon:true},
   ],
@@ -2501,6 +2592,7 @@ const DASH_NAV = {
     {id:'overview', label:'Overview', icon:'grid'},
     {id:'bizmod', label:'Business Moderation', icon:'building'},
     {id:'prodmod', label:'Product Moderation', icon:'box'},
+    {id:'vidmod', label:'Video Moderation', icon:'video'},
   ],
 };
 let dashSection = 'overview';
@@ -2508,9 +2600,15 @@ let dashBizId = 'aquatank';
 let adminSection = 'overview';
 let adminBizTab = 'pending';
 let adminProdTab = 'pending';
+let adminVidTab = 'pending';
+let dashVideoConfirmRemoveId = null; // two-click remove, mirrors the real app's "two-click-remove" pattern
+let dashVideoConfirmTimer = null;
+let rejectVideoTarget = null; // video id currently open in the reject-with-reason sheet
+let pickedVideoFile = null; // { name, size } from the upload sheet's file picker — display-only, no real upload
 
 function pendingBizCount(){ return BUSINESSES.filter(b=>b.pending && !b.rejected).length; }
 function pendingProdCount(){ return PRODUCTS.filter(p=>p.moderationStatus==='pending').length; }
+function pendingVidCount(){ return VIDEOS.filter(v=>v.moderationStatus==='pending' && !v.removed).length; }
 function verifiedBizCount(){ return BUSINESSES.filter(b=>b.verified).length; }
 
 function renderSidebarNavHTML(mode){
@@ -2520,6 +2618,7 @@ function renderSidebarNavHTML(mode){
     if(it.soon) badge = `<span class="soon">Soon</span>`;
     else if(it.id==='bizmod' && pendingBizCount()) badge = `<span class="count">${pendingBizCount()}</span>`;
     else if(it.id==='prodmod' && pendingProdCount()) badge = `<span class="count">${pendingProdCount()}</span>`;
+    else if(it.id==='vidmod' && pendingVidCount()) badge = `<span class="count">${pendingVidCount()}</span>`;
     return `<button type="button" class="dash-navlink ${activeId===it.id?'active':''}" data-action="dash-nav" data-mode="${mode}" data-section="${it.id}" ${it.soon?'disabled':''}>
       ${icon(it.icon,17)}<span>${it.label}</span>${badge}
     </button>`;
@@ -2572,10 +2671,11 @@ function renderProductTable(prods){
 }
 function renderBizOverview(biz){
   const prods = PRODUCTS.filter(p=>p.businessId===biz.id);
-  const pendingOwn = prods.filter(p=>p.moderationStatus==='pending').length;
+  const vids = VIDEOS.filter(v=>v.businessId===biz.id && !v.removed);
+  const pendingOwn = prods.filter(p=>p.moderationStatus==='pending').length + vids.filter(v=>v.moderationStatus==='pending').length;
   return `
     <div class="kpi-grid">
-      <div class="kpi-card"><div class="n">${biz.videosCount||0}</div><div class="c">Videos</div></div>
+      <div class="kpi-card"><div class="n">${vids.length}</div><div class="c">Videos</div></div>
       <div class="kpi-card"><div class="n">${prods.length}</div><div class="c">Product Listings</div></div>
       <div class="kpi-card ${pendingOwn?'accent':''}"><div class="n">${pendingOwn}</div><div class="c">Pending Review</div></div>
       <div class="kpi-card"><div class="n">${biz.rating}</div><div class="c">Avg. Rating (${biz.ratingCount})</div></div>
@@ -2638,10 +2738,196 @@ function renderBizProducts(biz){
     ${prods.length ? renderProductTable(prods) : `<div class="dash-empty">No products yet — add your first listing.</div>`}
   </div>`;
 }
+/* ---- Business Dashboard: Videos (new section, between Products and Analytics) ----
+   Card grid rather than a table: a video's thumbnail is the point, so it gets
+   the same out-of-focus-footage thumb treatment as everywhere else in the app
+   (feed/search/profile), not shrunk to a small square icon the way the
+   Products table's rows are. Status badge reuses the exact pending/approved/
+   rejected .status-pill pattern from Products/Business moderation. Edit is a
+   stub (matching the Products table's own "Edit" stub above — this section
+   deliberately doesn't out-build a working edit form Products doesn't have
+   either); Remove is a real two-click soft-delete, mirroring the "two-click-
+   remove" pattern already shipped in the real product management build
+   (see docs/decisions.md) so this design stays consistent with what the
+   Frontend Engineer already built elsewhere, not just internally consistent. */
+function renderVidManageCard(v){
+  const status = v.moderationStatus || 'approved';
+  const linkedProd = v.productId ? prodById(v.productId) : null;
+  const confirming = dashVideoConfirmRemoveId === v.id;
+  const statusLabel = status==='pending' ? icon('clock',9)+' Pending' : status==='rejected' ? icon('close',9)+' Rejected' : icon('check',9)+' Approved';
+  return `<div class="vid-manage-card">
+    <div class="thumb"><div class="grad grad-${v.grad}"></div><div class="glyph" style="font-size:1.6rem;">${v.icon}</div><div class="playbadge">${icon('play',12)}</div>${v.duration?`<div class="duration">${v.duration}</div>`:''}</div>
+    <div class="vmc-body">
+      <div class="vmc-status"><span class="status-pill ${status}">${statusLabel}</span></div>
+      <div class="vmc-title">${v.title}</div>
+      <div class="vmc-meta">${fmtViews(v.views)} views${linkedProd?`<span class="vmc-link">${icon('box',10)} ${linkedProd.name}</span>`:''}</div>
+      ${status==='rejected' && v.rejectionReason ? `<div class="vmc-rejected-note"><b>Why:</b> ${v.rejectionReason}</div>` : ''}
+      <div class="vmc-actions">
+        <button type="button" class="dash-btn-sm dash-btn-ghost" data-action="auth-quicklink-stub">Edit</button>
+        <button type="button" class="dash-btn-sm dash-btn-danger ${confirming?'confirming':''}" data-action="dash-video-remove" data-vid="${v.id}">${confirming?icon('trash',11)+' Confirm remove?':'Remove'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+function renderBizVideos(biz){
+  const vids = VIDEOS.filter(v=>v.businessId===biz.id && !v.removed);
+  return `<div class="dash-section">
+    <div class="dash-section-head">
+      <div><h2>Videos</h2><p>${vids.length} video${vids.length===1?'':'s'} in your showroom</p></div>
+      <button type="button" class="pill pill-amber pill-sm" data-action="dash-open-video-upload">${icon('upload',13)} Upload video</button>
+    </div>
+    ${vids.length ? `<div class="vid-manage-grid">${vids.map(renderVidManageCard).join('')}</div>` : `<div class="dash-empty">No videos yet — upload your first one.</div>`}
+  </div>`;
+}
+/* ---- Upload video sheet — the one genuinely new interactive flow this pass
+   adds (Edit/Remove above intentionally reuse existing stub/two-click
+   patterns rather than inventing more). Reuses the account/auth sheets'
+   .field/.err-msg/setFieldError validation machinery wholesale — see the
+   auth screens above for the pattern this copies. File picking is real
+   front-end interaction (native <input type=file>, filename+size shown)
+   with no real upload target, matching every other "wired at build time"
+   stub in this prototype (contact/share/request-quotes etc.). Submitting
+   pushes a real pending video into VIDEOS so it shows up immediately in
+   both this business's own Videos grid AND the Admin Panel's Video
+   Moderation queue — the same "functionally real, not static" bar the
+   Admin approve/reject actions already meet. */
+function openVideoUploadSheet(){
+  renderVideoUploadSheet();
+  openSheet('videoUploadSheet');
+}
+function renderVideoUploadSheet(){
+  const ownProducts = PRODUCTS.filter(p=>p.businessId===dashBizId);
+  const sheet = document.getElementById('videoUploadSheet');
+  sheet.innerHTML = `
+    <div class="grabber"></div>
+    <h3>Upload a video</h3>
+    <p class="sheet-sub">Submitted videos go to Miles Tech's moderation queue before they're publicly visible — most reviews complete within 2 business days.</p>
+    <form id="videoUploadForm" novalidate>
+      <div class="field" data-field="file">
+        <label>Video file</label>
+        <label class="filedrop" for="videoFileInput" id="videoDropzone">
+          ${icon('upload',22)}
+          <div>Tap to choose a video file</div>
+          <div class="fd-name" id="videoFileName" hidden></div>
+        </label>
+        <input type="file" id="videoFileInput" accept="video/*" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
+        <div class="err-msg" hidden></div>
+      </div>
+      <div class="field" data-field="title">
+        <label>Title</label>
+        <input type="text" id="videoTitleInput" placeholder="e.g. Inside Our Rotomoulding Plant — How It's Made">
+        <div class="err-msg" hidden></div>
+      </div>
+      <div class="field">
+        <label>Description <span class="opt">(optional)</span></label>
+        <textarea id="videoDescInput" placeholder="What's in this video, and why should shoppers care?"></textarea>
+      </div>
+      <div class="field">
+        <label>Category <span class="opt">(optional)</span></label>
+        <select id="videoCategoryInput">
+          <option value="">— Select category —</option>
+          ${CATEGORIES.map(c=>`<option value="${c.label}">${c.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Link to a product <span class="opt">(optional)</span></label>
+        <select id="videoProductInput">
+          <option value="">— No linked product —</option>
+          ${ownProducts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="pill pill-outline" style="flex:1;justify-content:center;" data-action="close-sheet">Cancel</button>
+        <button type="submit" class="pill pill-amber" style="flex:1;justify-content:center;">Submit for review</button>
+      </div>
+    </form>`;
+  wireVideoUploadSheet();
+}
+function wireVideoUploadSheet(){
+  pickedVideoFile = null;
+  const fileInput = document.getElementById('videoFileInput');
+  fileInput.addEventListener('change', ()=>{
+    const f = fileInput.files && fileInput.files[0];
+    const dz = document.getElementById('videoDropzone');
+    const nameEl = document.getElementById('videoFileName');
+    if(f){
+      pickedVideoFile = {name:f.name, size:f.size};
+      nameEl.hidden = false;
+      nameEl.textContent = `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+      dz.classList.add('has-file'); dz.classList.remove('field-error');
+      const fieldWrap = dz.closest('.field'); if(fieldWrap) fieldWrap.classList.remove('error');
+    } else {
+      pickedVideoFile = null; nameEl.hidden = true; dz.classList.remove('has-file');
+    }
+  });
+  document.getElementById('videoUploadForm').addEventListener('submit', handleVideoUploadSubmit);
+}
+function handleVideoUploadSubmit(e){
+  e.preventDefault();
+  const form = e.target;
+  clearFieldErrors(form);
+  document.getElementById('videoDropzone').classList.remove('field-error');
+  const title = document.getElementById('videoTitleInput').value.trim();
+  let hasError = false;
+  if(!pickedVideoFile){
+    document.getElementById('videoDropzone').classList.add('field-error');
+    setFieldError(form, 'file', 'Choose a video file to upload.');
+    hasError = true;
+  }
+  if(!title){ setFieldError(form, 'title', 'Give your video a title.'); hasError = true; }
+  if(hasError) return;
+  const biz = bizById(dashBizId);
+  const desc = document.getElementById('videoDescInput').value.trim();
+  const cat = document.getElementById('videoCategoryInput').value;
+  const prodId = document.getElementById('videoProductInput').value;
+  VIDEOS.unshift({
+    id: 'v'+Date.now(),
+    businessId: dashBizId,
+    title,
+    description: desc || undefined,
+    category: cat || biz.categories[0],
+    views: 0,
+    grad: biz.grad,
+    icon: biz.icon,
+    sponsored: false,
+    duration: 'Processing…',
+    moderationStatus: 'pending',
+    submittedDaysAgo: 0,
+    productId: prodId || undefined,
+  });
+  closeSheets();
+  toast('Video submitted for review — most reviews complete within 2 business days.');
+  renderDashboard();
+}
+/* ---- Videos: two-click soft-delete, mirroring the "two-click-remove"
+   pattern already shipped in the real product management build so the
+   design stays consistent with what's already live, not just internally
+   consistent with itself. First click arms a 4s confirm window (button
+   turns solid red, "Confirm remove?"); a second click within that window
+   soft-deletes (VIDEOS entries never get spliced out — every other list in
+   this file already treats a video purely by filtering, so `removed:true`
+   is the correct, minimal soft-delete here, same idea as products/businesses
+   never being deleted outright either). ---- */
+function handleDashVideoRemoveClick(id){
+  if(dashVideoConfirmRemoveId === id){
+    const v = vidById(id);
+    if(v) v.removed = true;
+    dashVideoConfirmRemoveId = null;
+    clearTimeout(dashVideoConfirmTimer);
+    toast('Video removed from your showroom');
+    renderDashboard();
+  } else {
+    dashVideoConfirmRemoveId = id;
+    clearTimeout(dashVideoConfirmTimer);
+    dashVideoConfirmTimer = setTimeout(()=>{ dashVideoConfirmRemoveId=null; renderDashboard(); }, 4000);
+    renderDashboard();
+  }
+}
 function renderDashboard(){
   const biz = bizById(dashBizId) || BUSINESSES[0];
-  const ownPending = PRODUCTS.filter(p=>p.businessId===biz.id && p.moderationStatus==='pending').length;
-  const titles = {overview:'Overview', profile:'Business Profile', products:'Products'};
+  const ownPending = PRODUCTS.filter(p=>p.businessId===biz.id && p.moderationStatus==='pending').length
+    + VIDEOS.filter(v=>v.businessId===biz.id && !v.removed && v.moderationStatus==='pending').length;
+  const titles = {overview:'Overview', profile:'Business Profile', products:'Products', videos:'Videos'};
   const stats = [
     {n:String(ownPending), c:'Pending', warn:ownPending>0},
     {n:biz.verified?'Verified':biz.pending?'Pending':'Unverified', c:'Status'},
@@ -2650,6 +2936,7 @@ function renderDashboard(){
   if(dashSection==='overview') body = renderBizOverview(biz);
   else if(dashSection==='profile') body = renderBizProfile(biz);
   else if(dashSection==='products') body = renderBizProducts(biz);
+  else if(dashSection==='videos') body = renderBizVideos(biz);
   document.getElementById('dashboardContent').innerHTML = `
     <div class="dash-shell">
       <header class="dash-topbar">${dashTopbarHTML({breadcrumb:'Business Dashboard', title:titles[dashSection], stats})}</header>
@@ -2686,13 +2973,59 @@ function renderAdminProdRow(p){
     </div></td>
   </tr>`;
 }
+function submittedAgoText(n){
+  if(n===undefined || n===null) return '';
+  if(n<=0) return 'Today';
+  if(n===1) return 'Yesterday';
+  return `${n} days ago`;
+}
+/* ---- Admin Panel: Video Moderation (new section, after Product Moderation) ----
+   Row gives a moderator "enough context to judge" per the brief: a real
+   video-still thumb (not the small square icon business/product rows use —
+   a video's content IS its thumbnail), title, business name, submitted-when,
+   and a one-line description clamp (see .dash-row-entity .d). Reject opens
+   a reason-capture sheet (reason is required) rather than rejecting instantly
+   like Business/Product Moderation do today — the business needs to know
+   what to fix before resubmitting a video, which a silent reject can't tell
+   them; Approve stays a single click, matching Business/Product exactly. */
+function renderAdminVidRow(v){
+  const biz = v.businessId ? bizById(v.businessId) : null;
+  const status = v.moderationStatus || 'approved';
+  const who = biz ? biz.name : (v.creator || '—');
+  return `<tr>
+    <td><div class="dash-row-entity">
+      <div class="thumb" style="width:64px;height:44px;border-radius:9px;flex:0 0 auto;">
+        <div class="grad grad-${v.grad}"></div><div class="glyph" style="font-size:1rem;">${v.icon}</div>
+        <div class="playbadge" style="width:18px;height:18px;top:4px;right:4px;">${icon('play',9)}</div>
+      </div>
+      <div><div class="t">${v.title}</div><div class="m">${who} · Submitted ${submittedAgoText(v.submittedDaysAgo).toLowerCase()}</div>${v.description?`<div class="d">${v.description}</div>`:''}</div>
+    </div></td>
+    <td>${who}</td>
+    <td><div class="dash-row-actions">
+      ${status==='pending'?`<button type="button" class="dash-btn-sm dash-btn-approve" data-action="admin-approve-vid" data-vid="${v.id}">Approve</button>
+      <button type="button" class="dash-btn-sm dash-btn-reject" data-action="admin-reject-vid" data-vid="${v.id}">Reject</button>`:
+      `<span class="status-pill ${status==='rejected'?'rejected':'approved'}">${status==='rejected'?'Rejected':'Approved'}</span>`}
+    </div></td>
+  </tr>`;
+}
 function renderAdminOverview(){
-  const pendingBiz = pendingBizCount(), pendingProd = pendingProdCount();
-  const rows = [...BUSINESSES.filter(b=>b.pending && !b.rejected).map(b=>renderAdminBizRow(b)), ...PRODUCTS.filter(p=>p.moderationStatus==='pending').map(p=>renderAdminProdRow(p))];
+  const pendingBiz = pendingBizCount(), pendingProd = pendingProdCount(), pendingVid = pendingVidCount();
+  // Real oldest-first ordering across all three content types (previously this
+  // just concatenated businesses then products, which only ever looked "sorted"
+  // because there was exactly one pending item of each — see docs note in the
+  // git history). submittedDaysAgo drives both this sort and the row's own
+  // "Submitted N days ago" text.
+  const queue = [
+    ...BUSINESSES.filter(b=>b.pending && !b.rejected).map(b=>({age:b.submittedDaysAgo||0, html:renderAdminBizRow(b)})),
+    ...PRODUCTS.filter(p=>p.moderationStatus==='pending').map(p=>({age:p.submittedDaysAgo||0, html:renderAdminProdRow(p)})),
+    ...VIDEOS.filter(v=>!v.removed && v.moderationStatus==='pending').map(v=>({age:v.submittedDaysAgo||0, html:renderAdminVidRow(v)})),
+  ].sort((a,b)=>b.age-a.age);
+  const rows = queue.map(q=>q.html);
   return `
     <div class="kpi-grid">
       <div class="kpi-card ${pendingBiz?'accent':''}"><div class="n">${pendingBiz}</div><div class="c">Pending Businesses</div></div>
       <div class="kpi-card ${pendingProd?'accent':''}"><div class="n">${pendingProd}</div><div class="c">Pending Products</div></div>
+      <div class="kpi-card ${pendingVid?'accent':''}"><div class="n">${pendingVid}</div><div class="c">Pending Videos</div></div>
       <div class="kpi-card"><div class="n">${verifiedBizCount()}</div><div class="c">Verified Businesses</div></div>
       <div class="kpi-card"><div class="n">${CATEGORIES.length}</div><div class="c">Live Categories</div></div>
     </div>
@@ -2727,8 +3060,62 @@ function renderAdminProdMod(){
     `<div class="dash-empty">No ${adminProdTab} products right now.</div>`}
   </div>`;
 }
+function renderAdminVidMod(){
+  const tabs = [['pending','Pending'],['approved','Approved'],['rejected','Rejected']];
+  const countFor = id => VIDEOS.filter(v=>!v.removed && (v.moderationStatus||'approved')===id).length;
+  const list = VIDEOS.filter(v=>!v.removed && (v.moderationStatus||'approved')===adminVidTab);
+  return `<div class="dash-section">
+    <div class="dash-tabbar">${tabs.map(([id,l])=>`<button type="button" class="${adminVidTab===id?'active':''}" data-action="admin-vid-tab" data-tab="${id}">${l} (${countFor(id)})</button>`).join('')}</div>
+    ${list.length? `<table class="dash-table"><thead><tr><th>Video</th><th>Business</th><th></th></tr></thead><tbody>${list.map(renderAdminVidRow).join('')}</tbody></table>` :
+    `<div class="dash-empty">No ${adminVidTab} videos right now.</div>`}
+  </div>`;
+}
+/* ---- Reject-with-reason sheet — the one deliberate departure from mirroring
+   Business/Product Moderation exactly: those reject instantly with no reason
+   captured. A video reject needs one, since "make a new one" is a much bigger
+   ask of a business than "fix a field," so they need to know what to fix.
+   Reuses the same .field/.err-msg/setFieldError validation as every other
+   form in this file. */
+function openRejectVideoSheet(id){
+  rejectVideoTarget = id;
+  renderRejectVideoSheet();
+  openSheet('videoRejectSheet');
+}
+function renderRejectVideoSheet(){
+  const v = vidById(rejectVideoTarget);
+  if(!v) return;
+  const biz = v.businessId ? bizById(v.businessId) : null;
+  document.getElementById('videoRejectSheet').innerHTML = `
+    <div class="grabber"></div>
+    <h3>Reject video</h3>
+    <p class="sheet-sub">"${v.title}"${biz?` — ${biz.name}`:''}. This reason is shown to the business so they know what to fix before resubmitting.</p>
+    <form id="videoRejectForm" novalidate>
+      <div class="field" data-field="reason">
+        <label>Reason for rejection</label>
+        <textarea id="videoRejectReasonInput" placeholder="e.g. Comparative claims about competitors need supporting evidence."></textarea>
+        <div class="err-msg" hidden></div>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="pill pill-outline" style="flex:1;justify-content:center;" data-action="close-sheet">Cancel</button>
+        <button type="submit" class="pill pill-danger" style="flex:1;justify-content:center;">Reject video</button>
+      </div>
+    </form>`;
+  document.getElementById('videoRejectForm').addEventListener('submit', handleRejectVideoSubmit);
+}
+function handleRejectVideoSubmit(e){
+  e.preventDefault();
+  const form = e.target;
+  clearFieldErrors(form);
+  const reason = document.getElementById('videoRejectReasonInput').value.trim();
+  if(!reason){ setFieldError(form, 'reason', 'A reason is required so the business knows what to fix.'); return; }
+  const v = vidById(rejectVideoTarget);
+  if(v){ v.moderationStatus = 'rejected'; v.rejectionReason = reason; toast(`${v.title} rejected`); }
+  rejectVideoTarget = null;
+  closeSheets();
+  renderAdmin();
+}
 function renderAdmin(){
-  const titles = {overview:'Overview', bizmod:'Business Moderation', prodmod:'Product Moderation'};
+  const titles = {overview:'Overview', bizmod:'Business Moderation', prodmod:'Product Moderation', vidmod:'Video Moderation'};
   const stats = [
     {n:String(pendingBizCount()), c:'Pending Biz', warn:pendingBizCount()>0},
     {n:String(pendingProdCount()), c:'Pending Prod', warn:pendingProdCount()>0},
@@ -2737,6 +3124,7 @@ function renderAdmin(){
   if(adminSection==='overview') body = renderAdminOverview();
   else if(adminSection==='bizmod') body = renderAdminBizMod();
   else if(adminSection==='prodmod') body = renderAdminProdMod();
+  else if(adminSection==='vidmod') body = renderAdminVidMod();
   document.getElementById('adminContent').innerHTML = `
     <div class="dash-shell">
       <header class="dash-topbar">${dashTopbarHTML({breadcrumb:'Admin Panel', title:titles[adminSection], stats})}</header>
@@ -2890,6 +3278,12 @@ document.getElementById('app').addEventListener('click', e=>{
     else if(a==='admin-reject-biz'){ const b=bizById(t.dataset.biz); b.verified=false; b.pending=false; b.rejected=true; toast(`${b.name} rejected`); renderAdmin(); }
     else if(a==='admin-approve-prod'){ const p=prodById(t.dataset.prod); p.moderationStatus='approved'; toast(`${p.name} approved`); renderAdmin(); }
     else if(a==='admin-reject-prod'){ const p=prodById(t.dataset.prod); p.moderationStatus='rejected'; toast(`${p.name} rejected`); renderAdmin(); }
+    else if(a==='admin-vid-tab'){ adminVidTab = t.dataset.tab; renderAdmin(); }
+    else if(a==='admin-approve-vid'){ const v=vidById(t.dataset.vid); v.moderationStatus='approved'; toast(`${v.title} approved`); renderAdmin(); }
+    else if(a==='admin-reject-vid'){ openRejectVideoSheet(t.dataset.vid); }
+    else if(a==='dash-open-video-upload'){ openVideoUploadSheet(); }
+    else if(a==='dash-video-remove'){ handleDashVideoRemoveClick(t.dataset.vid); }
+    else if(a==='close-sheet'){ closeSheets(); }
     else if(a==='ptab'){ /* handled below */ }
     else if(a==='filter-cat'){
       const c=t.dataset.cat; filters.categories.has(c)?filters.categories.delete(c):filters.categories.add(c);
