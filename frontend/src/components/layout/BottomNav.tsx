@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import Icon from '../icons/Icon'
 import type { IconName } from '../icons/Icon'
 import { useAuth } from '../../lib/auth'
+import { useCompare } from '../../lib/compare'
 import { useToast } from '../../lib/toast'
 
 interface NavItemBase {
@@ -27,14 +28,18 @@ interface NavFabItem extends NavItemBase {
   kind: 'fab'
   to: string
 }
+interface NavCompareItem extends NavItemBase {
+  kind: 'compare'
+  icon: IconName
+}
 
-type NavItem = NavLinkItem | NavActionItem | NavAccountItem | NavFabItem
+type NavItem = NavLinkItem | NavActionItem | NavAccountItem | NavFabItem | NavCompareItem
 
 const items: NavItem[] = [
   { kind: 'link', to: '/', end: true, icon: 'home', label: 'Home' },
   { kind: 'link', to: '/search', icon: 'search', label: 'Search' },
   { kind: 'fab', to: '/feed', label: 'Shorts' },
-  { kind: 'action', icon: 'compare', label: 'Compare', message: 'Add products to compare from any listing first' },
+  { kind: 'compare', icon: 'compare', label: 'Compare' },
   { kind: 'account', icon: 'user', label: 'Account' },
 ]
 
@@ -49,6 +54,7 @@ const itemButtonClass =
 export default function BottomNav() {
   const { showToast } = useToast()
   const { status, openAuthModal } = useAuth()
+  const { count, openSheet } = useCompare()
 
   return (
     <nav
@@ -83,6 +89,26 @@ export default function BottomNav() {
                 </>
               )}
             </NavLink>
+          )
+        }
+        if (item.kind === 'compare') {
+          return (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => (count > 0 ? openSheet() : showToast('Add products to compare from any listing first'))}
+              className={`${itemButtonClass} ${count > 0 ? 'text-brand dark:text-ice' : ''}`}
+            >
+              <span className="relative">
+                <Icon name={item.icon} size={20} className={count > 0 ? 'stroke-amber' : ''} />
+                {count > 0 && (
+                  <span className="absolute -top-1.5 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-amber px-[3px] text-[9px] font-extrabold text-amber-ink">
+                    {count}
+                  </span>
+                )}
+              </span>
+              <span>{item.label}</span>
+            </button>
           )
         }
         if (item.kind === 'account') {

@@ -8,24 +8,11 @@ import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import VerificationStatusBadge from '../components/ui/VerificationStatusBadge'
 import { useProductBySlug } from '../hooks/useCatalog'
+import { AVAILABILITY_LABEL, AVAILABILITY_TONE } from '../lib/availability'
+import { toCompareProduct, useCompare } from '../lib/compare'
 import { formatPriceRange } from '../lib/format'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../lib/thumbTreatment'
 import { useToast } from '../lib/toast'
-import type { AvailabilityStatus } from '../lib/api'
-
-const AVAILABILITY_LABEL: Record<AvailabilityStatus, string> = {
-  in_stock: 'In stock',
-  made_to_order: 'Made to order',
-  out_of_stock: 'Out of stock',
-  discontinued: 'Discontinued',
-}
-
-const AVAILABILITY_TONE: Record<AvailabilityStatus, string> = {
-  in_stock: 'bg-teal/15 text-teal border-teal/30',
-  made_to_order: 'bg-amber/15 text-amber-ink border-amber/40 dark:text-amber',
-  out_of_stock: 'bg-border text-muted-foreground border-border',
-  discontinued: 'bg-border text-muted-foreground border-border',
-}
 
 /**
  * Product detail — real backend (GET /products/slug/{slug}). Related
@@ -37,6 +24,7 @@ export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { showToast } = useToast()
+  const { isSelected, toggle } = useCompare()
   const [activeImage, setActiveImage] = useState(0)
 
   const productQuery = useProductBySlug(slug)
@@ -77,6 +65,8 @@ export default function ProductDetail() {
   const grad = gradIndexForId(product.id)
   const hasImages = product.images.length > 0
   const specEntries = Object.entries(product.specs)
+  const compareProduct = toCompareProduct(product)
+  const inCompare = isSelected(product.id)
 
   return (
     <div>
@@ -172,10 +162,15 @@ export default function ProductDetail() {
 
             <button
               type="button"
-              onClick={() => showToast('Comparison lands in a later release — this is where you’ll add products to compare')}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-foreground px-4 py-2.5 text-sm font-bold text-foreground transition-colors duration-150 ease-brand hover:bg-foreground hover:text-background"
+              onClick={() => toggle(compareProduct)}
+              aria-pressed={inCompare}
+              className={`mt-3 inline-flex items-center gap-1.5 rounded-full border-[1.5px] px-4 py-2.5 text-sm font-bold transition-colors duration-150 ease-brand ${
+                inCompare
+                  ? 'border-brand bg-brand/10 text-brand dark:border-brand dark:bg-brand/20 dark:text-ice'
+                  : 'border-foreground text-foreground hover:bg-foreground hover:text-background'
+              }`}
             >
-              <Icon name="plus" size={14} /> Add to compare
+              <Icon name={inCompare ? 'check' : 'plus'} size={14} /> {inCompare ? 'Added to compare' : 'Add to compare'}
             </button>
 
             {product.description && (
@@ -256,10 +251,15 @@ export default function ProductDetail() {
         </Link>
         <button
           type="button"
-          onClick={() => showToast('Comparison lands in a later release — this is where you’ll add products to compare')}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-gradient-to-br from-[#FFCE5C] via-amber to-[#F0A80F] px-4 py-2.5 text-sm font-bold text-amber-ink shadow-glow-amber"
+          onClick={() => toggle(compareProduct)}
+          aria-pressed={inCompare}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-bold transition-colors duration-150 ease-brand ${
+            inCompare
+              ? 'border-[1.5px] border-brand bg-brand/10 text-brand dark:bg-brand/20 dark:text-ice'
+              : 'bg-gradient-to-br from-[#FFCE5C] via-amber to-[#F0A80F] text-amber-ink shadow-glow-amber'
+          }`}
         >
-          <Icon name="plus" size={14} /> Add to compare
+          <Icon name={inCompare ? 'check' : 'plus'} size={14} /> {inCompare ? 'Added to compare' : 'Add to compare'}
         </button>
       </div>
     </div>

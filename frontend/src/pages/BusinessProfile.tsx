@@ -7,6 +7,7 @@ import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import VerificationStatusBadge from '../components/ui/VerificationStatusBadge'
 import { useBusinessBySlug, useBusinessProducts } from '../hooks/useCatalog'
+import { toCompareProduct } from '../lib/compare'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../lib/thumbTreatment'
 import { useToast } from '../lib/toast'
 
@@ -228,7 +229,9 @@ export default function BusinessProfile() {
                   />
                 ) : (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {productsQuery.data?.items.map((p) => <ProductTile key={p.id} product={p} />)}
+                    {productsQuery.data?.items.map((p) => (
+                      <ProductTile key={p.id} product={p} compareProduct={toCompareProduct(p)} />
+                    ))}
                   </div>
                 ))}
 

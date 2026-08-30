@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 
 import Icon from '../icons/Icon'
+import { useCompare } from '../../lib/compare'
+import type { CompareProduct } from '../../lib/compare'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 import { formatPriceRange } from '../../lib/format'
-import { useToast } from '../../lib/toast'
 
 /** Minimal shape both ProductDto and ProductSummaryDto satisfy structurally — this tile doesn't need the full product record. */
 export interface ProductTileData {
@@ -20,10 +21,18 @@ interface ProductTileProps {
   product: ProductTileData
   /** Compact = smaller horizontal-rail card (used for "related products" and "more from this supplier"). */
   compact?: boolean
+  /**
+   * Full comparison snapshot — only passed by callers that have a full
+   * ProductDto in hand (e.g. BusinessProfile's product grid). Compact rail
+   * tiles are built from ProductSummaryDto (no specs/business on that type),
+   * so they never render the Add-to-compare button regardless of `compact`.
+   */
+  compareProduct?: CompareProduct
 }
 
-export default function ProductTile({ product, compact }: ProductTileProps) {
-  const { showToast } = useToast()
+export default function ProductTile({ product, compact, compareProduct }: ProductTileProps) {
+  const { isSelected, toggle } = useCompare()
+  const added = compareProduct ? isSelected(compareProduct.id) : false
 
   return (
     <div
@@ -55,13 +64,18 @@ export default function ProductTile({ product, compact }: ProductTileProps) {
         <p className="text-sm font-extrabold text-foreground">
           {formatPriceRange(product.price_min, product.price_max, product.currency)}
         </p>
-        {!compact && (
+        {!compact && compareProduct && (
           <button
             type="button"
-            onClick={() => showToast('Comparison lands in a later release — this is where you’ll add products to compare')}
-            className="mt-auto inline-flex items-center justify-center gap-1 self-start rounded-full border border-border px-2.5 py-1 text-[11px] font-bold text-foreground transition-colors duration-150 ease-brand hover:border-brand hover:text-brand dark:hover:text-ice"
+            onClick={() => toggle(compareProduct)}
+            aria-pressed={added}
+            className={`mt-auto inline-flex items-center justify-center gap-1 self-start rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors duration-150 ease-brand ${
+              added
+                ? 'border-brand bg-brand/10 text-brand dark:border-brand dark:bg-brand/20 dark:text-ice'
+                : 'border-border text-foreground hover:border-brand hover:text-brand dark:hover:text-ice'
+            }`}
           >
-            <Icon name="plus" size={11} /> Add to compare
+            <Icon name={added ? 'check' : 'plus'} size={11} /> {added ? 'Added to compare' : 'Add to compare'}
           </button>
         )}
       </div>

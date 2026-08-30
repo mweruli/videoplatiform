@@ -1,5 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 
+import CompareSheet from './compare/CompareSheet'
+import CompareTray from './compare/CompareTray'
 import BottomNav from './layout/BottomNav'
 import TopNav from './layout/TopNav'
 
@@ -24,6 +26,8 @@ export default function Layout() {
         <Outlet />
       </main>
       {!immersive && <BottomNav />}
+      <CompareTray />
+      <CompareSheet />
     </div>
   )
 }

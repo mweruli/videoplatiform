@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom'
 
 import VerificationStatusBadge from '../ui/VerificationStatusBadge'
 import Icon from '../icons/Icon'
+import { toCompareProduct, useCompare } from '../../lib/compare'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 import { formatPriceRange } from '../../lib/format'
-import { useToast } from '../../lib/toast'
 import type { ProductDto } from '../../lib/api'
 
 interface ProductResultCardProps {
@@ -16,15 +16,10 @@ const firstSpec = (specs: Record<string, string>): string | null => {
   return entry ? `${entry[0]}: ${entry[1]}` : null
 }
 
-/**
- * Compare is a separate module (manual product comparison, DEVELOPMENT_PLAN
- * Sprint 4) not built as part of this task — this button matches the app's
- * existing stub pattern (TopNav/BottomNav's "Compare" toast) rather than a
- * dead affordance or a half-built comparison tray.
- */
 export default function ProductResultCard({ product }: ProductResultCardProps) {
-  const { showToast } = useToast()
+  const { isSelected, toggle } = useCompare()
   const spec = firstSpec(product.specs)
+  const added = isSelected(product.id)
 
   return (
     <div className="group flex gap-3.5 rounded-2xl border border-border bg-surface p-3 shadow-soft transition-[box-shadow,transform] duration-150 ease-brand hover:-translate-y-0.5 hover:shadow-elevated motion-reduce:transition-none motion-reduce:hover:translate-y-0">
@@ -60,10 +55,15 @@ export default function ProductResultCard({ product }: ProductResultCardProps) {
           <span className="truncate text-xs text-muted-foreground">{spec ?? ''}</span>
           <button
             type="button"
-            onClick={() => showToast('Comparison lands in a later release — this is where you’ll add products to compare')}
-            className="inline-flex flex-none items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-bold text-foreground transition-colors duration-150 ease-brand hover:border-brand hover:text-brand dark:hover:text-ice"
+            onClick={() => toggle(toCompareProduct(product))}
+            aria-pressed={added}
+            className={`inline-flex flex-none items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors duration-150 ease-brand ${
+              added
+                ? 'border-brand bg-brand/10 text-brand dark:border-brand dark:bg-brand/20 dark:text-ice'
+                : 'border-border text-foreground hover:border-brand hover:text-brand dark:hover:text-ice'
+            }`}
           >
-            <Icon name="plus" size={11} /> Compare
+            <Icon name={added ? 'check' : 'plus'} size={11} /> {added ? 'Added' : 'Compare'}
           </button>
         </div>
       </div>
