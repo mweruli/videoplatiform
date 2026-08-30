@@ -28,5 +28,8 @@ alembic upgrade head
 echo "Seeding launch categories..."
 python -m app.db.seed
 
+echo "Seeding demo data..."
+python -m app.db.seed_demo
+
 echo "Starting API server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
