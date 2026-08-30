@@ -21,9 +21,11 @@ from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
 from app.models.product import ModerationStatus, Product
 from app.models.user import User
+from app.models.video import Video
 from app.schemas.business import BusinessModerationAction, BusinessRead, BusinessRejectAction
 from app.schemas.common import Page
 from app.schemas.product import ProductModerationAction, ProductRead, ProductRejectAction
+from app.schemas.video import VideoModerationAction, VideoRead, VideoRejectAction
 
 router = APIRouter()
 
@@ -220,3 +222,98 @@ def reject_product(
     db.commit()
     db.refresh(product)
     return product
+
+
+# --- Videos ---------------------------------------------------------------
+
+
+@router.get(
+    "/admin/videos",
+    response_model=Page[VideoRead],
+    tags=["admin"],
+    dependencies=[Depends(require_moderator)],
+)
+def admin_list_videos(
+    db: Session = Depends(get_db),
+    status_filter: ModerationStatus | None = Query(default=None, alias="status"),
+    business_id: uuid.UUID | None = None,
+    q: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> Page[VideoRead]:
+    page, page_size = _paginate_params(page, page_size)
+
+    stmt = select(Video)
+    if status_filter is not None:
+        stmt = stmt.where(Video.moderation_status == status_filter)
+    if business_id is not None:
+        stmt = stmt.where(Video.business_id == business_id)
+    if q:
+        like = f"%{q.lower()}%"
+        stmt = stmt.where(func.lower(Video.title).like(like))
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    stmt = stmt.order_by(Video.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items = list(db.scalars(stmt).all())
+
+    return Page(
+        items=items, total=total, page=page, page_size=page_size,
+        pages=math.ceil(total / page_size) if total else 0,
+    )
+
+
+def _get_video_or_404(db: Session, video_id: uuid.UUID) -> Video:
+    video = db.get(Video, video_id)
+    if video is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found.")
+    return video
+
+
+@router.post(
+    "/admin/videos/{video_id}/approve",
+    response_model=VideoRead,
+    tags=["admin"],
+)
+def approve_video(
+    video_id: uuid.UUID,
+    payload: VideoModerationAction = VideoModerationAction(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Video:
+    video = _get_video_or_404(db, video_id)
+    if video.moderation_status != ModerationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot approve from status '{video.moderation_status.value}'; "
+            "video must be 'pending'.",
+        )
+    video.moderation_status = ModerationStatus.APPROVED
+    video.moderation_note = payload.note
+    db.commit()
+    db.refresh(video)
+    return video
+
+
+@router.post(
+    "/admin/videos/{video_id}/reject",
+    response_model=VideoRead,
+    tags=["admin"],
+)
+def reject_video(
+    video_id: uuid.UUID,
+    payload: VideoRejectAction,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Video:
+    video = _get_video_or_404(db, video_id)
+    if video.moderation_status != ModerationStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot reject from status '{video.moderation_status.value}'; "
+            "video must be 'pending'.",
+        )
+    video.moderation_status = ModerationStatus.REJECTED
+    video.moderation_note = payload.reason
+    db.commit()
+    db.refresh(video)
+    return video

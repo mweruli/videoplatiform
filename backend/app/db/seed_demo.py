@@ -15,12 +15,24 @@ Idempotent — safe to run multiple times (matches on slug).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.business import Business, VerificationStatus
 from app.models.category import Category
 from app.models.product import AvailabilityStatus, ModerationStatus, Product
 from app.models.user import User, UserRole
+from app.models.video import Video
+from app.services.storage import get_storage_backend
+from app.services.video import get_video_backend
+
+# Tiny (<10KB) real placeholder clips generated with ffmpeg for local-storage
+# playback verification — see docs/decisions.md. Checked into git despite the
+# repo-wide `*.mp4` gitignore rule (explicit exception for this directory)
+# specifically so a fresh clone/CI run always has something real to upload
+# through the video pipeline, not just a DB row pointing at a missing file.
+SEED_ASSETS_DIR = Path(__file__).parent / "seed_assets" / "videos"
 
 DEMO_OWNER_EMAIL = "demo-owner@miles.tech"
 DEMO_OWNER_PASSWORD = "DemoPass123!"  # noqa: S105 - seed-only, not a real credential
@@ -215,6 +227,42 @@ PRODUCTS = [
     ),
 ]
 
+VIDEOS = [
+    dict(
+        title="Inside AquaTank: How Our Water Tanks Are Made",
+        business_slug="aquatank",
+        product_slug="tank5000",
+        description=(
+            "A look inside AquaTank's Nairobi rotomoulding plant — from raw "
+            "polyethylene pellets to finished, ISO-certified water tanks."
+        ),
+        asset_filename="aquatank_manufacturing.mp4",
+        thumbnail_filename="aquatank_manufacturing.jpg",
+    ),
+    dict(
+        title="Solaris 5kW Hybrid Inverter — Setup & Demo",
+        business_slug="solaris",
+        product_slug="inverter",
+        description=(
+            "Solaris Power Kenya walks through installing and powering up "
+            "the 5kW hybrid solar inverter for a typical Kisumu household."
+        ),
+        asset_filename="solaris_inverter_demo.mp4",
+        thumbnail_filename="solaris_inverter_demo.jpg",
+    ),
+    dict(
+        title="SunFlow Solar Irrigation in the Field",
+        business_slug="sunflow",
+        product_slug="solarpump",
+        description=(
+            "SunFlow's solar water pump running a drip irrigation line on a "
+            "Nakuru smallholder farm — no grid power required."
+        ),
+        asset_filename="sunflow_irrigation.mp4",
+        thumbnail_filename="sunflow_irrigation.jpg",
+    ),
+]
+
 
 def seed_demo() -> None:
     db = SessionLocal()
@@ -302,11 +350,66 @@ def seed_demo() -> None:
             prod_created += 1
         db.commit()
 
+        products_by_slug = {p.slug: p for p in db.query(Product).all()}
+
+        video_created = 0
+        video_backend = get_video_backend()
+        for spec in VIDEOS:
+            existing = db.query(Video).filter(Video.title == spec["title"]).one_or_none()
+            if existing is not None:
+                continue
+            asset_path = SEED_ASSETS_DIR / spec["asset_filename"]
+            thumb_path = SEED_ASSETS_DIR / spec["thumbnail_filename"]
+            if not asset_path.exists():
+                print(f"Skipping video '{spec['title']}': seed asset not found at {asset_path}.")
+                continue
+
+            business = businesses_by_slug[spec["business_slug"]]
+            product = products_by_slug.get(spec["product_slug"])
+
+            asset = video_backend.upload(
+                content=asset_path.read_bytes(),
+                filename=asset_path.name,
+                content_type="video/mp4",
+                folder=f"businesses/{business.id}/videos",
+            )
+            # The local backend can't extract a thumbnail (no ffmpeg
+            # dependency — see app/services/video.py); upload the
+            # ffmpeg-extracted seed thumbnail as a plain static asset instead
+            # so the demo data still has one, same LocalDiskStorage mechanism
+            # product/business images already use.
+            thumbnail_url = asset.thumbnail_url
+            if thumbnail_url is None and thumb_path.exists():
+                thumbnail_url = get_storage_backend().upload(
+                    content=thumb_path.read_bytes(),
+                    filename=thumb_path.name,
+                    content_type="image/jpeg",
+                    folder=f"businesses/{business.id}/videos/thumbnails",
+                )
+
+            video = Video(
+                business_id=business.id,
+                category_id=business.category_id,
+                product_id=product.id if product else None,
+                title=spec["title"],
+                description=spec.get("description"),
+                video_url=asset.playback_url,
+                video_asset_id=asset.asset_id,
+                thumbnail_url=thumbnail_url,
+                duration_seconds=asset.duration_seconds,
+                moderation_status=ModerationStatus.APPROVED,
+            )
+            db.add(video)
+            video_created += 1
+        db.commit()
+
         biz_skipped = len(BUSINESSES) - biz_created
         prod_skipped = len(PRODUCTS) - prod_created
+        video_skipped = len(VIDEOS) - video_created
         print(
             f"Seeded {biz_created} new businesses ({biz_skipped} already present), "
-            f"{prod_created} new products ({prod_skipped} already present)."
+            f"{prod_created} new products ({prod_skipped} already present), "
+            f"{video_created} new videos ({video_skipped} already present)."
         )
     finally:
         db.close()

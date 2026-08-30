@@ -97,6 +97,19 @@ class Settings(BaseSettings):
     def allowed_image_content_types_list(self) -> list[str]:
         return [t.strip() for t in self.ALLOWED_IMAGE_CONTENT_TYPES.split(",") if t.strip()]
 
+    # Video uploads — larger size ceiling than images, still capped so an
+    # open-registration UGC endpoint can't be used to fill disk/object
+    # storage with arbitrarily large files. Generous enough for a short
+    # product/demo clip via the local-disk dev fallback; a real managed video
+    # API (see app/services/video.py) would typically raise this further or
+    # switch to a resumable/TUS upload instead of a single request body.
+    MAX_VIDEO_UPLOAD_SIZE_MB: int = 200
+    ALLOWED_VIDEO_CONTENT_TYPES: str = "video/mp4,video/quicktime,video/webm"
+
+    @property
+    def allowed_video_content_types_list(self) -> list[str]:
+        return [t.strip() for t in self.ALLOWED_VIDEO_CONTENT_TYPES.split(",") if t.strip()]
+
     # --- M-Pesa Daraja (fast-follow, Weeks 13-18 — apply now, lead time is the bottleneck) ---
     MPESA_ENV: str = "sandbox"  # sandbox | production
     MPESA_CONSUMER_KEY: str = ""

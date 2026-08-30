@@ -63,6 +63,10 @@ desktop.ini
 media/
 uploads/
 storage/
+# Exception: tiny (<10KB) placeholder clips + thumbnails checked in on
+# purpose so `seed_demo.py` has real files to upload through the video
+# pipeline in every fresh clone/CI run — see app/db/seed_demo.py.
+!backend/app/db/seed_assets/**
 
 # ---- Docker ----
 *.pid
