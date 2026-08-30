@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import {
   getBusinessBySlug,
@@ -6,8 +6,10 @@ import {
   listBusinesses,
   listCategories,
   listProducts,
+  listVideos,
+  recordVideoView,
 } from '../lib/api'
-import type { ListProductsParams } from '../lib/api'
+import type { ListProductsParams, ListVideosParams } from '../lib/api'
 
 /**
  * TanStack Query hooks over the real backend catalog endpoints
@@ -66,5 +68,24 @@ export function useProductBySlug(slug: string | undefined) {
     queryFn: () => getProductBySlug(slug as string),
     enabled: Boolean(slug),
     retry: false,
+  })
+}
+
+/**
+ * Public Video/Shorts feed — real backend (GET /videos), approved+active
+ * videos only (backend-enforced, same as listBusinesses/listProducts). Only
+ * 3 real seed videos exist as of Sprint 3 — a short real feed, not a bug.
+ */
+export function useVideoFeed(params: ListVideosParams = {}) {
+  return useQuery({
+    queryKey: ['videos', 'feed', params],
+    queryFn: () => listVideos({ page_size: 50, ...params }),
+  })
+}
+
+/** Fire-and-forget view counter — see recordVideoView's docstring for why this is a dedicated POST rather than an implicit GET side effect. */
+export function useRecordVideoView() {
+  return useMutation({
+    mutationFn: (videoId: string) => recordVideoView(videoId),
   })
 }

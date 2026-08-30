@@ -33,6 +33,8 @@ export type IconName =
   | 'chart'
   | 'truck'
   | 'logout'
+  | 'video'
+  | 'upload'
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -65,6 +67,8 @@ const PATHS: Record<IconName, string> = {
   chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
   truck: '<rect x="1" y="7" width="13" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="5.5" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
   logout: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  video: '<rect x="2.5" y="6" width="14" height="12" rx="2"/><path d="M21.5 9.2l-5 2.8 5 2.8z" fill="currentColor" stroke="none"/>',
+  upload: '<path d="M12 16V4M12 4l-5 5M12 4l5 5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>',
 }
 
 interface IconProps {

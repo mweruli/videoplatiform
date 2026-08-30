@@ -3,10 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   adminListBusinesses,
   adminListProducts,
+  adminListVideos,
   approveBusinessAdmin,
   approveProductAdmin,
+  approveVideoAdmin,
   rejectBusinessAdmin,
   rejectProductAdmin,
+  rejectVideoAdmin,
 } from '../lib/api'
 import type { ModerationStatus, VerificationStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -23,6 +26,7 @@ import { useAuth } from '../lib/auth'
 
 const BUSINESS_STATUSES: VerificationStatus[] = ['pending', 'verified', 'rejected', 'unverified']
 const PRODUCT_STATUSES: ModerationStatus[] = ['pending', 'approved', 'rejected']
+const VIDEO_STATUSES: ModerationStatus[] = ['pending', 'approved', 'rejected']
 
 function useIsStaff(): boolean {
   const { status, user } = useAuth()
@@ -45,6 +49,16 @@ export function useAdminProducts(statusFilter: ModerationStatus) {
   return useQuery({
     queryKey: ['admin', 'products', statusFilter],
     queryFn: () => adminListProducts(token as string, { status: statusFilter, page_size: 100 }),
+    enabled: isStaff && Boolean(token),
+  })
+}
+
+export function useAdminVideos(statusFilter: ModerationStatus) {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'videos', statusFilter],
+    queryFn: () => adminListVideos(token as string, { status: statusFilter, page_size: 100 }),
     enabled: isStaff && Boolean(token),
   })
 }
@@ -84,11 +98,26 @@ export function useAdminProductCounts() {
   })
 }
 
+export function useAdminVideoCounts() {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'videos', 'counts'],
+    queryFn: async () => {
+      const results = await Promise.all(
+        VIDEO_STATUSES.map((s) => adminListVideos(token as string, { status: s, page_size: 1 })),
+      )
+      return Object.fromEntries(VIDEO_STATUSES.map((s, i) => [s, results[i].total])) as Record<ModerationStatus, number>
+    },
+    enabled: isStaff && Boolean(token),
+  })
+}
+
 /**
  * Invalidates every cache a moderation decision could affect: the admin
  * queue's own views (all statuses + counts) plus the public Search/
- * BusinessProfile/ProductDetail caches — an approval needs to show up on
- * the public side without a full reload, same rationale as
+ * BusinessProfile/ProductDetail/VideoFeed caches — an approval needs to show
+ * up on the public side without a full reload, same rationale as
  * useDashboard.ts's useInvalidateCatalog.
  */
 function useInvalidateAdmin() {
@@ -99,6 +128,7 @@ function useInvalidateAdmin() {
     qc.invalidateQueries({ queryKey: ['business'] })
     qc.invalidateQueries({ queryKey: ['products'] })
     qc.invalidateQueries({ queryKey: ['product'] })
+    qc.invalidateQueries({ queryKey: ['videos'] })
   }
 }
 
@@ -136,6 +166,25 @@ export function useRejectProduct() {
   return useMutation({
     mutationFn: ({ productId, reason }: { productId: string; reason: string }) =>
       rejectProductAdmin(token as string, productId, { reason }),
+    onSuccess: () => invalidate(),
+  })
+}
+
+export function useApproveVideo() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateAdmin()
+  return useMutation({
+    mutationFn: (videoId: string) => approveVideoAdmin(token as string, videoId),
+    onSuccess: () => invalidate(),
+  })
+}
+
+export function useRejectVideo() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateAdmin()
+  return useMutation({
+    mutationFn: ({ videoId, reason }: { videoId: string; reason: string }) =>
+      rejectVideoAdmin(token as string, videoId, { reason }),
     onSuccess: () => invalidate(),
   })
 }

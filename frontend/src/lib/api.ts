@@ -282,6 +282,88 @@ export function getProductBySlug(slug: string): Promise<ProductDto> {
 }
 
 /**
+ * Video — mirrors app/schemas/video.py's VideoRead 1:1. Videos are
+ * business-uploaded (no creator-upload flow yet — see
+ * app/models/video.py's module docstring), so `business` is always present,
+ * unlike the fixture `Video` type's optional `creator` field it replaces.
+ */
+
+export interface VideoDto {
+  id: string
+  business_id: string
+  business: BusinessSummaryDto
+  category: CategoryDto | null
+  product_id: string | null
+  product: ProductSummaryDto | null
+  title: string
+  description: string | null
+  video_url: string
+  thumbnail_url: string | null
+  duration_seconds: number | null
+  view_count: number
+  moderation_status: ModerationStatus
+  moderation_note: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ListVideosParams {
+  business_id?: string
+  category_id?: number
+  product_id?: string
+  /** Only takes effect when `token` belongs to the owner of `business_id` (or a platform admin) — see app/api/v1/endpoints/videos.py. */
+  include_unapproved?: boolean
+  page?: number
+  page_size?: number
+}
+
+/** Public browse — approved, active videos from active businesses only, unless `token` is the owning business's owner and `include_unapproved` is set. */
+export function listVideos(params: ListVideosParams = {}, token?: string): Promise<Page<VideoDto>> {
+  return apiFetch<Page<VideoDto>>(`${V1}/videos${toQuery(params)}`, token ? { headers: authHeaders(token) } : undefined)
+}
+
+export function getVideo(videoId: string): Promise<VideoDto> {
+  return apiFetch<VideoDto>(`${V1}/videos/${videoId}`)
+}
+
+export interface VideoViewResult {
+  view_count: number
+}
+
+/** Side-effect POST, not incrementing on GET — see app/api/v1/endpoints/videos.py's record_video_view docstring. Only succeeds for currently-approved+active videos. */
+export function recordVideoView(videoId: string): Promise<VideoViewResult> {
+  return apiFetch<VideoViewResult>(`${V1}/videos/${videoId}/view`, { method: 'POST' })
+}
+
+export interface VideoUploadPayload {
+  title: string
+  description?: string | null
+  category_id?: number | null
+  product_id?: string | null
+  file: File
+}
+
+/** Multipart upload (title/description/category/product as form fields, the file as a part) — mirrors the FastAPI `Form(...)`/`File(...)` signature of POST /businesses/{id}/videos exactly, so it's not routed through apiFetch (see apiUpload's docstring). */
+export function uploadVideo(token: string, businessId: string, payload: VideoUploadPayload): Promise<VideoDto> {
+  const formData = new FormData()
+  formData.append('title', payload.title)
+  if (payload.description) formData.append('description', payload.description)
+  if (payload.category_id !== undefined && payload.category_id !== null) formData.append('category_id', String(payload.category_id))
+  if (payload.product_id) formData.append('product_id', payload.product_id)
+  formData.append('file', payload.file)
+  return apiUpload<VideoDto>(`${V1}/businesses/${businessId}/videos`, token, formData)
+}
+
+/** Soft delete (deactivates, doesn't hard-delete) — mirrors deactivateProduct. */
+export function deactivateVideo(token: string, videoId: string): Promise<void> {
+  return apiFetch<void>(`${V1}/videos/${videoId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
+}
+
+/**
  * Auth — mirrors app/schemas/auth.py 1:1. See app/api/v1/endpoints/auth.py
  * for the exact per-endpoint status codes/error semantics this UI relies on.
  */
@@ -603,6 +685,34 @@ export function approveProductAdmin(token: string, productId: string, payload: M
 
 export function rejectProductAdmin(token: string, productId: string, payload: ModerationRejectPayload): Promise<ProductDto> {
   return apiFetch<ProductDto>(`${V1}/admin/products/${productId}/reject`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface AdminListVideosParams {
+  status?: ModerationStatus
+  business_id?: string
+  q?: string
+  page?: number
+  page_size?: number
+}
+
+export function adminListVideos(token: string, params: AdminListVideosParams = {}): Promise<Page<VideoDto>> {
+  return apiFetch<Page<VideoDto>>(`${V1}/admin/videos${toQuery(params)}`, { headers: authHeaders(token) })
+}
+
+export function approveVideoAdmin(token: string, videoId: string, payload: ModerationActionPayload = {}): Promise<VideoDto> {
+  return apiFetch<VideoDto>(`${V1}/admin/videos/${videoId}/approve`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function rejectVideoAdmin(token: string, videoId: string, payload: ModerationRejectPayload): Promise<VideoDto> {
+  return apiFetch<VideoDto>(`${V1}/admin/videos/${videoId}/reject`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify(payload),

@@ -46,3 +46,17 @@ export function formatViews(count: number): string {
   }
   return String(count)
 }
+
+/**
+ * mm:ss duration badge, or `undefined` when the backend hasn't extracted one
+ * yet — `LocalFileVideoBackend` (dev default, no ffmpeg dependency) always
+ * returns `duration_seconds: null`, so every real-video component needs to
+ * treat this as optional, not assume the fixture data's always-present
+ * string duration.
+ */
+export function formatDuration(totalSeconds: number | null | undefined): string | undefined {
+  if (totalSeconds === null || totalSeconds === undefined || totalSeconds <= 0) return undefined
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = Math.floor(totalSeconds % 60)
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}

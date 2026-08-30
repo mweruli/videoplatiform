@@ -6,6 +6,8 @@ import BusinessSwitcher from '../components/dashboard/BusinessSwitcher'
 import ProductForm from '../components/dashboard/ProductForm'
 import ProductManageCard from '../components/dashboard/ProductManageCard'
 import ProductsSection from '../components/dashboard/ProductsSection'
+import VideoUploadForm from '../components/dashboard/VideoUploadForm'
+import VideosSection from '../components/dashboard/VideosSection'
 import DashboardShell from '../components/dashboardshell/DashboardShell'
 import type { DashNavItem } from '../components/dashboardshell/DashboardShell'
 import DashSection from '../components/dashboardshell/DashSection'
@@ -19,11 +21,13 @@ import {
   useCreateProduct,
   useMyBusinesses,
   useMyBusinessProducts,
+  useMyBusinessVideos,
   useSubmitForVerification,
   useUpdateBusiness,
   useUpdateProduct,
   useUploadBusinessCover,
   useUploadBusinessLogo,
+  useUploadVideo,
 } from '../hooks/useDashboard'
 import { ApiError } from '../lib/api'
 import type { ProductDto } from '../lib/api'
@@ -31,12 +35,13 @@ import { useAuth } from '../lib/auth'
 import { useToast } from '../lib/toast'
 
 type ProductModalState = { mode: 'create' } | { mode: 'edit'; product: ProductDto } | null
-type DashSectionId = 'overview' | 'profile' | 'products'
+type DashSectionId = 'overview' | 'profile' | 'products' | 'videos'
 
 const NAV_ITEMS: DashNavItem[] = [
   { id: 'overview', label: 'Overview', icon: 'grid' },
   { id: 'profile', label: 'Business Profile', icon: 'building' },
   { id: 'products', label: 'Products', icon: 'box' },
+  { id: 'videos', label: 'Videos', icon: 'video' },
   { id: 'analytics', label: 'Analytics', icon: 'chart', soon: true },
   { id: 'orders', label: 'Orders', icon: 'truck', soon: true },
 ]
@@ -45,6 +50,7 @@ const SECTION_TITLES: Record<DashSectionId, string> = {
   overview: 'Overview',
   profile: 'Business Profile',
   products: 'Products',
+  videos: 'Videos',
 }
 
 /**
@@ -120,6 +126,7 @@ function DashboardContent() {
   const [showCreateBusiness, setShowCreateBusiness] = useState(false)
   const [editingBusiness, setEditingBusiness] = useState(false)
   const [productModal, setProductModal] = useState<ProductModalState>(null)
+  const [showVideoUpload, setShowVideoUpload] = useState(false)
   const [verificationError, setVerificationError] = useState<string | null>(null)
 
   // Derived rather than synced via an effect: whichever business the owner
@@ -136,11 +143,13 @@ function DashboardContent() {
   const uploadCoverMutation = useUploadBusinessCover()
   const createProductMutation = useCreateProduct()
   const updateProductMutation = useUpdateProduct()
+  const uploadVideoMutation = useUploadVideo()
 
   const selectedBusiness = businesses.find((b) => b.id === selectedId) ?? null
   const productsQuery = useMyBusinessProducts(selectedBusiness?.id)
   const products = productsQuery.data?.items ?? []
   const ownPending = products.filter((p) => p.moderation_status === 'pending').length
+  const videosQuery = useMyBusinessVideos(selectedBusiness?.id)
 
   const statusLabel = !selectedBusiness
     ? '—'
@@ -385,6 +394,12 @@ function DashboardContent() {
         </div>
       )}
 
+      {selectedBusiness && dashSection === 'videos' && (
+        <div className="mt-4">
+          <VideosSection videosQuery={videosQuery} onUpload={() => setShowVideoUpload(true)} />
+        </div>
+      )}
+
       <Modal open={showCreateBusiness} onClose={() => setShowCreateBusiness(false)} title="Add another business">
         <BusinessForm
           onSubmit={async (payload) => {
@@ -437,6 +452,19 @@ function DashboardContent() {
             }}
             submitLabel={productModal.mode === 'edit' ? 'Save changes' : 'Add listing'}
             submittingLabel={productModal.mode === 'edit' ? 'Saving…' : 'Creating…'}
+          />
+        )}
+      </Modal>
+
+      <Modal open={showVideoUpload} onClose={() => setShowVideoUpload(false)} title="Upload a video" widthClassName="lg:max-w-[640px]">
+        {selectedBusiness && (
+          <VideoUploadForm
+            products={products}
+            onSubmit={(payload) => uploadVideoMutation.mutateAsync({ businessId: selectedBusiness.id, payload })}
+            onDone={() => {
+              setShowVideoUpload(false)
+              showToast('Video submitted for review — most reviews complete within 2 business days.')
+            }}
           />
         )}
       </Modal>

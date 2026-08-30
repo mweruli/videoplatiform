@@ -1,10 +1,10 @@
 import Thumb from '../ui/Thumb'
-import { bizById } from '../../data/businesses'
-import type { Video } from '../../data/types'
-import { formatViews } from '../../lib/format'
+import type { VideoDto } from '../../lib/api'
+import { formatDuration, formatViews } from '../../lib/format'
+import { gradIndexForId } from '../../lib/thumbTreatment'
 
 interface UpNextRailProps {
-  videos: Video[]
+  videos: VideoDto[]
   currentId: string
   onSelect: (id: string) => void
 }
@@ -20,7 +20,6 @@ export default function UpNextRail({ videos, currentId, onSelect }: UpNextRailPr
       <div className="mb-3 text-[11px] font-extrabold tracking-[0.1em] text-ice/55 uppercase">Up next in Shorts</div>
       <div className="flex flex-col gap-1.5">
         {videos.map((video) => {
-          const business = video.businessId ? bizById(video.businessId) : undefined
           const active = video.id === currentId
           return (
             <button
@@ -33,16 +32,20 @@ export default function UpNextRail({ videos, currentId, onSelect }: UpNextRailPr
               }`}
             >
               <Thumb
-                grad={video.grad}
-                glyph={video.icon}
-                duration={video.duration}
-                sponsored={video.sponsored}
+                grad={gradIndexForId(video.id)}
+                glyph={video.thumbnail_url ? undefined : '🎬'}
+                duration={formatDuration(video.duration_seconds)}
                 className="h-16 w-24 flex-none"
+                overlay={
+                  video.thumbnail_url ? (
+                    <img src={video.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                  ) : undefined
+                }
               />
               <div className="min-w-0">
                 <p className="line-clamp-2 text-[0.78rem] leading-tight font-bold text-ice">{video.title}</p>
                 <p className="mt-1 text-[0.68rem] text-ice/60">
-                  {business ? business.name : video.creator} · {formatViews(video.views)} views
+                  {video.business.name} · {formatViews(video.view_count)} views
                 </p>
               </div>
             </button>

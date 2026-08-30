@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import BusinessModerationCard from '../components/admin/BusinessModerationCard'
 import ProductModerationCard from '../components/admin/ProductModerationCard'
 import StatusTabs from '../components/admin/StatusTabs'
+import VideoModerationCard from '../components/admin/VideoModerationCard'
 import DashboardShell from '../components/dashboardshell/DashboardShell'
 import type { DashNavItem } from '../components/dashboardshell/DashboardShell'
 import DashSection from '../components/dashboardshell/DashSection'
@@ -10,12 +11,19 @@ import GateShell from '../components/dashboardshell/GateShell'
 import KpiCard from '../components/dashboardshell/KpiCard'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
-import { useAdminBusinessCounts, useAdminBusinesses, useAdminProductCounts, useAdminProducts } from '../hooks/useAdmin'
+import {
+  useAdminBusinessCounts,
+  useAdminBusinesses,
+  useAdminProductCounts,
+  useAdminProducts,
+  useAdminVideoCounts,
+  useAdminVideos,
+} from '../hooks/useAdmin'
 import { useCategories } from '../hooks/useCatalog'
 import type { ModerationStatus, VerificationStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-type AdminSectionId = 'overview' | 'bizmod' | 'prodmod'
+type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod'
 
 const BUSINESS_STATUS_OPTIONS: { id: VerificationStatus; label: string }[] = [
   { id: 'pending', label: 'Pending' },
@@ -30,10 +38,17 @@ const PRODUCT_STATUS_OPTIONS: { id: ModerationStatus; label: string }[] = [
   { id: 'rejected', label: 'Rejected' },
 ]
 
+const VIDEO_STATUS_OPTIONS: { id: ModerationStatus; label: string }[] = [
+  { id: 'pending', label: 'Pending' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'rejected', label: 'Rejected' },
+]
+
 const SECTION_TITLES: Record<AdminSectionId, string> = {
   overview: 'Overview',
   bizmod: 'Business Moderation',
   prodmod: 'Product Moderation',
+  vidmod: 'Video Moderation',
 }
 
 /**
@@ -110,41 +125,50 @@ function AdminContent() {
   const [adminSection, setAdminSection] = useState<AdminSectionId>('overview')
   const [businessStatus, setBusinessStatus] = useState<VerificationStatus>('pending')
   const [productStatus, setProductStatus] = useState<ModerationStatus>('pending')
+  const [videoStatus, setVideoStatus] = useState<ModerationStatus>('pending')
 
   const businessCounts = useAdminBusinessCounts()
   const productCounts = useAdminProductCounts()
+  const videoCounts = useAdminVideoCounts()
   const categoriesQuery = useCategories()
 
   const pendingBusinessesQuery = useAdminBusinesses('pending')
   const pendingProductsQuery = useAdminProducts('pending')
+  const pendingVideosQuery = useAdminVideos('pending')
   const businessesQuery = useAdminBusinesses(businessStatus)
   const productsQuery = useAdminProducts(productStatus)
+  const videosQuery = useAdminVideos(videoStatus)
 
   const businesses = businessesQuery.data?.items ?? []
   const products = productsQuery.data?.items ?? []
+  const videos = videosQuery.data?.items ?? []
 
   const pendingBusinesses = businessCounts.data?.pending ?? 0
   const pendingProducts = productCounts.data?.pending ?? 0
+  const pendingVideos = videoCounts.data?.pending ?? 0
 
   const navItems: DashNavItem[] = [
     { id: 'overview', label: 'Overview', icon: 'grid' },
     { id: 'bizmod', label: 'Business Moderation', icon: 'building', count: pendingBusinesses },
     { id: 'prodmod', label: 'Product Moderation', icon: 'box', count: pendingProducts },
+    { id: 'vidmod', label: 'Video Moderation', icon: 'video', count: pendingVideos },
   ]
 
   const stats = [
     { value: pendingBusinesses, label: 'Pending Biz', warn: pendingBusinesses > 0 },
     { value: pendingProducts, label: 'Pending Prod', warn: pendingProducts > 0 },
+    { value: pendingVideos, label: 'Pending Vid', warn: pendingVideos > 0 },
   ]
 
-  // Oldest submissions first, businesses and products interleaved by
-  // `created_at` — one queue to work through, not two separate lists to
+  // Oldest submissions first, businesses/products/videos interleaved by
+  // `created_at` — one queue to work through, not three separate lists to
   // remember to check.
   const needsReview = [
     ...(pendingBusinessesQuery.data?.items ?? []).map((item) => ({ type: 'business' as const, item })),
     ...(pendingProductsQuery.data?.items ?? []).map((item) => ({ type: 'product' as const, item })),
+    ...(pendingVideosQuery.data?.items ?? []).map((item) => ({ type: 'video' as const, item })),
   ].sort((a, b) => a.item.created_at.localeCompare(b.item.created_at))
-  const reviewLoading = pendingBusinessesQuery.isLoading || pendingProductsQuery.isLoading
+  const reviewLoading = pendingBusinessesQuery.isLoading || pendingProductsQuery.isLoading || pendingVideosQuery.isLoading
 
   return (
     <DashboardShell
@@ -158,9 +182,10 @@ function AdminContent() {
     >
       {adminSection === 'overview' && (
         <div>
-          <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-5">
             <KpiCard value={businessCounts.isSuccess ? pendingBusinesses : '…'} label="Pending Businesses" accent={pendingBusinesses > 0} />
             <KpiCard value={productCounts.isSuccess ? pendingProducts : '…'} label="Pending Products" accent={pendingProducts > 0} />
+            <KpiCard value={videoCounts.isSuccess ? pendingVideos : '…'} label="Pending Videos" accent={pendingVideos > 0} />
             <KpiCard value={businessCounts.data?.verified ?? '…'} label="Verified Businesses" />
             <KpiCard value={categoriesQuery.data?.length ?? '…'} label="Live Categories" />
           </div>
@@ -183,8 +208,10 @@ function AdminContent() {
                 {needsReview.map((entry) =>
                   entry.type === 'business' ? (
                     <BusinessModerationCard key={`b-${entry.item.id}`} business={entry.item} />
-                  ) : (
+                  ) : entry.type === 'product' ? (
                     <ProductModerationCard key={`p-${entry.item.id}`} product={entry.item} />
+                  ) : (
+                    <VideoModerationCard key={`v-${entry.item.id}`} video={entry.item} />
                   ),
                 )}
               </div>
@@ -258,6 +285,41 @@ function AdminContent() {
             )}
             {products.map((product) => (
               <ProductModerationCard key={product.id} product={product} />
+            ))}
+          </div>
+        </DashSection>
+      )}
+
+      {adminSection === 'vidmod' && (
+        <DashSection>
+          <StatusTabs active={videoStatus} options={VIDEO_STATUS_OPTIONS} counts={videoCounts.data} onChange={setVideoStatus} />
+          <div className="mt-4 flex flex-col gap-3">
+            {videosQuery.isLoading && (
+              <>
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+              </>
+            )}
+            {videosQuery.isError && (
+              <EmptyState tone="error" title="Couldn't load videos" subtitle="Check your connection and try again.">
+                <button
+                  type="button"
+                  onClick={() => videosQuery.refetch()}
+                  className="rounded-full border-[1.5px] border-foreground px-4 py-2 text-sm font-bold text-foreground transition-colors duration-150 ease-brand hover:bg-foreground hover:text-background"
+                >
+                  Retry
+                </button>
+              </EmptyState>
+            )}
+            {!videosQuery.isLoading && !videosQuery.isError && videos.length === 0 && (
+              <EmptyState
+                icon="📭"
+                title={`No ${videoStatus} videos`}
+                subtitle="Nothing in this status right now — check another tab, or come back later."
+              />
+            )}
+            {videos.map((video) => (
+              <VideoModerationCard key={video.id} video={video} />
             ))}
           </div>
         </DashSection>
