@@ -35,13 +35,15 @@ export function filterProducts(items: ProductDto[], tokens: string[], filters: S
   const haystackOf = (p: ProductDto) => [
     p.name,
     p.description,
-    p.category?.name,
+    ...p.categories.map((c) => c.name),
     p.business.name,
     ...Object.values(p.specs),
   ]
   const matched = items.filter((p) => {
     if (!matchesTokens(haystackOf(p), tokens)) return false
-    if (filters.categoryIds.size > 0 && !(p.category && filters.categoryIds.has(p.category.id))) return false
+    // A product with 2+ categories matches a category filter on ANY one of them — mirrors the backend's
+    // GET /products?category_id= "has this category among its categories" semantics (docs/decisions.md).
+    if (filters.categoryIds.size > 0 && !p.categories.some((c) => filters.categoryIds.has(c.id))) return false
     if (filters.location) {
       const loc = filters.location.toLowerCase()
       const hit = p.county?.toLowerCase().includes(loc) || p.city?.toLowerCase().includes(loc)

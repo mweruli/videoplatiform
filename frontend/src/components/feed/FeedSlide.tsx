@@ -293,8 +293,9 @@ const FeedSlide = forwardRef<HTMLDivElement, FeedSlideProps>(function FeedSlide(
           </button>
         </div>
         <p className="mb-1 max-w-[calc(100%-64px)] text-[0.82rem] leading-snug">{video.title}</p>
-        <p className="flex items-center gap-1.5 text-[0.7rem] opacity-75">
-          {video.category?.name ?? 'Video'} · {formatViews(video.view_count)} views
+        <p className="flex items-center gap-1.5 truncate text-[0.7rem] opacity-75">
+          {video.categories.length > 0 ? video.categories.map((c) => c.name).join(' · ') : 'Video'} ·{' '}
+          {formatViews(video.view_count)} views
         </p>
       </div>
     </div>

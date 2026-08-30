@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from './ModerationStatusBadge'
+import CategoryChips from '../ui/CategoryChips'
 import { useDeactivateProduct, useUploadProductImages } from '../../hooks/useDashboard'
 import { formatPriceRange } from '../../lib/format'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
@@ -88,6 +89,8 @@ export default function ProductManageCard({ product, onEdit }: ProductManageCard
         {product.moderation_status === 'rejected' && product.moderation_note && (
           <p className="mt-1 text-xs leading-snug text-danger">{product.moderation_note}</p>
         )}
+
+        <CategoryChips categories={product.categories} size="sm" className="mt-1.5" />
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button

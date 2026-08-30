@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from '../dashboard/ModerationStatusBadge'
+import CategoryChips from '../ui/CategoryChips'
 import RejectModal from './RejectModal'
 import { useApproveVideo, useRejectVideo } from '../../hooks/useAdmin'
 import { ApiError } from '../../lib/api'
@@ -72,6 +73,8 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
       </div>
 
       {video.description && <p className="mt-3 line-clamp-1 text-sm leading-relaxed text-muted-foreground">{video.description}</p>}
+
+      <CategoryChips categories={video.categories} size="sm" className="mt-3" />
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] font-semibold text-muted-foreground">
         <span title={formatDate(video.created_at)}>Submitted {formatRelativeTime(video.created_at)}</span>

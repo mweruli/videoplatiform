@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import Icon from '../icons/Icon'
+import CategoryChipSelect from './CategoryChipSelect'
 import { Field, FormBanner, Select, SubmitButton, TextArea, TextInput } from '../ui/FormControls'
 import { useCategories } from '../../hooks/useCatalog'
 import { ApiError } from '../../lib/api'
@@ -45,7 +46,7 @@ export default function ProductForm({ initial, onSubmit, onDone, submitLabel, su
 
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
-  const [categoryId, setCategoryId] = useState(initial?.category?.id ? String(initial.category.id) : '')
+  const [categoryIds, setCategoryIds] = useState<Set<number>>(() => new Set((initial?.categories ?? []).map((c) => c.id)))
   const [currency, setCurrency] = useState(initial?.currency ?? 'KES')
   const [priceMin, setPriceMin] = useState(initial?.price_min ?? '')
   const [priceMax, setPriceMax] = useState(initial?.price_max ?? '')
@@ -70,6 +71,15 @@ export default function ProductForm({ initial, onSubmit, onDone, submitLabel, su
 
   function removeSpecRow(index: number) {
     setSpecRows((rows) => (rows.length > 1 ? rows.filter((_, i) => i !== index) : [{ key: '', value: '' }]))
+  }
+
+  function toggleCategory(id: number) {
+    setCategoryIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -98,7 +108,7 @@ export default function ProductForm({ initial, onSubmit, onDone, submitLabel, su
     const payload: ProductWritePayload = {
       name: trimmedName,
       description: description.trim() || null,
-      category_id: categoryId ? Number(categoryId) : null,
+      category_ids: Array.from(categoryIds),
       specs,
       currency,
       price_min: min,
@@ -139,13 +149,12 @@ export default function ProductForm({ initial, onSubmit, onDone, submitLabel, su
         <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Specs, use cases, what's included…" />
       </Field>
 
-      <Field label="Category" optional>
-        <Select
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          placeholder={categoriesQuery.isLoading ? 'Loading categories…' : 'Select a category'}
-          disabled={categoriesQuery.isLoading}
-          options={(categoriesQuery.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))}
+      <Field label="Categories" optional hint="Tap to select as many as apply — most listings need just one or two.">
+        <CategoryChipSelect
+          categories={categoriesQuery.data ?? []}
+          selectedIds={categoryIds}
+          onToggle={toggleCategory}
+          loading={categoriesQuery.isLoading}
         />
       </Field>
 

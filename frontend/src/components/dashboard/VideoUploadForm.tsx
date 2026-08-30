@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 
 import Icon from '../icons/Icon'
+import CategoryChipSelect from './CategoryChipSelect'
 import { Field, FormBanner, Select, SubmitButton, TextArea, TextInput } from '../ui/FormControls'
 import { useCategories } from '../../hooks/useCatalog'
 import { ApiError } from '../../lib/api'
@@ -37,7 +38,7 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
   const [dragActive, setDragActive] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [categoryId, setCategoryId] = useState('')
+  const [categoryIds, setCategoryIds] = useState<Set<number>>(() => new Set())
   const [productId, setProductId] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -61,6 +62,15 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
     if (dropped) pickFile(dropped)
   }
 
+  function toggleCategory(id: number) {
+    setCategoryIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setBanner(null)
@@ -78,7 +88,7 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
       await onSubmit({
         title: trimmedTitle,
         description: description.trim() || null,
-        category_id: categoryId ? Number(categoryId) : null,
+        category_ids: Array.from(categoryIds),
         product_id: productId || null,
         file: file as File,
       })
@@ -156,26 +166,24 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Category" optional>
-          <Select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            placeholder={categoriesQuery.isLoading ? 'Loading…' : 'Select a category'}
-            disabled={categoriesQuery.isLoading}
-            options={(categoriesQuery.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))}
-          />
-        </Field>
-        <Field label="Link to a product" optional hint={products.length === 0 ? 'Add a product first to link one.' : undefined}>
-          <Select
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            placeholder={products.length === 0 ? 'No products yet' : 'None'}
-            disabled={products.length === 0}
-            options={products.map((p) => ({ value: p.id, label: p.name }))}
-          />
-        </Field>
-      </div>
+      <Field label="Categories" optional hint="Tap to select as many as apply.">
+        <CategoryChipSelect
+          categories={categoriesQuery.data ?? []}
+          selectedIds={categoryIds}
+          onToggle={toggleCategory}
+          loading={categoriesQuery.isLoading}
+        />
+      </Field>
+
+      <Field label="Link to a product" optional hint={products.length === 0 ? 'Add a product first to link one.' : undefined}>
+        <Select
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          placeholder={products.length === 0 ? 'No products yet' : 'None'}
+          disabled={products.length === 0}
+          options={products.map((p) => ({ value: p.id, label: p.name }))}
+        />
+      </Field>
 
       <div className="mt-4">
         <SubmitButton loading={submitting} loadingText="Uploading…">

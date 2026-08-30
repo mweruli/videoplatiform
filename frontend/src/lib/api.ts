@@ -190,7 +190,8 @@ export interface ProductDto {
   id: string
   business_id: string
   business: BusinessSummaryDto
-  category: CategoryDto | null
+  /** Zero or more — see docs/decisions.md's "Product/Video: single category_id -> many-to-many categories" entry. Always an array, empty if none assigned. */
+  categories: CategoryDto[]
   name: string
   slug: string
   description: string | null
@@ -292,7 +293,8 @@ export interface VideoDto {
   id: string
   business_id: string
   business: BusinessSummaryDto
-  category: CategoryDto | null
+  /** Zero or more — see docs/decisions.md's "Product/Video: single category_id -> many-to-many categories" entry. Always an array, empty if none assigned. */
+  categories: CategoryDto[]
   product_id: string | null
   product: ProductSummaryDto | null
   title: string
@@ -339,17 +341,18 @@ export function recordVideoView(videoId: string): Promise<VideoViewResult> {
 export interface VideoUploadPayload {
   title: string
   description?: string | null
-  category_id?: number | null
+  /** Zero or more category ids — repeated multipart form field, see uploadVideo() below. */
+  category_ids?: number[]
   product_id?: string | null
   file: File
 }
 
-/** Multipart upload (title/description/category/product as form fields, the file as a part) — mirrors the FastAPI `Form(...)`/`File(...)` signature of POST /businesses/{id}/videos exactly, so it's not routed through apiFetch (see apiUpload's docstring). */
+/** Multipart upload (title/description/category/product as form fields, the file as a part) — mirrors the FastAPI `Form(...)`/`File(...)` signature of POST /businesses/{id}/videos exactly, so it's not routed through apiFetch (see apiUpload's docstring). `category_ids` is a repeated form field (one `category_ids` part per id), which is how FastAPI's `list[int] = Form(...)` parses a multipart body — there's no JSON-array-as-single-field option here since the endpoint is multipart. */
 export function uploadVideo(token: string, businessId: string, payload: VideoUploadPayload): Promise<VideoDto> {
   const formData = new FormData()
   formData.append('title', payload.title)
   if (payload.description) formData.append('description', payload.description)
-  if (payload.category_id !== undefined && payload.category_id !== null) formData.append('category_id', String(payload.category_id))
+  for (const categoryId of payload.category_ids ?? []) formData.append('category_ids', String(categoryId))
   if (payload.product_id) formData.append('product_id', payload.product_id)
   formData.append('file', payload.file)
   return apiUpload<VideoDto>(`${V1}/businesses/${businessId}/videos`, token, formData)
@@ -573,7 +576,8 @@ export function uploadBusinessCoverImage(token: string, businessId: string, file
 export interface ProductWritePayload {
   name: string
   description?: string | null
-  category_id?: number | null
+  /** Zero or more, max 10, deduped, order-preserving — omitted/empty means zero categories, not "inherit the business's." */
+  category_ids?: number[]
   specs?: Record<string, string>
   currency?: string
   price_min?: number | null

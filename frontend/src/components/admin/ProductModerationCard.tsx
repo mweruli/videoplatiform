@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from '../dashboard/ModerationStatusBadge'
+import CategoryChips from '../ui/CategoryChips'
 import RejectModal from './RejectModal'
 import { useApproveProduct, useRejectProduct } from '../../hooks/useAdmin'
 import { ApiError } from '../../lib/api'
@@ -61,6 +62,8 @@ export default function ProductModerationCard({ product }: ProductModerationCard
           </p>
         </div>
       </div>
+
+      <CategoryChips categories={product.categories} size="sm" className="mt-3" />
 
       {specEntries.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">

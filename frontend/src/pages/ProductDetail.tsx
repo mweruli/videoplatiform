@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import ProductTile from '../components/business/ProductTile'
 import Icon from '../components/icons/Icon'
+import CategoryChips from '../components/ui/CategoryChips'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import VerificationStatusBadge from '../components/ui/VerificationStatusBadge'
@@ -149,11 +150,7 @@ export default function ProductDetail() {
           {/* Body */}
           <div className="mt-5 min-w-0 flex-1 lg:mt-0">
             <div className="flex flex-wrap items-center gap-2">
-              {product.category && (
-                <span className="rounded-full border border-border bg-panel px-2.5 py-1 text-xs font-bold text-foreground">
-                  {product.category.name}
-                </span>
-              )}
+              <CategoryChips categories={product.categories} />
               <span
                 className={`rounded-full border px-2.5 py-1 text-xs font-bold ${AVAILABILITY_TONE[product.availability_status]}`}
               >

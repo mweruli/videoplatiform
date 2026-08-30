@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from './ModerationStatusBadge'
+import CategoryChips from '../ui/CategoryChips'
 import { useDeactivateVideo } from '../../hooks/useDashboard'
 import { ApiError } from '../../lib/api'
 import type { VideoDto } from '../../lib/api'
@@ -81,6 +82,8 @@ export default function VideoManageCard({ video }: VideoManageCardProps) {
         {video.moderation_status === 'rejected' && video.moderation_note && (
           <p className="mt-1.5 text-xs leading-snug text-danger">{video.moderation_note}</p>
         )}
+
+        <CategoryChips categories={video.categories} size="sm" className="mt-1.5" />
 
         {video.product && (
           <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-panel px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
