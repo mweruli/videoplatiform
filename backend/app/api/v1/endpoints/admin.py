@@ -129,6 +129,46 @@ def reject_business(
     return business
 
 
+# --- Featured placement (Phase 1a — manual, platform-controlled only; see
+# PROJECT_BRIEF.md's Digital Advertising section and Business/Product's
+# `is_featured` model docstrings. NOT a self-serve campaign manager — no
+# budgets/dates/targeting, that's Phase 1b+.) --------------------------------
+
+
+@router.post(
+    "/admin/businesses/{business_id}/feature",
+    response_model=BusinessRead,
+    tags=["admin"],
+)
+def feature_business(
+    business_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Business:
+    business = _get_business_or_404(db, business_id)
+    business.is_featured = True
+    db.commit()
+    db.refresh(business)
+    return business
+
+
+@router.post(
+    "/admin/businesses/{business_id}/unfeature",
+    response_model=BusinessRead,
+    tags=["admin"],
+)
+def unfeature_business(
+    business_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Business:
+    business = _get_business_or_404(db, business_id)
+    business.is_featured = False
+    db.commit()
+    db.refresh(business)
+    return business
+
+
 # --- Products ------------------------------------------------------------
 
 
@@ -219,6 +259,40 @@ def reject_product(
         )
     product.moderation_status = ModerationStatus.REJECTED
     product.moderation_note = payload.reason
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.post(
+    "/admin/products/{product_id}/feature",
+    response_model=ProductRead,
+    tags=["admin"],
+)
+def feature_product(
+    product_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Product:
+    product = _get_product_or_404(db, product_id)
+    product.is_featured = True
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.post(
+    "/admin/products/{product_id}/unfeature",
+    response_model=ProductRead,
+    tags=["admin"],
+)
+def unfeature_product(
+    product_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Product:
+    product = _get_product_or_404(db, product_id)
+    product.is_featured = False
     db.commit()
     db.refresh(product)
     return product

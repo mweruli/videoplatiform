@@ -74,12 +74,18 @@ def list_businesses(
     county: str | None = None,
     city: str | None = None,
     q: str | None = None,
+    is_featured: bool | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> Page[BusinessRead]:
     """Public directory listing — verified, active businesses only. Pending/
     unverified/rejected businesses are only visible to their owner (via
-    GET /businesses/mine) or admins/moderators (via GET /admin/businesses)."""
+    GET /businesses/mine) or admins/moderators (via GET /admin/businesses).
+
+    `is_featured=true` scopes to platform-curated featured businesses (see
+    admin's feature/unfeature endpoints) — e.g. for a Home "Featured
+    Businesses" rail — instead of the frontend having to fetch everything
+    and guess via recency."""
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
 
@@ -89,6 +95,8 @@ def list_businesses(
     )
     if category_id is not None:
         stmt = stmt.where(Business.category_id == category_id)
+    if is_featured is not None:
+        stmt = stmt.where(Business.is_featured.is_(is_featured))
     if county:
         stmt = stmt.where(func.lower(Business.county) == county.lower())
     if city:

@@ -136,6 +136,7 @@ def list_products(
     min_price: float | None = None,
     max_price: float | None = None,
     q: str | None = None,
+    is_featured: bool | None = None,
     include_unapproved: bool = False,
     page: int = 1,
     page_size: int = 20,
@@ -143,7 +144,11 @@ def list_products(
     """Public browse/search. `include_unapproved=true` only takes effect for
     the authenticated owner of `business_id` (or a platform admin) — it lets
     a business dashboard reuse this same endpoint to show its own pending/
-    rejected listings without a second, near-duplicate endpoint."""
+    rejected listings without a second, near-duplicate endpoint.
+
+    `is_featured=true` scopes to platform-curated featured products (see
+    admin's feature/unfeature endpoints) — e.g. for a Home/Search "Featured
+    Products" rail."""
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
 
@@ -165,6 +170,8 @@ def list_products(
 
     if business_id is not None:
         stmt = stmt.where(Product.business_id == business_id)
+    if is_featured is not None:
+        stmt = stmt.where(Product.is_featured.is_(is_featured))
     if category_id is not None:
         stmt = stmt.where(
             Product.id.in_(

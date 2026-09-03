@@ -98,6 +98,15 @@ class Business(Base):
 
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
+    # Manual "featured" placement (Phase 1a — see PROJECT_BRIEF.md's Digital
+    # Advertising section and DEVELOPMENT_PLAN.md's must-ship list). This is
+    # a platform-controlled flag only, toggled via the admin endpoints in
+    # app/api/v1/endpoints/admin.py (POST .../feature, .../unfeature) — it is
+    # deliberately excluded from BusinessCreate/BusinessUpdate so a business
+    # owner can never set it on themselves. NOT a self-serve campaign
+    # (budgets/dates/targeting are Phase 1b+, see docs/decisions.md).
+    is_featured: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

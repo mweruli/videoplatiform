@@ -4,7 +4,7 @@ import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models.business import VerificationStatus
 from app.schemas.category import CategoryRead
@@ -18,6 +18,21 @@ def _check_phone(value: str | None) -> str | None:
     if not _PHONE_RE.match(value):
         raise ValueError("Phone number must be 7-20 digits, optionally starting with '+'.")
     return value
+
+
+def _reject_platform_controlled_fields(data: object) -> object:
+    """`is_featured` is platform-controlled (see Business.is_featured's
+    model docstring) — explicitly reject it here rather than relying on it
+    simply being absent from these schemas' field lists, so a request body
+    that includes it (even a "clever" attempt from a business owner) gets a
+    clear 422 instead of being silently accepted-and-ignored or, worse,
+    silently applied if a field is ever added carelessly later."""
+    if isinstance(data, dict) and "is_featured" in data:
+        raise ValueError(
+            "'is_featured' is platform-controlled and cannot be set here; "
+            "use POST /admin/businesses/{id}/feature or /unfeature."
+        )
+    return data
 
 
 class BusinessBase(BaseModel):
@@ -42,7 +57,10 @@ class BusinessBase(BaseModel):
 
 
 class BusinessCreate(BusinessBase):
-    pass
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_is_featured(cls, data: object) -> object:
+        return _reject_platform_controlled_fields(data)
 
 
 class BusinessUpdate(BaseModel):
@@ -68,6 +86,11 @@ class BusinessUpdate(BaseModel):
     @classmethod
     def _validate_phone(cls, value: str | None) -> str | None:
         return _check_phone(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_is_featured(cls, data: object) -> object:
+        return _reject_platform_controlled_fields(data)
 
 
 class OwnerSummary(BaseModel):
@@ -117,6 +140,7 @@ class BusinessRead(BaseModel):
     verification_status: VerificationStatus
     verification_note: str | None
     is_active: bool
+    is_featured: bool
     created_at: datetime
     updated_at: datetime
     product_count: int = 0

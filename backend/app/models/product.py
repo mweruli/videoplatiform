@@ -163,6 +163,12 @@ class Product(Base):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    # Manual "featured" placement (Phase 1a — see PROJECT_BRIEF.md's Digital
+    # Advertising section and DEVELOPMENT_PLAN.md's must-ship list). Same
+    # platform-controlled-only contract as Business.is_featured — see that
+    # model's docstring comment for the full rationale.
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

@@ -109,6 +109,10 @@ BUSINESSES = [
             "businesses, with installation and after-sales support."
         ),
         verification_status=VerificationStatus.VERIFIED,
+        # Matches docs/design/prototype-v1.html's BUSINESSES fixture, where
+        # Solaris is the only business with `featured:true` — kept consistent
+        # rather than picking a featured business arbitrarily.
+        is_featured=True,
     ),
     dict(
         slug="buildright",
@@ -216,6 +220,11 @@ PRODUCTS = [
         specs={"Output": "5kW", "Battery": "Lithium/Lead-acid compatible", "Warranty": "5 Years"},
         availability_status=AvailabilityStatus.IN_STOCK,
         availability_note="Kisumu & Nairobi",
+        # The prototype's PRODUCTS fixture has no `featured` field of its own
+        # (only BUSINESSES does) — flagging Solaris's flagship product here
+        # keeps the demo data consistent with the featured business above
+        # rather than picking an unrelated product arbitrarily.
+        is_featured=True,
     ),
     dict(
         slug="hardware-starter-kit",
@@ -320,6 +329,7 @@ def seed_demo() -> None:
                 address_line=spec.get("address_line"),
                 phone=spec.get("phone"),
                 verification_status=spec["verification_status"],
+                is_featured=spec.get("is_featured", False),
             )
             db.add(biz)
             db.flush()
@@ -361,6 +371,7 @@ def seed_demo() -> None:
                     if spec.get("moderation_status_override") == "pending"
                     else ModerationStatus.APPROVED
                 ),
+                is_featured=spec.get("is_featured", False),
             )
             product.categories = product_categories_list
             db.add(product)

@@ -11,6 +11,18 @@ from app.schemas.business import BusinessSummary
 from app.schemas.category import CategoryRead
 
 
+def _reject_platform_controlled_fields(data: object) -> object:
+    """`is_featured` is platform-controlled (see Product.is_featured's model
+    docstring) — see app/schemas/business.py's identical helper for the full
+    rationale (explicit rejection, not reliance on schema omission)."""
+    if isinstance(data, dict) and "is_featured" in data:
+        raise ValueError(
+            "'is_featured' is platform-controlled and cannot be set here; "
+            "use POST /admin/products/{id}/feature or /unfeature."
+        )
+    return data
+
+
 class ProductBase(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
@@ -48,6 +60,11 @@ class ProductBase(BaseModel):
         # Preserve order, drop duplicates.
         return list(dict.fromkeys(value))
 
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_is_featured(cls, data: object) -> object:
+        return _reject_platform_controlled_fields(data)
+
 
 class ProductCreate(ProductBase):
     pass
@@ -70,6 +87,11 @@ class ProductUpdate(BaseModel):
     county: str | None = Field(default=None, max_length=100)
     city: str | None = Field(default=None, max_length=100)
     related_product_ids: list[uuid.UUID] | None = Field(default=None, max_length=10)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_is_featured(cls, data: object) -> object:
+        return _reject_platform_controlled_fields(data)
 
 
 class ProductSummary(BaseModel):
@@ -120,6 +142,7 @@ class ProductRead(BaseModel):
     moderation_status: ModerationStatus
     moderation_note: str | None
     is_active: bool
+    is_featured: bool
     created_at: datetime
     updated_at: datetime
     related_products: list[ProductSummary] = Field(default_factory=list)

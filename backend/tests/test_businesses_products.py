@@ -334,6 +334,158 @@ def test_admin_queue_filters_by_status() -> None:
     assert resp.status_code == 403
 
 
+def test_owner_cannot_set_is_featured_via_create_or_patch() -> None:
+    """`is_featured` is platform-controlled (Phase 1a manual featured
+    placement) — an owner including it in a create/patch body must be
+    rejected outright, not silently accepted-and-ignored."""
+    token, _ = _dev_token()
+
+    resp = client.post(
+        "/api/v1/businesses",
+        json={"name": _unique("Sneaky Biz"), "is_featured": True},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 422
+
+    business = _create_business(token)
+    assert business["is_featured"] is False
+
+    resp = client.patch(
+        f"/api/v1/businesses/{business['id']}",
+        json={"is_featured": True},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 422
+
+    # Confirm it really is untouched.
+    resp = client.get(f"/api/v1/businesses/{business['id']}")
+    assert resp.json()["is_featured"] is False
+
+
+def test_admin_feature_unfeature_business_and_public_filter() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    client.post(
+        f"/api/v1/businesses/{business['id']}/submit-for-verification",
+        headers=_auth_headers(owner_token),
+    )
+    admin_token, _ = _dev_token(role="platform_admin")
+    client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    # Non-moderator/admin cannot feature.
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/feature",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 403
+
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/feature",
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_featured"] is True
+
+    resp = client.get("/api/v1/businesses", params={"is_featured": True, "q": business["name"]})
+    assert resp.json()["total"] == 1
+
+    resp = client.get("/api/v1/businesses", params={"is_featured": False, "q": business["name"]})
+    assert resp.json()["total"] == 0
+
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/unfeature",
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_featured"] is False
+
+    resp = client.get("/api/v1/businesses", params={"is_featured": True, "q": business["name"]})
+    assert resp.json()["total"] == 0
+
+
+def test_owner_cannot_set_product_is_featured_via_create_or_patch() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Sneaky Product"), "is_featured": True},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 422
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Normal Product")},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 201
+    product = resp.json()
+    assert product["is_featured"] is False
+
+    resp = client.patch(
+        f"/api/v1/products/{product['id']}",
+        json={"is_featured": True},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 422
+
+    resp = client.get(f"/api/v1/products/{product['id']}")
+    assert resp.json()["is_featured"] is False
+
+
+def test_admin_feature_unfeature_product_and_public_filter() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Featured Candidate")},
+        headers=_auth_headers(owner_token),
+    )
+    product = resp.json()
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    client.post(
+        f"/api/v1/admin/products/{product['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/feature",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 403
+
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/feature",
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_featured"] is True
+
+    resp = client.get(
+        "/api/v1/products", params={"business_id": business["id"], "is_featured": True}
+    )
+    assert resp.json()["total"] == 1
+
+    resp = client.get(
+        "/api/v1/products", params={"business_id": business["id"], "is_featured": False}
+    )
+    assert resp.json()["total"] == 0
+
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/unfeature",
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_featured"] is False
+
+
 def test_categories_endpoint_returns_list() -> None:
     resp = client.get("/api/v1/categories")
     assert resp.status_code == 200
