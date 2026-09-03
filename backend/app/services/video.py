@@ -1,20 +1,26 @@
 """Managed video API abstraction (upload + playback asset resolution).
 
 Why this exists: no managed video API account (Cloudflare Stream or Bunny
-Stream — see docs/SETUP.md) is provisioned yet. Rather than bake "write to
-local disk" into the video upload endpoint directly, all calling code
+Stream — see docs/SETUP.md) is provisioned yet. Rather than bake a specific
+storage mechanism into the video upload endpoint directly, all calling code
 depends only on the `VideoBackend` interface below and asks
 `get_video_backend()` for an instance — exactly the same shape as
 app/services/storage.py's `StorageBackend` / `get_storage_backend()` and
 app/services/otp.py's `OtpSender` / `get_otp_sender()`.
 
-`LocalFileVideoBackend` is the working dev default: it writes the uploaded
-video file to the same local-disk media mechanism images already use
-(`app/services/storage.py`'s `LocalDiskStorage`, mounted at
-`settings.LOCAL_MEDIA_URL_PREFIX`) and returns that plain file URL as the
-playback URL — good enough for a basic HTML5 `<video src=...>` tag, no
-transcoding/adaptive bitrate/thumbnail generation. That's exactly the work a
-real managed video API adds later.
+`ObjectStorageVideoBackend` is the working default until a real managed
+video API is configured: it delegates the actual byte storage to
+`app/services/storage.py`'s `get_storage_backend()` — the exact same object
+storage layer (R2/Spaces once configured, local disk otherwise) that image
+uploads already use — and wraps the URL it gets back into a `VideoAsset`.
+Good enough for a basic HTML5 `<video src=...>` tag, no transcoding/adaptive
+bitrate/thumbnail generation. That's exactly the work a real managed video
+API adds later. Critically, this means video uploads get the same
+persistence guarantees as images: once `OBJECT_STORAGE_ACCESS_KEY` is set,
+videos land in R2/Spaces instead of the container's ephemeral local disk
+(local disk doesn't survive a container restart — this already caused a
+real incident where an uploaded video and a business logo both vanished
+after a Render free-tier restart).
 
 `CloudflareStreamBackend` / `BunnyStreamBackend` are scaffolds — they raise a
 clear "not configured" error until an account exists, mirroring
@@ -29,28 +35,28 @@ interface and the `VideoAsset` it returns.
 
 from __future__ import annotations
 
-import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
 
 from app.core.config import settings
+from app.services.storage import get_storage_backend
 
 
 @dataclass
 class VideoAsset:
     """What a VideoBackend hands back after a successful upload.
 
-    `asset_id` is backend-specific (a local storage key today; a Cloudflare
-    Stream UID or Bunny Stream video GUID once a real provider is wired in)
-    and is what `delete()` needs — callers should treat it as opaque.
-    `playback_url` is always a directly-fetchable URL suitable for an HTML5
-    `<video>` tag's `src` (a plain file URL locally; an HLS manifest or
-    provider-hosted iframe/mp4 URL once a real provider exists).
-    `thumbnail_url`/`duration_seconds` are best-effort — the local backend
-    can't generate either without ffmpeg, so both are `None` there.
-    `status` is `"ready"` (playable now) or `"processing"` (provider is
-    still transcoding; the local backend is always immediately "ready").
+    `asset_id` is backend-specific (the object storage URL today — see
+    ObjectStorageVideoBackend; a Cloudflare Stream UID or Bunny Stream video
+    GUID once a real provider is wired in) and is what `delete()` needs —
+    callers should treat it as opaque. `playback_url` is always a
+    directly-fetchable URL suitable for an HTML5 `<video>` tag's `src` (a
+    plain file/object storage URL today; an HLS manifest or provider-hosted
+    iframe/mp4 URL once a real provider exists). `thumbnail_url`/
+    `duration_seconds` are best-effort — ObjectStorageVideoBackend can't
+    generate either without ffmpeg, so both are `None` there. `status` is
+    `"ready"` (playable now) or `"processing"` (provider is still
+    transcoding; ObjectStorageVideoBackend is always immediately "ready").
     """
 
     asset_id: str
@@ -72,32 +78,29 @@ class VideoBackend(ABC):
         """Best-effort delete of a previously-uploaded video, given its asset_id."""
 
 
-class LocalFileVideoBackend(VideoBackend):
-    """Dev-only fallback: stores the raw video file via the same local-disk
-    mechanism images use (see app/services/storage.py's LocalDiskStorage),
-    served back out as a plain file URL for basic HTML5 <video> playback.
-    No transcoding, no adaptive bitrate, no thumbnail/duration extraction
-    (that needs ffmpeg, which isn't a dependency here) — this is a fallback
-    for local dev, not a production video pipeline.
+class ObjectStorageVideoBackend(VideoBackend):
+    """Default until a real managed video API is configured: stores the raw
+    video file via the same object storage layer images use (see
+    app/services/storage.py's get_storage_backend() — R2/Spaces once
+    configured, local disk otherwise), served back out as a plain file URL
+    for basic HTML5 <video> playback. No transcoding, no adaptive bitrate,
+    no thumbnail/duration extraction (that needs ffmpeg, which isn't a
+    dependency here) — this is a stand-in for a real managed video API, not
+    a production video pipeline. `asset_id` here is simply the storage URL
+    (opaque to callers), since StorageBackend.delete() takes a URL.
     """
 
-    def __init__(self, root: str | Path | None = None) -> None:
-        self.root = Path(root or settings.LOCAL_MEDIA_ROOT)
+    def __init__(self) -> None:
+        self._storage = get_storage_backend()
 
     def upload(
         self, *, content: bytes, filename: str, content_type: str, folder: str
     ) -> VideoAsset:
-        suffix = Path(filename).suffix.lower() or ".mp4"
-        key = f"{uuid.uuid4().hex}{suffix}"
-        target_dir = self.root / folder
-        target_dir.mkdir(parents=True, exist_ok=True)
-        (target_dir / key).write_bytes(content)
-
-        base = settings.PUBLIC_BASE_URL.rstrip("/")
-        url = f"{base}{settings.LOCAL_MEDIA_URL_PREFIX}/{folder}/{key}"
-        asset_id = f"{folder}/{key}"
+        url = self._storage.upload(
+            content=content, filename=filename, content_type=content_type, folder=folder
+        )
         return VideoAsset(
-            asset_id=asset_id,
+            asset_id=url,
             playback_url=url,
             thumbnail_url=None,
             duration_seconds=None,
@@ -105,8 +108,7 @@ class LocalFileVideoBackend(VideoBackend):
         )
 
     def delete(self, asset_id: str) -> None:
-        path = self.root / asset_id
-        path.unlink(missing_ok=True)
+        self._storage.delete(asset_id)
 
 
 class CloudflareStreamBackend(VideoBackend):
@@ -200,8 +202,9 @@ class BunnyStreamBackend(VideoBackend):
 def get_video_backend() -> VideoBackend:
     """Picks a backend by `settings.VIDEO_API_PROVIDER`, but only actually
     uses it once its credentials are configured — otherwise falls back to
-    the local-disk dev default, same "degrade gracefully, never 500 a dev
-    setup for a missing third-party account" pattern as get_otp_sender()."""
+    the object-storage-backed default, same "degrade gracefully, never 500 a
+    dev setup for a missing third-party account" pattern as
+    get_otp_sender()."""
     provider = settings.VIDEO_API_PROVIDER.lower()
     cloudflare_configured = settings.CLOUDFLARE_ACCOUNT_ID and settings.CLOUDFLARE_STREAM_API_TOKEN
     bunny_configured = settings.BUNNY_STREAM_LIBRARY_ID and settings.BUNNY_STREAM_API_KEY
@@ -209,4 +212,4 @@ def get_video_backend() -> VideoBackend:
         return CloudflareStreamBackend()
     if provider == "bunny_stream" and bunny_configured:
         return BunnyStreamBackend()
-    return LocalFileVideoBackend()
+    return ObjectStorageVideoBackend()

@@ -15,11 +15,12 @@ existing values, so no new enum type is even needed).
 
 `video_asset_id` is the VideoBackend-opaque identifier (see
 app/services/video.py) needed for `backend.delete()` later — it's whatever
-`VideoAsset.asset_id` was for whichever backend processed the upload (a
-local storage key today; a Cloudflare Stream UID / Bunny Stream GUID once a
-real provider is wired in). `video_url` is always the directly-fetchable
-playback URL the frontend's <video> tag uses; keeping both means a future
-"switch providers" migration doesn't have to derive one from the other.
+`VideoAsset.asset_id` was for whichever backend processed the upload (the
+object storage URL today — see ObjectStorageVideoBackend; a Cloudflare
+Stream UID / Bunny Stream GUID once a real provider is wired in). `video_url`
+is always the directly-fetchable playback URL the frontend's <video> tag
+uses; keeping both means a future "switch providers" migration doesn't have
+to derive one from the other.
 """
 
 from __future__ import annotations
@@ -101,9 +102,9 @@ class Video(Base):
     video_url: Mapped[str] = mapped_column(String(1000), nullable=False)
     video_asset_id: Mapped[str | None] = mapped_column(String(500))
     thumbnail_url: Mapped[str | None] = mapped_column(String(1000))
-    # Nullable: the local-disk fallback backend can't extract duration
-    # without ffmpeg (see app/services/video.py) — don't block on that. A
-    # real managed video API provider fills this in once processed.
+    # Nullable: ObjectStorageVideoBackend can't extract duration without
+    # ffmpeg (see app/services/video.py) — don't block on that. A real
+    # managed video API provider fills this in once processed.
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
 
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

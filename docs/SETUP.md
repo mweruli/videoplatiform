@@ -18,7 +18,7 @@ Accounts and services the **PM** needs to create before later sprints can procee
 ## 3. Object storage — Cloudflare R2 or DO Spaces
 
 - **What it's for**: Images (product photos, company logos/covers) and non-video documents. S3-compatible.
-- **What to do**: Create a bucket. If Cloudflare Stream was chosen in item 2, Cloudflare R2 keeps billing/account surface in one place (and has no egress fees). If DigitalOcean App Platform is chosen for hosting (item 7), DO Spaces is the natural pairing instead.
+- **What to do**: Create a bucket. If Cloudflare Stream was chosen in item 2, Cloudflare R2 keeps billing/account surface in one place (and has no egress fees). If DigitalOcean App Platform is chosen for hosting (item 7), DO Spaces is the natural pairing instead. **If R2 is chosen**: the S3 API endpoint (`https://<account>.r2.cloudflarestorage.com`) you'll hand the Backend Engineer for `OBJECT_STORAGE_ENDPOINT` is signed-requests-only and is not browser-fetchable — also enable public access on the bucket (R2 dashboard → bucket → Settings → Public Access → either the free `pub-<hash>.r2.dev` subdomain or a connected custom domain) and hand that separate URL over too, for `OBJECT_STORAGE_PUBLIC_URL`. DO Spaces doesn't need this extra step; its endpoint is directly public.
 - **Tier**: Smallest available tier; storage needs are modest until product/company content volume grows.
 
 ## 4. Meilisearch — confirm self-hosting in production, or Meilisearch Cloud

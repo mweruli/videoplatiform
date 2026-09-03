@@ -49,7 +49,7 @@ export function formatViews(count: number): string {
 
 /**
  * mm:ss duration badge, or `undefined` when the backend hasn't extracted one
- * yet — `LocalFileVideoBackend` (dev default, no ffmpeg dependency) always
+ * yet — `ObjectStorageVideoBackend` (dev/object-storage default, no ffmpeg dependency) always
  * returns `duration_seconds: null`, so every real-video component needs to
  * treat this as optional, not assume the fixture data's always-present
  * string duration.

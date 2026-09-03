@@ -83,6 +83,18 @@ class Settings(BaseSettings):
     OBJECT_STORAGE_BUCKET: str = "miles-tech-media"
     OBJECT_STORAGE_ACCESS_KEY: str = ""
     OBJECT_STORAGE_SECRET_KEY: str = ""
+    # The public read URL for the bucket — R2's pub-*.r2.dev URL or a custom
+    # domain, NOT the S3 API endpoint used for uploads. This matters because
+    # for Cloudflare R2 specifically, OBJECT_STORAGE_ENDPOINT
+    # (https://<account>.r2.cloudflarestorage.com) is the S3 API endpoint,
+    # which requires signed requests for every operation including reads —
+    # it is NOT a publicly-fetchable URL. R2's actual public-serving URL is a
+    # separate domain that has to be explicitly enabled per-bucket
+    # (Settings -> Public Access in the R2 dashboard). Leave this empty for
+    # providers where the upload endpoint doubles as the public URL (e.g.
+    # DigitalOcean Spaces) — app/services/storage.py falls back to
+    # OBJECT_STORAGE_ENDPOINT when this is unset.
+    OBJECT_STORAGE_PUBLIC_URL: str = ""
     # Public base URL to serve local-disk uploads from during dev (mounted as
     # static files by app/main.py). Not used once OBJECT_STORAGE_* is set.
     LOCAL_MEDIA_ROOT: str = "media"
