@@ -430,15 +430,18 @@ def admin_list_categories(db: Session = Depends(get_db)) -> list[AdminCategoryRe
     same pattern as businesses.py's get_business_stats."""
     categories = list(db.scalars(select(Category).order_by(Category.name)).all())
 
-    business_counts: dict[int, int] = dict(
-        db.execute(
+    business_counts: dict[int, int] = {
+        cat_id: count
+        for cat_id, count in db.execute(
             select(Business.category_id, func.count(Business.id))
             .where(Business.is_active.is_(True), Business.category_id.is_not(None))
             .group_by(Business.category_id)
         ).all()
-    )
-    product_counts: dict[int, int] = dict(
-        db.execute(
+        if cat_id is not None
+    }
+    product_counts: dict[int, int] = {
+        cat_id: count
+        for cat_id, count in db.execute(
             select(product_categories.c.category_id, func.count(product_categories.c.product_id))
             .select_from(
                 product_categories.join(Product, Product.id == product_categories.c.product_id)
@@ -446,15 +449,16 @@ def admin_list_categories(db: Session = Depends(get_db)) -> list[AdminCategoryRe
             .where(Product.is_active.is_(True))
             .group_by(product_categories.c.category_id)
         ).all()
-    )
-    video_counts: dict[int, int] = dict(
-        db.execute(
+    }
+    video_counts: dict[int, int] = {
+        cat_id: count
+        for cat_id, count in db.execute(
             select(video_categories.c.category_id, func.count(video_categories.c.video_id))
             .select_from(video_categories.join(Video, Video.id == video_categories.c.video_id))
             .where(Video.is_active.is_(True))
             .group_by(video_categories.c.category_id)
         ).all()
-    )
+    }
 
     return [
         AdminCategoryRead(
