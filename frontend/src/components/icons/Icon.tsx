@@ -40,6 +40,7 @@ export type IconName =
   | 'tag'
   | 'edit'
   | 'lock'
+  | 'externalLink'
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -81,6 +82,8 @@ const PATHS: Record<IconName, string> = {
   tag: '<path d="M20.6 13.4L13 21a2 2 0 01-2.8 0l-8-8A2 2 0 012 11.6V4a2 2 0 012-2h7.6a2 2 0 011.4.6l8 8a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
   edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+  externalLink:
+    '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
 }
 
 interface IconProps {

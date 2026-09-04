@@ -6,7 +6,7 @@ import CategoryChipSelect from './CategoryChipSelect'
 import { Field, FormBanner, Select, SubmitButton, TextArea, TextInput } from '../ui/FormControls'
 import { useCategories } from '../../hooks/useCatalog'
 import { ApiError } from '../../lib/api'
-import type { ProductDto, VideoUploadPayload } from '../../lib/api'
+import type { ProductDto, VideoDto, VideoUpdatePayload, VideoUploadPayload } from '../../lib/api'
 
 /** Mirrors settings.allowed_video_content_types_list / MAX_VIDEO_UPLOAD_SIZE_MB (backend/app/core/config.py) — display copy only, the backend re-validates regardless. */
 const ACCEPTED_TYPES = 'video/mp4,video/quicktime,video/webm'
@@ -16,30 +16,45 @@ function formatFileSize(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
-interface VideoUploadFormProps {
-  /** The current business's own products (any moderation status) — link-to-product is scoped to this business, same as the design spec. */
-  products: ProductDto[]
-  onSubmit: (payload: VideoUploadPayload) => Promise<unknown>
-  onDone: () => void
-}
-
 /**
- * Upload-video form for the Business Dashboard's "Upload video" sheet — a
- * real native file input behind a styled dropzone (default/hover/drag/
- * has-file/error states), title (required), description, category and
- * optional link-to-product. Submitting a real multipart request to
- * POST /businesses/{id}/videos (see useUploadVideo) — a real upload, not a
- * stub, per the approved design pass.
+ * Create/edit form for a video. The two modes genuinely differ (unlike
+ * ProductForm's uniform payload shape) because editing does NOT accept a new
+ * file — app/schemas/video.py's VideoUpdate has no file field at all,
+ * re-uploading creates a new Video row instead — so the file dropzone only
+ * renders in create mode, and the two modes submit different payload shapes.
+ * A discriminated union on `mode` keeps that difference type-checked rather
+ * than papered over with optional-everything props.
  */
-export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUploadFormProps) {
+type VideoUploadFormProps =
+  | {
+      mode?: 'create'
+      /** The current business's own products (any moderation status) — link-to-product is scoped to this business, same as the design spec. */
+      products: ProductDto[]
+      onSubmit: (payload: VideoUploadPayload) => Promise<unknown>
+      onDone: () => void
+    }
+  | {
+      mode: 'edit'
+      initial: VideoDto
+      products: ProductDto[]
+      onSubmit: (payload: VideoUpdatePayload) => Promise<unknown>
+      onDone: () => void
+      /** Shown when editing an already-approved video — the backend re-queues it for moderation on any change. Same UI treatment as ProductForm's showReReviewNotice, for consistency. */
+      showReReviewNotice?: boolean
+    }
+
+export default function VideoUploadForm(props: VideoUploadFormProps) {
+  const { products, onDone } = props
+  const isEdit = props.mode === 'edit'
+  const initial = isEdit ? props.initial : undefined
   const categoriesQuery = useCategories()
 
   const [file, setFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [categoryIds, setCategoryIds] = useState<Set<number>>(() => new Set())
-  const [productId, setProductId] = useState('')
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [categoryIds, setCategoryIds] = useState<Set<number>>(() => new Set((initial?.categories ?? []).map((c) => c.id)))
+  const [productId, setProductId] = useState(initial?.product_id ?? '')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState<string | null>(null)
@@ -76,7 +91,7 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
     setBanner(null)
     const nextErrors: Record<string, string> = {}
 
-    if (!file) nextErrors.file = 'Choose a video file to upload.'
+    if (!isEdit && !file) nextErrors.file = 'Choose a video file to upload.'
     const trimmedTitle = title.trim()
     if (trimmedTitle.length < 2) nextErrors.title = 'Give your video a title.'
 
@@ -85,13 +100,22 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
 
     setSubmitting(true)
     try {
-      await onSubmit({
-        title: trimmedTitle,
-        description: description.trim() || null,
-        category_ids: Array.from(categoryIds),
-        product_id: productId || null,
-        file: file as File,
-      })
+      if (props.mode === 'edit') {
+        await props.onSubmit({
+          title: trimmedTitle,
+          description: description.trim() || null,
+          category_ids: Array.from(categoryIds),
+          product_id: productId || null,
+        })
+      } else {
+        await props.onSubmit({
+          title: trimmedTitle,
+          description: description.trim() || null,
+          category_ids: Array.from(categoryIds),
+          product_id: productId || null,
+          file: file as File,
+        })
+      }
       onDone()
     } catch (err) {
       setBanner(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
@@ -103,50 +127,62 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
   return (
     <form onSubmit={handleSubmit} noValidate>
       <FormBanner kind="error" message={banner} />
-      <p className="mb-3.5 text-sm leading-relaxed text-muted-foreground">
-        Submitted videos go to Miles Tech&apos;s moderation queue before they&apos;re publicly visible — most reviews complete within 2
-        business days.
-      </p>
 
-      <div className="mb-3.5">
-        <label className="mb-1.5 block text-[11px] font-extrabold tracking-[0.08em] text-muted-foreground uppercase">Video file</label>
-        <label
-          htmlFor="video-file-input"
-          onDragOver={handleDragOver}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={handleDrop}
-          className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors duration-150 ease-brand ${
-            errors.file
-              ? 'border-danger bg-danger/5'
-              : dragActive
-                ? 'border-brand bg-brand/5 dark:border-ice dark:bg-white/5'
-                : 'border-border bg-panel hover:border-teal'
-          }`}
-        >
-          <Icon name="upload" size={22} className="text-muted-foreground" />
-          {file ? (
-            <span className="text-sm font-bold text-foreground">
-              {file.name} · {formatFileSize(file.size)}
-            </span>
-          ) : (
-            <span className="text-sm font-semibold text-muted-foreground">Tap to choose a video file, or drag one here</span>
+      {isEdit && props.showReReviewNotice && (
+        <div className="mb-3.5 flex items-start gap-2.5 rounded-xl border border-border bg-panel px-3.5 py-2.5 text-xs leading-snug text-muted-foreground">
+          <Icon name="clock" size={14} className="mt-0.5 flex-none text-teal" />
+          Saving changes sends this video back for moderator review before it's visible to viewers again.
+        </div>
+      )}
+
+      {!isEdit && (
+        <p className="mb-3.5 text-sm leading-relaxed text-muted-foreground">
+          Submitted videos go to Miles Tech&apos;s moderation queue before they&apos;re publicly visible — most reviews complete within 2
+          business days.
+        </p>
+      )}
+
+      {!isEdit && (
+        <div className="mb-3.5">
+          <label className="mb-1.5 block text-[11px] font-extrabold tracking-[0.08em] text-muted-foreground uppercase">Video file</label>
+          <label
+            htmlFor="video-file-input"
+            onDragOver={handleDragOver}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleDrop}
+            className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors duration-150 ease-brand ${
+              errors.file
+                ? 'border-danger bg-danger/5'
+                : dragActive
+                  ? 'border-brand bg-brand/5 dark:border-ice dark:bg-white/5'
+                  : 'border-border bg-panel hover:border-teal'
+            }`}
+          >
+            <Icon name="upload" size={22} className="text-muted-foreground" />
+            {file ? (
+              <span className="text-sm font-bold text-foreground">
+                {file.name} · {formatFileSize(file.size)}
+              </span>
+            ) : (
+              <span className="text-sm font-semibold text-muted-foreground">Tap to choose a video file, or drag one here</span>
+            )}
+            <span className="text-xs text-muted-foreground">MP4, MOV or WebM, up to 200MB</span>
+          </label>
+          <input
+            id="video-file-input"
+            type="file"
+            accept={ACCEPTED_TYPES}
+            className="sr-only"
+            onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+          />
+          {errors.file && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-danger">
+              <Icon name="close" size={11} />
+              {errors.file}
+            </p>
           )}
-          <span className="text-xs text-muted-foreground">MP4, MOV or WebM, up to 200MB</span>
-        </label>
-        <input
-          id="video-file-input"
-          type="file"
-          accept={ACCEPTED_TYPES}
-          className="sr-only"
-          onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-        />
-        {errors.file && (
-          <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-danger">
-            <Icon name="close" size={11} />
-            {errors.file}
-          </p>
-        )}
-      </div>
+        </div>
+      )}
 
       <Field label="Title" error={errors.title}>
         <TextInput
@@ -186,8 +222,8 @@ export default function VideoUploadForm({ products, onSubmit, onDone }: VideoUpl
       </Field>
 
       <div className="mt-4">
-        <SubmitButton loading={submitting} loadingText="Uploading…">
-          Upload video
+        <SubmitButton loading={submitting} loadingText={isEdit ? 'Saving…' : 'Uploading…'}>
+          {isEdit ? 'Save changes' : 'Upload video'}
         </SubmitButton>
       </div>
     </form>

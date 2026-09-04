@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from '../dashboard/ModerationStatusBadge'
@@ -20,6 +21,12 @@ interface ProductModerationCardProps {
  * price and a specs summary (enough to judge without opening the public
  * listing), plus approve/reject for `pending` items. Same read-only
  * treatment as BusinessModerationCard for non-pending statuses.
+ *
+ * The full description, complete image gallery and a link to the real public
+ * listing are one click away behind a "Show details" disclosure (same
+ * expand/collapse pattern as UserManagement's row expansion) rather than
+ * always-on, so a queue of several pending items doesn't turn into a wall of
+ * galleries — but the underlying information is never hidden away entirely.
  */
 export default function ProductModerationCard({ product }: ProductModerationCardProps) {
   const { showToast } = useToast()
@@ -27,6 +34,8 @@ export default function ProductModerationCard({ product }: ProductModerationCard
   const rejectMutation = useRejectProduct()
   const [rejecting, setRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [activeImage, setActiveImage] = useState(0)
 
   const pending = product.moderation_status === 'pending'
   const specEntries = Object.entries(product.specs).slice(0, 3)
@@ -79,6 +88,69 @@ export default function ProductModerationCard({ product }: ProductModerationCard
         <span title={formatDate(product.created_at)}>Submitted {formatRelativeTime(product.created_at)}</span>
         {product.county && <span className="inline-flex items-center gap-1"><Icon name="pin" size={11} />{product.county}</span>}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-label="Full product details"
+        className="mt-2.5 flex items-center gap-1 text-[11px] font-bold text-teal transition-colors duration-150 ease-brand hover:text-teal/80"
+      >
+        <Icon name="chevronRight" size={12} strokeWidth={3} className={`transition-transform duration-150 ease-brand ${expanded ? 'rotate-90' : ''}`} />
+        {expanded ? 'Hide full details' : 'Show full details'}
+      </button>
+
+      {expanded && (
+        <div className="mt-3 rounded-xl border border-border bg-panel/50 p-3.5">
+          {product.description && (
+            <p className="text-sm leading-relaxed whitespace-pre-line text-foreground">{product.description}</p>
+          )}
+
+          {product.images.length > 0 && (
+            <div className={product.description ? 'mt-3.5' : ''}>
+              <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-lg bg-surface">
+                <img
+                  key={product.images[activeImage]}
+                  src={product.images[activeImage]}
+                  alt={`${product.name} — image ${activeImage + 1}`}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              {product.images.length > 1 && (
+                <div className="no-scrollbar mt-2 flex max-w-sm gap-1.5 overflow-x-auto">
+                  {product.images.map((src, i) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => setActiveImage(i)}
+                      aria-label={`Show image ${i + 1}`}
+                      aria-current={activeImage === i}
+                      className={`h-11 w-11 flex-none overflow-hidden rounded-md border-2 transition-colors duration-150 ease-brand ${
+                        activeImage === i ? 'border-amber' : 'border-transparent'
+                      }`}
+                    >
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <Link
+            to={`/product/${product.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className={`inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline dark:text-ice ${
+              product.description || product.images.length > 0 ? 'mt-3.5' : ''
+            }`}
+          >
+            View public listing
+            <Icon name="externalLink" size={12} />
+          </Link>
+        </div>
+      )}
 
       {product.moderation_status === 'rejected' && product.moderation_note && (
         <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-xs leading-snug text-danger">

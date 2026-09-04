@@ -12,16 +12,18 @@ import { useToast } from '../../lib/toast'
 
 interface VideoManageCardProps {
   video: VideoDto
+  onEdit: () => void
 }
 
 /**
  * One card in the Business Dashboard's Videos grid — a card grid rather than
  * a data table like Products, since a video's thumbnail is the point (per
  * the approved design pass, docs/design/prototype-v1.html's "Videos" entry).
- * Same status pill, rejection-reason surfacing and two-click remove pattern
- * as ProductManageCard; Edit is a deliberate stub — see the button below.
+ * Same status pill, rejection-reason surfacing, two-click remove pattern and
+ * Edit wiring as ProductManageCard (Edit used to be a stub — see
+ * VideoUploadForm's edit-mode support).
  */
-export default function VideoManageCard({ video }: VideoManageCardProps) {
+export default function VideoManageCard({ video, onEdit }: VideoManageCardProps) {
   const { showToast } = useToast()
   const deactivateMutation = useDeactivateVideo()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -95,7 +97,7 @@ export default function VideoManageCard({ video }: VideoManageCardProps) {
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
           <button
             type="button"
-            onClick={() => showToast('Video editing is coming in a later release.')}
+            onClick={onEdit}
             className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-bold text-foreground transition-colors duration-150 ease-brand hover:border-brand hover:text-brand dark:hover:text-ice"
           >
             Edit

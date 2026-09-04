@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from '../dashboard/ModerationStatusBadge'
@@ -22,6 +23,14 @@ interface VideoModerationCardProps {
  * real video-still thumbnail rather than the small square icon business/
  * product rows use — a video's content IS its thumbnail, so a moderator
  * needs more than a name to judge it.
+ *
+ * A moderator can't fairly judge a video from a static poster frame and one
+ * clipped line of copy, so the full description and an actual playable
+ * `<video>` (same tag/attributes as FeedSlide's real player, not a new one)
+ * sit behind a "Show full details" disclosure — same expand/collapse
+ * pattern as ProductModerationCard/UserManagement — plus a link out to
+ * where the video is actually watchable publicly (the Shorts feed, deep
+ * linked via `/feed?v=<id>` — VideoFeed.tsx reads that query param).
  */
 export default function VideoModerationCard({ video }: VideoModerationCardProps) {
   const { showToast } = useToast()
@@ -29,6 +38,7 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
   const rejectMutation = useRejectVideo()
   const [rejecting, setRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   const pending = video.moderation_status === 'pending'
   const grad = gradIndexForId(video.id)
@@ -72,7 +82,9 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
         </div>
       </div>
 
-      {video.description && <p className="mt-3 line-clamp-1 text-sm leading-relaxed text-muted-foreground">{video.description}</p>}
+      {video.description && !expanded && (
+        <p className="mt-3 line-clamp-1 text-sm leading-relaxed text-muted-foreground">{video.description}</p>
+      )}
 
       <CategoryChips categories={video.categories} size="sm" className="mt-3" />
 
@@ -85,6 +97,48 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
           </span>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-label="Full video details"
+        className="mt-2.5 flex items-center gap-1 text-[11px] font-bold text-teal transition-colors duration-150 ease-brand hover:text-teal/80"
+      >
+        <Icon name="chevronRight" size={12} strokeWidth={3} className={`transition-transform duration-150 ease-brand ${expanded ? 'rotate-90' : ''}`} />
+        {expanded ? 'Hide full details' : 'Show full details'}
+      </button>
+
+      {expanded && (
+        <div className="mt-3 rounded-xl border border-border bg-panel/50 p-3.5">
+          <div className="aspect-[9/16] w-full max-w-[220px] overflow-hidden rounded-lg bg-black">
+            <video
+              src={video.video_url}
+              poster={video.thumbnail_url ?? undefined}
+              controls
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-contain"
+            >
+              Your browser doesn&apos;t support embedded video playback.
+            </video>
+          </div>
+
+          {video.description && (
+            <p className="mt-3.5 text-sm leading-relaxed whitespace-pre-line text-foreground">{video.description}</p>
+          )}
+
+          <Link
+            to={`/feed?v=${video.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3.5 inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline dark:text-ice"
+          >
+            View in public feed
+            <Icon name="externalLink" size={12} />
+          </Link>
+        </div>
+      )}
 
       {video.moderation_status === 'rejected' && video.moderation_note && (
         <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-xs leading-snug text-danger">

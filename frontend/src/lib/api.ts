@@ -364,6 +364,23 @@ export function uploadVideo(token: string, businessId: string, payload: VideoUpl
   return apiUpload<VideoDto>(`${V1}/businesses/${businessId}/videos`, token, formData)
 }
 
+/** Mirrors app/schemas/video.py's VideoUpdate 1:1 — all fields optional (PATCH semantics). Re-uploading the file isn't supported here (upload creates a new Video); use uploadVideo for a new file. */
+export interface VideoUpdatePayload {
+  title?: string
+  description?: string | null
+  category_ids?: number[]
+  product_id?: string | null
+}
+
+/** Editing an already-approved video resets it to moderation_status='pending' server-side, same re-review behaviour as updateProduct. */
+export function updateVideo(token: string, videoId: string, payload: VideoUpdatePayload): Promise<VideoDto> {
+  return apiFetch<VideoDto>(`${V1}/videos/${videoId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
 /** Soft delete (deactivates, doesn't hard-delete) — mirrors deactivateProduct. */
 export function deactivateVideo(token: string, videoId: string): Promise<void> {
   return apiFetch<void>(`${V1}/videos/${videoId}`, {

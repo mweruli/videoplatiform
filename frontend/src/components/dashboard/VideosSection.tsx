@@ -9,10 +9,11 @@ import type { Page, VideoDto } from '../../lib/api'
 interface VideosSectionProps {
   videosQuery: UseQueryResult<Page<VideoDto>>
   onUpload: () => void
+  onEditVideo: (video: VideoDto) => void
 }
 
 /** Business Dashboard's Videos section — a card grid (not a table like Products), since a video's thumbnail is the point. See VideoManageCard for the per-video treatment. */
-export default function VideosSection({ videosQuery, onUpload }: VideosSectionProps) {
+export default function VideosSection({ videosQuery, onUpload, onEditVideo }: VideosSectionProps) {
   const videos = videosQuery.data?.items ?? []
 
   return (
@@ -57,7 +58,7 @@ export default function VideosSection({ videosQuery, onUpload }: VideosSectionPr
         {videos.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {videos.map((video) => (
-              <VideoManageCard key={video.id} video={video} />
+              <VideoManageCard key={video.id} video={video} onEdit={() => onEditVideo(video)} />
             ))}
           </div>
         )}

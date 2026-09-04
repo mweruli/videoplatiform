@@ -26,16 +26,18 @@ import {
   useSubmitForVerification,
   useUpdateBusiness,
   useUpdateProduct,
+  useUpdateVideo,
   useUploadBusinessCover,
   useUploadBusinessLogo,
   useUploadVideo,
 } from '../hooks/useDashboard'
 import { ApiError } from '../lib/api'
-import type { ProductDto } from '../lib/api'
+import type { ProductDto, VideoDto } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useToast } from '../lib/toast'
 
 type ProductModalState = { mode: 'create' } | { mode: 'edit'; product: ProductDto } | null
+type VideoModalState = { mode: 'create' } | { mode: 'edit'; video: VideoDto } | null
 type DashSectionId = 'overview' | 'profile' | 'products' | 'videos' | 'analytics'
 
 const NAV_ITEMS: DashNavItem[] = [
@@ -128,7 +130,7 @@ function DashboardContent() {
   const [showCreateBusiness, setShowCreateBusiness] = useState(false)
   const [editingBusiness, setEditingBusiness] = useState(false)
   const [productModal, setProductModal] = useState<ProductModalState>(null)
-  const [showVideoUpload, setShowVideoUpload] = useState(false)
+  const [videoModal, setVideoModal] = useState<VideoModalState>(null)
   const [verificationError, setVerificationError] = useState<string | null>(null)
 
   // Derived rather than synced via an effect: whichever business the owner
@@ -146,6 +148,7 @@ function DashboardContent() {
   const createProductMutation = useCreateProduct()
   const updateProductMutation = useUpdateProduct()
   const uploadVideoMutation = useUploadVideo()
+  const updateVideoMutation = useUpdateVideo()
 
   const selectedBusiness = businesses.find((b) => b.id === selectedId) ?? null
   const productsQuery = useMyBusinessProducts(selectedBusiness?.id)
@@ -398,7 +401,11 @@ function DashboardContent() {
 
       {selectedBusiness && dashSection === 'videos' && (
         <div className="mt-4">
-          <VideosSection videosQuery={videosQuery} onUpload={() => setShowVideoUpload(true)} />
+          <VideosSection
+            videosQuery={videosQuery}
+            onUpload={() => setVideoModal({ mode: 'create' })}
+            onEditVideo={(video) => setVideoModal({ mode: 'edit', video })}
+          />
         </div>
       )}
 
@@ -464,13 +471,31 @@ function DashboardContent() {
         )}
       </Modal>
 
-      <Modal open={showVideoUpload} onClose={() => setShowVideoUpload(false)} title="Upload a video" widthClassName="lg:max-w-[640px]">
-        {selectedBusiness && (
+      <Modal
+        open={videoModal !== null}
+        onClose={() => setVideoModal(null)}
+        title={videoModal?.mode === 'edit' ? 'Edit video' : 'Upload a video'}
+        widthClassName="lg:max-w-[640px]"
+      >
+        {videoModal?.mode === 'edit' && selectedBusiness && (
+          <VideoUploadForm
+            mode="edit"
+            initial={videoModal.video}
+            products={products}
+            showReReviewNotice={videoModal.video.moderation_status === 'approved'}
+            onSubmit={(payload) => updateVideoMutation.mutateAsync({ videoId: videoModal.video.id, payload })}
+            onDone={() => {
+              setVideoModal(null)
+              showToast('Video updated')
+            }}
+          />
+        )}
+        {videoModal?.mode === 'create' && selectedBusiness && (
           <VideoUploadForm
             products={products}
             onSubmit={(payload) => uploadVideoMutation.mutateAsync({ businessId: selectedBusiness.id, payload })}
             onDone={() => {
-              setShowVideoUpload(false)
+              setVideoModal(null)
               showToast('Video submitted for review — most reviews complete within 2 business days.')
             }}
           />

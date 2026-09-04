@@ -12,6 +12,7 @@ import {
   submitBusinessForVerification,
   updateBusiness,
   updateProduct,
+  updateVideo,
   uploadBusinessCoverImage,
   uploadBusinessLogo,
   uploadProductImages,
@@ -25,6 +26,7 @@ import type {
   ProductUpdatePayload,
   ProductWritePayload,
   VideoDto,
+  VideoUpdatePayload,
   VideoUploadPayload,
 } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -180,6 +182,17 @@ export function useUploadVideo() {
   return useMutation({
     mutationFn: ({ businessId, payload }: { businessId: string; payload: VideoUploadPayload }) =>
       uploadVideo(token as string, businessId, payload),
+    onSuccess: (data) => invalidate(data.business_id),
+  })
+}
+
+/** Mirrors useUpdateProduct exactly — editing an already-approved video resets it to `pending` server-side. */
+export function useUpdateVideo() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateCatalog()
+  return useMutation({
+    mutationFn: ({ videoId, payload }: { videoId: string; payload: VideoUpdatePayload }) =>
+      updateVideo(token as string, videoId, payload),
     onSuccess: (data) => invalidate(data.business_id),
   })
 }
