@@ -12,10 +12,13 @@ Scoping notes (flagged for Tech Lead/PM — see docs/decisions.md):
   for the "Product Comparison" module to line up rows cleanly) are Sprint 4
   work, not this one.
 - `related_products` is an explicit curated many-to-many (business picks
-  which products are related) rather than an auto-computed "same business"
-  list, so a business can point a spare-part at its parent equipment across
-  categories. The public API falls back to same-business products when a
-  product has none curated, so the frontend always gets something useful.
+  which products are related) rather than an auto-computed list, so a
+  business can point a spare-part at its parent equipment across categories.
+  When nothing's curated, `GET /products/{id}` falls back first to
+  same-category products, then same-business products, then nothing — see
+  `_related_products_fallback` in app/api/v1/endpoints/products.py and
+  docs/decisions.md for the exact order and why it changed from a
+  same-business-only fallback.
 - Products carry their own `categories` (many-to-many, zero or more)
   distinct from the owning business's single category (e.g. a hardware
   store's category is "Retail" but an individual product might belong to
@@ -40,6 +43,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Table,
@@ -168,6 +172,14 @@ class Product(Base):
     # platform-controlled-only contract as Business.is_featured — see that
     # model's docstring comment for the full rationale.
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+
+    # --- Core analytics (Phase 1a) — mirrors Business.view_count/
+    # impression_count exactly (see that model's docstring comment for the
+    # full reasoning); `view_count` via POST /products/{id}/view (mirrors
+    # the already-shipped Video.view_count/`POST /videos/{id}/view` pattern
+    # byte-for-byte), `impression_count` via POST /products/impressions.
+    view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    impression_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import func, select
@@ -151,13 +152,25 @@ def list_videos(
     category_id: int | None = None,
     product_id: uuid.UUID | None = None,
     include_unapproved: bool = False,
+    sort: Literal["recent", "trending"] = "recent",
     page: int = 1,
     page_size: int = 20,
 ) -> Page[VideoRead]:
     """Public browse. `include_unapproved=true` only takes effect for the
     authenticated owner of `business_id` (or a platform admin) — same
     pattern as GET /products, so a business dashboard can reuse this one
-    endpoint for its own pending/rejected videos too."""
+    endpoint for its own pending/rejected videos too.
+
+    `sort` defaults to `"recent"` (created_at desc, unchanged behavior — see
+    docs/decisions.md for why the default wasn't touched). `sort=trending`
+    orders by `view_count` desc (then created_at desc as a tiebreaker for
+    videos with equal views) — this is Home's "trending videos" real signal,
+    replacing the "just most-recent" placeholder that
+    frontend/src/components/home/TrendingVideos.tsx's own code comment
+    already flagged as a stand-in. Raw all-time view_count, not a
+    time-decayed score — a defensible MVP choice given Phase 1a's view
+    volume; revisit if/when videos accumulate enough views that a months-old
+    viral clip permanently crowding out newer ones becomes a real problem."""
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
 
@@ -190,7 +203,11 @@ def list_videos(
         stmt = stmt.where(Video.product_id == product_id)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    stmt = stmt.order_by(Video.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    if sort == "trending":
+        stmt = stmt.order_by(Video.view_count.desc(), Video.created_at.desc())
+    else:
+        stmt = stmt.order_by(Video.created_at.desc())
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     items = list(db.scalars(stmt).all())
 
     return Page(

@@ -141,6 +141,8 @@ class BusinessRead(BaseModel):
     verification_note: str | None
     is_active: bool
     is_featured: bool
+    view_count: int
+    impression_count: int
     created_at: datetime
     updated_at: datetime
     product_count: int = 0
@@ -152,3 +154,33 @@ class BusinessModerationAction(BaseModel):
 
 class BusinessRejectAction(BaseModel):
     reason: str = Field(min_length=3, max_length=2000)
+
+
+class BusinessViewResult(BaseModel):
+    view_count: int
+
+
+class ModerationStatusCounts(BaseModel):
+    """Field names match `app.models.product.ModerationStatus`'s values
+    exactly — reused as-is for both products and videos rather than a
+    separate enum, same "don't duplicate an identical set of values"
+    reasoning as Video reusing Product's ModerationStatus (docs/decisions.md)."""
+
+    pending: int = 0
+    approved: int = 0
+    rejected: int = 0
+
+
+class BusinessStats(BaseModel):
+    """`GET /businesses/{id}/stats` — owner/admin-only aggregate view (see
+    docs/decisions.md). Product/video counts and view sums only cover
+    currently-active (not soft-deleted) rows, matching how counts are shown
+    everywhere else in this codebase (e.g. `Business.product_count`)."""
+
+    business_id: uuid.UUID
+    business_view_count: int
+    business_impression_count: int
+    total_product_views: int
+    total_video_views: int
+    product_counts: ModerationStatusCounts
+    video_counts: ModerationStatusCounts

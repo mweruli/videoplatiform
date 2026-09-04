@@ -575,3 +575,332 @@ def test_product_can_have_multiple_categories() -> None:
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 400
+
+
+# --- Core analytics: product/business view counters ------------------------
+
+
+def test_product_view_count_increments_and_requires_approved() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Viewable Product")},
+        headers=_auth_headers(owner_token),
+    )
+    product = resp.json()
+    assert product["view_count"] == 0
+
+    # Pending product: view endpoint 404s, same as an unapproved video.
+    resp = client.post(f"/api/v1/products/{product['id']}/view")
+    assert resp.status_code == 404
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    client.post(
+        f"/api/v1/admin/products/{product['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    resp = client.post(f"/api/v1/products/{product['id']}/view")
+    assert resp.status_code == 200
+    assert resp.json()["view_count"] == 1
+    resp = client.post(f"/api/v1/products/{product['id']}/view")
+    assert resp.json()["view_count"] == 2
+
+    resp = client.get(f"/api/v1/products/{product['id']}")
+    assert resp.json()["view_count"] == 2
+
+
+def test_business_view_count_increments_and_requires_verified() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    assert business["view_count"] == 0
+
+    # Unverified business: view endpoint 404s.
+    resp = client.post(f"/api/v1/businesses/{business['id']}/view")
+    assert resp.status_code == 404
+
+    client.post(
+        f"/api/v1/businesses/{business['id']}/submit-for-verification",
+        headers=_auth_headers(owner_token),
+    )
+    admin_token, _ = _dev_token(role="platform_admin")
+    client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    resp = client.post(f"/api/v1/businesses/{business['id']}/view")
+    assert resp.status_code == 200
+    assert resp.json()["view_count"] == 1
+    resp = client.post(f"/api/v1/businesses/{business['id']}/view")
+    assert resp.json()["view_count"] == 2
+
+    resp = client.get(f"/api/v1/businesses/{business['id']}")
+    assert resp.json()["view_count"] == 2
+
+
+# --- Core analytics: impression (search-appearance) batch endpoints -------
+
+
+def test_product_impressions_batch_increments_only_public_ids() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Impression Product")},
+        headers=_auth_headers(owner_token),
+    )
+    approved_product = resp.json()
+    client.post(
+        f"/api/v1/admin/products/{approved_product['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Pending Product")},
+        headers=_auth_headers(owner_token),
+    )
+    pending_product = resp.json()
+
+    fake_id = str(uuid.uuid4())
+    resp = client.post(
+        "/api/v1/products/impressions",
+        json={"ids": [approved_product["id"], pending_product["id"], fake_id]},
+    )
+    assert resp.status_code == 200
+    # Only the approved+active product actually matched and incremented.
+    assert resp.json()["updated"] == 1
+
+    resp = client.get(f"/api/v1/products/{approved_product['id']}")
+    assert resp.json()["impression_count"] == 1
+    resp = client.get(f"/api/v1/products/{pending_product['id']}")
+    assert resp.json()["impression_count"] == 0
+
+    # Additive across calls.
+    client.post("/api/v1/products/impressions", json={"ids": [approved_product["id"]]})
+    resp = client.get(f"/api/v1/products/{approved_product['id']}")
+    assert resp.json()["impression_count"] == 2
+
+
+def test_business_impressions_batch_increments_only_public_ids() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+    client.post(
+        f"/api/v1/businesses/{business['id']}/submit-for-verification",
+        headers=_auth_headers(owner_token),
+    )
+    client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    unverified_business = _create_business(owner_token)
+    fake_id = str(uuid.uuid4())
+
+    resp = client.post(
+        "/api/v1/businesses/impressions",
+        json={"ids": [business["id"], unverified_business["id"], fake_id]},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["updated"] == 1
+
+    resp = client.get(f"/api/v1/businesses/{business['id']}")
+    assert resp.json()["impression_count"] == 1
+    resp = client.get(f"/api/v1/businesses/{unverified_business['id']}")
+    assert resp.json()["impression_count"] == 0
+
+
+def test_impressions_batch_validates_size() -> None:
+    resp = client.post("/api/v1/products/impressions", json={"ids": []})
+    assert resp.status_code == 422
+
+    too_many = [str(uuid.uuid4()) for _ in range(101)]
+    resp = client.post("/api/v1/products/impressions", json={"ids": too_many})
+    assert resp.status_code == 422
+
+
+# --- Core analytics: business owner stats summary ---------------------------
+
+
+def test_business_stats_aggregation_and_access_control() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Stats Product A")},
+        headers=_auth_headers(owner_token),
+    )
+    product_a = resp.json()
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Stats Product B")},
+        headers=_auth_headers(owner_token),
+    )
+    product_b = resp.json()
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Stats Product Pending")},
+        headers=_auth_headers(owner_token),
+    )
+    product_pending = resp.json()
+    assert product_pending["moderation_status"] == "pending"
+
+    for pid in (product_a["id"], product_b["id"]):
+        resp = client.post(
+            f"/api/v1/admin/products/{pid}/approve",
+            json={},
+            headers=_auth_headers(admin_token),
+        )
+        assert resp.status_code == 200
+
+    client.post(f"/api/v1/products/{product_a['id']}/view")
+    client.post(f"/api/v1/products/{product_a['id']}/view")
+    client.post(f"/api/v1/products/{product_b['id']}/view")
+
+    client.post(
+        f"/api/v1/businesses/{business['id']}/submit-for-verification",
+        headers=_auth_headers(owner_token),
+    )
+    client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    client.post(f"/api/v1/businesses/{business['id']}/view")
+
+    # A stranger cannot see another business's stats.
+    other_token, _ = _dev_token()
+    resp = client.get(
+        f"/api/v1/businesses/{business['id']}/stats", headers=_auth_headers(other_token)
+    )
+    assert resp.status_code == 403
+
+    # Owner can.
+    resp = client.get(
+        f"/api/v1/businesses/{business['id']}/stats", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 200
+    stats = resp.json()
+    assert stats["business_id"] == business["id"]
+    assert stats["business_view_count"] == 1
+    assert stats["total_product_views"] == 3
+    assert stats["product_counts"] == {"pending": 1, "approved": 2, "rejected": 0}
+    assert stats["total_video_views"] == 0
+    assert stats["video_counts"] == {"pending": 0, "approved": 0, "rejected": 0}
+
+    # Admin/moderator can too.
+    resp = client.get(
+        f"/api/v1/businesses/{business['id']}/stats", headers=_auth_headers(admin_token)
+    )
+    assert resp.status_code == 200
+
+
+# --- Recommendations: related-products fallback chain -----------------------
+
+
+def _new_category() -> int:
+    """A brand-new category with a unique slug, unlike `_two_category_ids`'s
+    fixed test-cat-a/b — needed for tests that assert an *exact* related-set
+    match, since fixed categories accumulate products across every test that
+    reuses them within the same test-DB session (tests aren't per-test
+    isolated, only per-session — see tests/conftest.py)."""
+    db = SessionLocal()
+    try:
+        category = Category(name=_unique("Fallback Test Category"), slug=_unique("fallback-cat"))
+        db.add(category)
+        db.commit()
+        db.refresh(category)
+        return category.id
+    finally:
+        db.close()
+
+
+def test_related_products_fallback_prefers_category_over_business() -> None:
+    """No curated related_products: same-category should win over
+    same-business when both are available — see _related_products_fallback's
+    docstring in app/api/v1/endpoints/products.py for the exact chain."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    other_owner_token, _ = _dev_token()
+    other_business = _create_business(other_owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+    cat_a = _new_category()
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Target Product"), "category_ids": [cat_a]},
+        headers=_auth_headers(owner_token),
+    )
+    target = resp.json()
+
+    # Same business, but shares no category with the target.
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Sibling No Category")},
+        headers=_auth_headers(owner_token),
+    )
+    sibling = resp.json()
+
+    # Different business, but shares the target's category.
+    resp = client.post(
+        f"/api/v1/businesses/{other_business['id']}/products",
+        json={"name": _unique("Cross-business Same Category"), "category_ids": [cat_a]},
+        headers=_auth_headers(other_owner_token),
+    )
+    cross_business_match = resp.json()
+
+    for pid in (sibling["id"], cross_business_match["id"]):
+        resp = client.post(
+            f"/api/v1/admin/products/{pid}/approve",
+            json={},
+            headers=_auth_headers(admin_token),
+        )
+        assert resp.status_code == 200
+
+    resp = client.get(f"/api/v1/products/{target['id']}")
+    assert resp.status_code == 200
+    related_ids = {p["id"] for p in resp.json()["related_products"]}
+    assert related_ids == {cross_business_match["id"]}
+
+
+def test_related_products_fallback_to_business_when_no_category_match() -> None:
+    """Tier 2 of the fallback chain: no categories at all (so tier 1 can't
+    apply) still falls back to same-business, not straight to empty."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Target No Category")},
+        headers=_auth_headers(owner_token),
+    )
+    target = resp.json()
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Sibling Product")},
+        headers=_auth_headers(owner_token),
+    )
+    sibling = resp.json()
+    client.post(
+        f"/api/v1/admin/products/{sibling['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+
+    resp = client.get(f"/api/v1/products/{target['id']}")
+    assert resp.status_code == 200
+    related_ids = {p["id"] for p in resp.json()["related_products"]}
+    assert related_ids == {sibling["id"]}

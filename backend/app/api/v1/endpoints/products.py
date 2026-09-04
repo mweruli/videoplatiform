@@ -17,7 +17,7 @@ import math
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_current_user_optional
@@ -26,8 +26,8 @@ from app.models.business import Business
 from app.models.category import Category
 from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
-from app.schemas.common import Page
-from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
+from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
+from app.schemas.product import ProductCreate, ProductRead, ProductUpdate, ProductViewResult
 from app.services.storage import get_storage_backend
 from app.services.uploads import read_and_validate_image
 from app.utils.slug import unique_slug
@@ -65,6 +65,71 @@ def _resolve_categories(db: Session, category_ids: list[int]) -> list[Category]:
             detail=f"category_ids not found: {sorted(missing)}",
         )
     return found
+
+
+def _related_products_fallback(db: Session, product: Product) -> list[Product]:
+    """Fallback used by GET /products/{id} when a product has no curated
+    `related_products` (see Product model docstring). Fallback order, tried
+    in sequence, first non-empty tier wins (tiers are not merged/topped-up
+    from each other — see docs/decisions.md for the judgment call):
+
+    1. Same-category — any other approved+active product sharing at least
+       one category via `product_categories`, ranked by number of shared
+       categories (desc) then recency, limited to 3. This replaces the old
+       "always same-business" fallback, since two products in the same
+       business are not necessarily related (a hardware store's cement and
+       paintbrushes), while two products sharing a category genuinely are.
+    2. Same-business — other approved+active products from the same
+       business, limited to 3 (the original fallback, kept as the next
+       tier since "same seller" is still a reasonable weak signal when
+       category data doesn't help, e.g. the product has zero categories or
+       is the only one in its category).
+    3. Nothing — an empty list; the frontend already handles a product with
+       no related items.
+    """
+    category_ids = [c.id for c in product.categories]
+    if category_ids:
+        shared_count = func.count(product_categories.c.category_id).label("shared_count")
+        # Select bare ids (not full Product entities) for the grouped/ranked
+        # query — Product.business relationship is lazy="joined", and mixing
+        # that eager-load JOIN with GROUP BY on the entity trips Postgres's
+        # "column must appear in GROUP BY" rule. A second, ungrouped
+        # `select(Product)` below fetches the full rows (with their normal
+        # eager loads intact) in the same ranked order.
+        ranked_ids_stmt = (
+            select(Product.id, shared_count)
+            .join(product_categories, product_categories.c.product_id == Product.id)
+            .where(
+                product_categories.c.category_id.in_(category_ids),
+                Product.id != product.id,
+                Product.moderation_status == ModerationStatus.APPROVED,
+                Product.is_active.is_(True),
+            )
+            .group_by(Product.id)
+            .order_by(shared_count.desc(), Product.created_at.desc())
+            .limit(3)
+        )
+        ranked_ids = [row[0] for row in db.execute(ranked_ids_stmt).all()]
+        if ranked_ids:
+            by_id = {
+                p.id: p
+                for p in db.scalars(select(Product).where(Product.id.in_(ranked_ids))).all()
+            }
+            return [by_id[pid] for pid in ranked_ids if pid in by_id]
+
+    return list(
+        db.scalars(
+            select(Product)
+            .where(
+                Product.business_id == product.business_id,
+                Product.id != product.id,
+                Product.moderation_status == ModerationStatus.APPROVED,
+                Product.is_active.is_(True),
+            )
+            .order_by(Product.created_at.desc())
+            .limit(3)
+        ).all()
+    )
 
 
 def _resolve_related_products(
@@ -214,22 +279,10 @@ def get_product(
 ) -> Product:
     product = _get_product_or_404(db, product_id)
     if not product.related_products:
-        # Fall back to same-business products so the frontend always has
-        # something to render in a "related products" rail (see Product
-        # model docstring).
-        fallback = list(
-            db.scalars(
-                select(Product)
-                .where(
-                    Product.business_id == product.business_id,
-                    Product.id != product.id,
-                    Product.moderation_status == ModerationStatus.APPROVED,
-                    Product.is_active.is_(True),
-                )
-                .limit(3)
-            ).all()
-        )
-        product.related_products = fallback
+        # No curated related products — fall back to same-category, then
+        # same-business, then nothing. See _related_products_fallback's
+        # docstring for the exact order and reasoning.
+        product.related_products = _related_products_fallback(db, product)
     return product
 
 
@@ -239,6 +292,47 @@ def get_product_by_slug(slug: str, db: Session = Depends(get_db)) -> Product:
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
     return get_product(product.id, db)
+
+
+@router.post("/products/{product_id}/view", response_model=ProductViewResult, tags=["products"])
+def record_product_view(product_id: uuid.UUID, db: Session = Depends(get_db)) -> ProductViewResult:
+    """Increment view_count by 1 — a dedicated POST endpoint mirroring
+    app/api/v1/endpoints/videos.py's `record_video_view` exactly (same
+    reasoning: GET stays side-effect-free so prefetching/bots/the owner's
+    own dashboard don't inflate the count; no per-viewer de-duplication,
+    that's an analytics-hardening concern, not launch-blocking). Only
+    increments for a product that's currently public (approved + active);
+    a pending/rejected/removed product 404s instead, same as an unapproved
+    video."""
+    product = _get_product_or_404(db, product_id)
+    if not product.is_active or product.moderation_status != ModerationStatus.APPROVED:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
+    product.view_count += 1
+    db.commit()
+    return ProductViewResult(view_count=product.view_count)
+
+
+@router.post("/products/impressions", response_model=ImpressionBatchResult, tags=["products"])
+def record_product_impressions(
+    payload: ImpressionBatchRequest, db: Session = Depends(get_db)
+) -> ImpressionBatchResult:
+    """Search-appearance signal — see app/api/v1/endpoints/businesses.py's
+    `record_business_impressions` (identical shape/reasoning) and
+    docs/decisions.md. The frontend calls this once per search-results/
+    browse render with the ids of products currently visible; each id that
+    resolves to a real, currently-public (approved + active) product gets
+    `impression_count += 1`. Unknown/non-public ids are silently skipped."""
+    result = db.execute(
+        update(Product)
+        .where(
+            Product.id.in_(payload.ids),
+            Product.is_active.is_(True),
+            Product.moderation_status == ModerationStatus.APPROVED,
+        )
+        .values(impression_count=Product.impression_count + 1)
+    )
+    db.commit()
+    return ImpressionBatchResult(updated=result.rowcount or 0)
 
 
 @router.patch("/products/{product_id}", response_model=ProductRead, tags=["products"])

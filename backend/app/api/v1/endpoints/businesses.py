@@ -13,15 +13,24 @@ import math
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
+from app.models.product import Product
 from app.models.user import User, UserRole
-from app.schemas.business import BusinessCreate, BusinessRead, BusinessUpdate
-from app.schemas.common import Page
+from app.models.video import Video
+from app.schemas.business import (
+    BusinessCreate,
+    BusinessRead,
+    BusinessStats,
+    BusinessUpdate,
+    BusinessViewResult,
+    ModerationStatusCounts,
+)
+from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
 from app.services.storage import get_storage_backend
 from app.services.uploads import read_and_validate_image
 from app.utils.slug import unique_slug
@@ -151,6 +160,116 @@ def get_business_by_slug(slug: str, db: Session = Depends(get_db)) -> Business:
     if business is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
     return business
+
+
+@router.post(
+    "/businesses/{business_id}/view", response_model=BusinessViewResult, tags=["businesses"]
+)
+def record_business_view(
+    business_id: uuid.UUID, db: Session = Depends(get_db)
+) -> BusinessViewResult:
+    """Increment view_count by 1 — a dedicated POST endpoint mirroring
+    videos.py's `record_video_view` exactly (same reasoning: GET stays
+    side-effect-free, no per-viewer de-duplication, not launch-blocking to
+    add later — see that endpoint's docstring). Only increments for a
+    business that's currently public (verified + active); a pending/
+    rejected/unverified/deactivated business 404s instead, same as an
+    unapproved video."""
+    business = _get_business_or_404(db, business_id)
+    if not business.is_active or business.verification_status != VerificationStatus.VERIFIED:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
+    business.view_count += 1
+    db.commit()
+    return BusinessViewResult(view_count=business.view_count)
+
+
+@router.post(
+    "/businesses/impressions", response_model=ImpressionBatchResult, tags=["businesses"]
+)
+def record_business_impressions(
+    payload: ImpressionBatchRequest, db: Session = Depends(get_db)
+) -> ImpressionBatchResult:
+    """Search-appearance signal — see docs/decisions.md for why this batch
+    shape was chosen over a fabricated "search appearances" number (search
+    ranking/matching happens client-side, see frontend/src/lib/
+    searchCatalog.ts, so the server never sees a query's result set unless
+    the client reports it). The frontend calls this once per search-results/
+    browse render with the ids of businesses currently visible; each id that
+    resolves to a real, currently-public (verified + active) business gets
+    `impression_count += 1`. Unknown/non-public ids are silently skipped,
+    not an error — a stale id in the batch shouldn't fail the whole render's
+    reporting call. No auth required, same as the view/impression endpoints
+    generally being anonymous-friendly (a logged-out visitor's search
+    results are just as real a signal as a logged-in one's)."""
+    result = db.execute(
+        update(Business)
+        .where(
+            Business.id.in_(payload.ids),
+            Business.is_active.is_(True),
+            Business.verification_status == VerificationStatus.VERIFIED,
+        )
+        .values(impression_count=Business.impression_count + 1)
+    )
+    db.commit()
+    return ImpressionBatchResult(updated=result.rowcount or 0)
+
+
+@router.get("/businesses/{business_id}/stats", response_model=BusinessStats, tags=["businesses"])
+def get_business_stats(
+    business_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BusinessStats:
+    """Owner (or platform admin) only — aggregate numbers for a business
+    owner's own dashboard (the "Analytics" nav item currently scaffolded as
+    a disabled "Soon" pill in frontend/src/components/dashboardshell/
+    DashboardShell.tsx will call this once the frontend picks it up).
+    Product/video counts-by-status and view sums only include currently-
+    active (not soft-deleted) rows — matches Business.product_count's
+    existing "active only" convention elsewhere in this codebase."""
+    business = _get_business_or_404(db, business_id)
+    if not _can_manage(business, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your business.")
+
+    product_counts = ModerationStatusCounts()
+    total_product_views = 0
+    product_rows = db.execute(
+        select(
+            Product.moderation_status,
+            func.count(Product.id),
+            func.coalesce(func.sum(Product.view_count), 0),
+        )
+        .where(Product.business_id == business_id, Product.is_active.is_(True))
+        .group_by(Product.moderation_status)
+    ).all()
+    for moderation_status, count, views in product_rows:
+        setattr(product_counts, moderation_status.value, count)
+        total_product_views += int(views)
+
+    video_counts = ModerationStatusCounts()
+    total_video_views = 0
+    video_rows = db.execute(
+        select(
+            Video.moderation_status,
+            func.count(Video.id),
+            func.coalesce(func.sum(Video.view_count), 0),
+        )
+        .where(Video.business_id == business_id, Video.is_active.is_(True))
+        .group_by(Video.moderation_status)
+    ).all()
+    for moderation_status, count, views in video_rows:
+        setattr(video_counts, moderation_status.value, count)
+        total_video_views += int(views)
+
+    return BusinessStats(
+        business_id=business.id,
+        business_view_count=business.view_count,
+        business_impression_count=business.impression_count,
+        total_product_views=total_product_views,
+        total_video_views=total_video_views,
+        product_counts=product_counts,
+        video_counts=video_counts,
+    )
 
 
 @router.patch("/businesses/{business_id}", response_model=BusinessRead, tags=["businesses"])

@@ -107,6 +107,21 @@ class Business(Base):
     # (budgets/dates/targeting are Phase 1b+, see docs/decisions.md).
     is_featured: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
 
+    # --- Core analytics (Phase 1a — see PROJECT_BRIEF.md's Advertising
+    # Analytics section and DEVELOPMENT_PLAN.md's must-ship "Core analytics:
+    # views, search appearances, basic counts"). Both are plain counters, no
+    # per-viewer dedup — see docs/decisions.md for the reasoning (matches
+    # Video.view_count's existing, already-shipped design exactly).
+    # `view_count`: incremented by POST /businesses/{id}/view when someone
+    # opens the business's profile page.
+    # `impression_count`: incremented by POST /businesses/impressions when
+    # the business appears in a rendered search-results/browse list — the
+    # closest honest signal to "search appearances" this client-side-search
+    # architecture can produce server-side without moving search server-side
+    # (see docs/decisions.md).
+    view_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    impression_count: Mapped[int] = mapped_column(default=0, nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

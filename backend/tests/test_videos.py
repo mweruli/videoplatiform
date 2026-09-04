@@ -356,6 +356,44 @@ def test_video_can_have_multiple_categories() -> None:
     assert resp.status_code == 400
 
 
+def test_trending_sort_orders_by_view_count_not_recency() -> None:
+    """`sort=trending` (Home's real "trending videos" signal — see
+    docs/decisions.md) must actually reorder results, not just be accepted
+    as a no-op param — proven here by making the view-count leader the
+    *earlier*-uploaded video, so recency and view-count disagree on the
+    winner."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+
+    video_early = _upload_video(owner_token, business["id"])
+    video_late = _upload_video(owner_token, business["id"])
+
+    for video in (video_early, video_late):
+        resp = client.post(
+            f"/api/v1/admin/videos/{video['id']}/approve",
+            json={},
+            headers=_auth_headers(admin_token),
+        )
+        assert resp.status_code == 200
+
+    for _ in range(5):
+        client.post(f"/api/v1/videos/{video_early['id']}/view")
+
+    # Default sort is unchanged: most-recently-uploaded first, regardless of
+    # views — video_late wins.
+    resp = client.get("/api/v1/videos", params={"business_id": business["id"]})
+    ids = [v["id"] for v in resp.json()["items"]]
+    assert ids.index(video_late["id"]) < ids.index(video_early["id"])
+
+    # sort=trending: most-viewed first — video_early (5 views) now wins.
+    resp = client.get(
+        "/api/v1/videos", params={"business_id": business["id"], "sort": "trending"}
+    )
+    ids = [v["id"] for v in resp.json()["items"]]
+    assert ids.index(video_early["id"]) < ids.index(video_late["id"])
+
+
 def test_admin_video_queue_filters_by_status() -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)

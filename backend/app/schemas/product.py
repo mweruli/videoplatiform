@@ -143,6 +143,8 @@ class ProductRead(BaseModel):
     moderation_note: str | None
     is_active: bool
     is_featured: bool
+    view_count: int
+    impression_count: int
     created_at: datetime
     updated_at: datetime
     related_products: list[ProductSummary] = Field(default_factory=list)
@@ -164,3 +166,7 @@ class ProductModerationAction(BaseModel):
 
 class ProductRejectAction(BaseModel):
     reason: str = Field(min_length=3, max_length=2000)
+
+
+class ProductViewResult(BaseModel):
+    view_count: int
