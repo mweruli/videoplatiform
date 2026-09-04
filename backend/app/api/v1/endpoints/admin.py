@@ -78,7 +78,14 @@ def admin_list_businesses(
 ) -> Page[BusinessRead]:
     page, page_size = _paginate_params(page, page_size)
 
-    stmt = select(Business)
+    # is_active always applies, even in the moderation queue — a soft-deleted
+    # business shouldn't sit in a moderator's pending/approved/rejected list
+    # forever just because it was never hard-removable. Same fix already
+    # applied to the public GET /businesses endpoint; this admin-facing list
+    # had the identical gap (found live: a soft-deleted business created
+    # during R2 verification kept showing as "pending" on the real
+    # production Admin Panel).
+    stmt = select(Business).where(Business.is_active.is_(True))
     if status_filter is not None:
         stmt = stmt.where(Business.verification_status == status_filter)
     if category_id is not None:
@@ -215,7 +222,9 @@ def admin_list_products(
 ) -> Page[ProductRead]:
     page, page_size = _paginate_params(page, page_size)
 
-    stmt = select(Product)
+    # is_active always applies — see admin_list_businesses's comment above,
+    # same gap, same fix.
+    stmt = select(Product).where(Product.is_active.is_(True))
     if status_filter is not None:
         stmt = stmt.where(Product.moderation_status == status_filter)
     if business_id is not None:
@@ -344,7 +353,9 @@ def admin_list_videos(
 ) -> Page[VideoRead]:
     page, page_size = _paginate_params(page, page_size)
 
-    stmt = select(Video)
+    # is_active always applies — see admin_list_businesses's comment above,
+    # same gap, same fix.
+    stmt = select(Video).where(Video.is_active.is_(True))
     if status_filter is not None:
         stmt = stmt.where(Video.moderation_status == status_filter)
     if business_id is not None:

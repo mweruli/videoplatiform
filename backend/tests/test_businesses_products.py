@@ -344,6 +344,76 @@ def test_removed_product_stays_gone_from_owner_view() -> None:
     assert resp.json()["total"] == 0
 
 
+def test_admin_product_queue_hides_soft_deleted_product() -> None:
+    """Regression guard, found live on the production Admin Panel (not
+    written speculatively): GET /admin/products never filtered on
+    is_active, so a soft-deleted product that was still pending kept
+    showing up in the moderation queue (and the Overview's combined review
+    queue + KPI count) forever. A different endpoint than
+    test_removed_product_stays_gone_from_owner_view's owner-view regression,
+    same underlying gap - is_active must always be enforced here too."""
+    owner_token, _ = _dev_token()
+    admin_token, _ = _dev_token(role="platform_admin")
+    business = _create_business(owner_token)
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Soon Removed From Admin Queue")},
+        headers=_auth_headers(owner_token),
+    )
+    product = resp.json()
+
+    resp = client.get(
+        "/api/v1/admin/products", params={"status": "pending"}, headers=_auth_headers(admin_token)
+    )
+    ids = [p["id"] for p in resp.json()["items"]]
+    assert product["id"] in ids
+
+    resp = client.delete(
+        f"/api/v1/products/{product['id']}", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 204
+
+    resp = client.get(
+        "/api/v1/admin/products", params={"status": "pending"}, headers=_auth_headers(admin_token)
+    )
+    ids = [p["id"] for p in resp.json()["items"]]
+    assert product["id"] not in ids
+
+
+def test_admin_business_queue_hides_soft_deleted_business() -> None:
+    """Business equivalent of test_admin_product_queue_hides_soft_deleted_product
+    - GET /admin/businesses had the identical is_active gap."""
+    owner_token, _ = _dev_token()
+    admin_token, _ = _dev_token(role="platform_admin")
+    business = _create_business(owner_token)
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/submit-for-verification",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200
+
+    resp = client.get(
+        "/api/v1/admin/businesses",
+        params={"status": "pending"},
+        headers=_auth_headers(admin_token),
+    )
+    ids = [b["id"] for b in resp.json()["items"]]
+    assert business["id"] in ids
+
+    resp = client.delete(
+        f"/api/v1/businesses/{business['id']}", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 204
+
+    resp = client.get(
+        "/api/v1/admin/businesses",
+        params={"status": "pending"},
+        headers=_auth_headers(admin_token),
+    )
+    ids = [b["id"] for b in resp.json()["items"]]
+    assert business["id"] not in ids
+
+
 def test_product_reject_and_permissions() -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)

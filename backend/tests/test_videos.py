@@ -303,6 +303,36 @@ def test_removed_video_stays_gone_from_owner_view() -> None:
     assert resp.json()["total"] == 0
 
 
+def test_admin_video_queue_hides_soft_deleted_video() -> None:
+    """Regression guard, found live on the production Admin Panel (not
+    written speculatively): a soft-deleted video that was still `pending`
+    kept showing up in GET /admin/videos (and therefore the Overview's
+    combined review queue and its KPI count) forever, since that endpoint
+    never filtered on is_active at all — a different endpoint than the
+    owner-view regression above (test_removed_video_stays_gone_from_owner_view),
+    same underlying gap. is_active must always be enforced in the admin
+    moderation queue too."""
+    owner_token, _ = _dev_token()
+    admin_token, _ = _dev_token(role="platform_admin")
+    business = _create_business(owner_token)
+    video = _upload_video(owner_token, business["id"])
+
+    resp = client.get(
+        "/api/v1/admin/videos", params={"status": "pending"}, headers=_auth_headers(admin_token)
+    )
+    ids = [v["id"] for v in resp.json()["items"]]
+    assert video["id"] in ids
+
+    resp = client.delete(f"/api/v1/videos/{video['id']}", headers=_auth_headers(owner_token))
+    assert resp.status_code == 204
+
+    resp = client.get(
+        "/api/v1/admin/videos", params={"status": "pending"}, headers=_auth_headers(admin_token)
+    )
+    ids = [v["id"] for v in resp.json()["items"]]
+    assert video["id"] not in ids
+
+
 def test_view_count_not_incremented_for_pending_video() -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
