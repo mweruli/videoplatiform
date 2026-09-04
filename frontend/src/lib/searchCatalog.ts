@@ -1,4 +1,4 @@
-import type { BusinessDto, ProductDto } from './api'
+import type { BusinessDto, CampaignTargetingDto, ProductDto } from './api'
 import type { Video } from '../data/types'
 import { matchesTokens, scoreTokens } from './searchMatch'
 import type { SearchFilters } from '../components/search/filterState'
@@ -46,6 +46,66 @@ function rank<T>(
     .map((x) => x.item)
 }
 
+/**
+ * Does this campaign's targeting earn the Sponsored tie-break in the
+ * viewer's CURRENT browse/search context — never the item's own organic
+ * category(ies)/location. See docs/decisions.md's "Phase 1b design pass:
+ * self-serve advertiser campaign manager" entry, "What 'matches the
+ * category/location the user is browsing' means, precisely" subsection,
+ * which this implements verbatim:
+ *
+ * - `category_id: null` matches any context; a specific `category_id` only
+ *   matches when the viewer currently has that category selected in
+ *   `SearchFilters.categoryIds` (Search's category filter chips / Home's
+ *   `?category=` link resolved into the same filter — see Search.tsx).
+ * - `county: null` matches any context; a specific `county` only matches
+ *   when the viewer's free-text `SearchFilters.location` is currently set
+ *   AND names that county — same substring-match direction (does the
+ *   county's full name contain what the viewer typed) as this file's own
+ *   organic county/city location filter just above, for consistency.
+ *
+ * This function is deliberately only ever consulted from `rank()`'s
+ * tie-break, AFTER `matchesTokens`/the category/location filters have
+ * already decided whether an item is in the result set at all — it must
+ * never be used to decide inclusion itself, which is exactly what would
+ * turn a targeted tie-break into injecting irrelevant results.
+ */
+function campaignMatchesContext(campaign: CampaignTargetingDto, filters: SearchFilters): boolean {
+  const categoryMatches = campaign.category_id === null || filters.categoryIds.has(campaign.category_id)
+  const trimmedLocation = filters.location.trim().toLowerCase()
+  const locationMatches =
+    campaign.county === null || (trimmedLocation !== '' && campaign.county.toLowerCase().includes(trimmedLocation))
+  return categoryMatches && locationMatches
+}
+
+/** OR of the two "is this sponsored" signals (manual `is_featured` and a context-matching active ad campaign) feeding the one shared Sponsored badge/tie-break — see docs/decisions.md: "the frontend's tie-break logic should simply OR the two signals together, not present them differently." */
+export function isBusinessSponsored(business: BusinessDto, filters: SearchFilters): boolean {
+  return business.is_featured || (business.active_campaign !== null && campaignMatchesContext(business.active_campaign, filters))
+}
+
+export function isProductSponsored(product: ProductDto, filters: SearchFilters): boolean {
+  return product.is_featured || (product.active_campaign !== null && campaignMatchesContext(product.active_campaign, filters))
+}
+
+/**
+ * The id of the active campaign actually responsible for a Sponsored render
+ * in the current context, or `null` if this item either isn't sponsored at
+ * all or is only sponsored via `is_featured` (no campaign involved). Used to
+ * decide which campaign ids get an impression/click recorded — deliberately
+ * NOT the same condition as `isBusiness/ProductSponsored` above, since a
+ * campaign that exists but doesn't match the current context must never be
+ * billed for an impression it didn't actually earn, even if the item is
+ * separately sponsored via `is_featured`.
+ */
+export function matchingActiveCampaignId(
+  target: { active_campaign: CampaignTargetingDto | null },
+  filters: SearchFilters,
+): string | null {
+  const campaign = target.active_campaign
+  if (!campaign) return null
+  return campaignMatchesContext(campaign, filters) ? campaign.campaign_id : null
+}
+
 export function filterBusinesses(items: BusinessDto[], tokens: string[], filters: SearchFilters): BusinessDto[] {
   const haystackOf = (b: BusinessDto) => [b.name, b.description, b.category?.name, b.county, b.city]
   const matched = items.filter((b) => {
@@ -58,7 +118,7 @@ export function filterBusinesses(items: BusinessDto[], tokens: string[], filters
     }
     return true
   })
-  return rank(matched, tokens, haystackOf, (b) => b.is_featured)
+  return rank(matched, tokens, haystackOf, (b) => isBusinessSponsored(b, filters))
 }
 
 export function filterProducts(items: ProductDto[], tokens: string[], filters: SearchFilters): ProductDto[] {
@@ -87,7 +147,7 @@ export function filterProducts(items: ProductDto[], tokens: string[], filters: S
     if (max !== null && priceMin !== null && priceMin > max) return false
     return true
   })
-  return rank(matched, tokens, haystackOf, (p) => p.is_featured)
+  return rank(matched, tokens, haystackOf, (p) => isProductSponsored(p, filters))
 }
 
 /**

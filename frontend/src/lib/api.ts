@@ -138,6 +138,22 @@ export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'reject
 export type ModerationStatus = 'pending' | 'approved' | 'rejected'
 export type AvailabilityStatus = 'in_stock' | 'made_to_order' | 'out_of_stock' | 'discontinued'
 
+/**
+ * The lightweight shape embedded in `BusinessDto.active_campaign`/
+ * `ProductDto.active_campaign` — mirrors app/schemas/campaign_targeting.py's
+ * `CampaignTargetingRead` 1:1. Present only when there currently exists an
+ * ACTIVE Campaign row targeting that exact business/product — see
+ * lib/searchCatalog.ts's `rank()` for how this feeds the Sponsored tie-break
+ * and docs/decisions.md's "Phase 1b design pass: self-serve advertiser
+ * campaign manager" entry ("What 'matches the category/location the user is
+ * browsing' means, precisely") for the exact context-matching semantics.
+ */
+export interface CampaignTargetingDto {
+  campaign_id: string
+  category_id: number | null
+  county: string | null
+}
+
 export interface BusinessSummaryDto {
   id: string
   name: string
@@ -175,6 +191,8 @@ export interface BusinessDto {
   is_featured: boolean
   /** Set only while a time-limited self-serve featured purchase (see FeaturedPurchaseDto below) is active; null for an admin-permanent feature or when not featured at all. */
   featured_until: string | null
+  /** Present only while an ACTIVE self-serve ad campaign targets this business itself (not one of its products) — see CampaignTargetingDto's docstring. Feeds the same Sponsored tie-break/badge as `is_featured`, never a separate visual treatment. */
+  active_campaign: CampaignTargetingDto | null
   created_at: string
   updated_at: string
   product_count: number
@@ -217,6 +235,8 @@ export interface ProductDto {
   is_featured: boolean
   /** Set only while a time-limited self-serve featured purchase (see FeaturedPurchaseDto below) is active; null for an admin-permanent feature or when not featured at all. */
   featured_until: string | null
+  /** Present only while an ACTIVE self-serve ad campaign targets this exact product — see CampaignTargetingDto's docstring. Feeds the same Sponsored tie-break/badge as `is_featured`, never a separate visual treatment. */
+  active_campaign: CampaignTargetingDto | null
   created_at: string
   updated_at: string
   related_products: ProductSummaryDto[]
@@ -262,6 +282,34 @@ export function listBusinesses(params: ListBusinessesParams = {}): Promise<Page<
 
 export function getBusinessBySlug(slug: string): Promise<BusinessDto> {
   return apiFetch<BusinessDto>(`${V1}/businesses/slug/${encodeURIComponent(slug)}`)
+}
+
+/**
+ * "Search appearances" batch reporting — mirrors app/schemas/common.py's
+ * `ImpressionBatchRequest`/`ImpressionBatchResult` 1:1 (see docs/decisions.md's
+ * "core analytics" entry for the full design). Public, unauthenticated,
+ * fire-and-forget: the caller reports the ids it actually rendered in a
+ * search/browse result set, capped at 1-100 per call; unknown/non-public ids
+ * are silently skipped server-side. `POST /campaigns/impressions`/`/clicks`
+ * (below) share this exact shape and are batched alongside these two at the
+ * same call site — see Search.tsx's impression-reporting effect.
+ */
+export interface ImpressionBatchResult {
+  updated: number
+}
+
+export function recordBusinessImpressions(ids: string[]): Promise<ImpressionBatchResult> {
+  return apiFetch<ImpressionBatchResult>(`${V1}/businesses/impressions`, {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })
+}
+
+export function recordProductImpressions(ids: string[]): Promise<ImpressionBatchResult> {
+  return apiFetch<ImpressionBatchResult>(`${V1}/products/impressions`, {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })
 }
 
 export interface ListProductsParams {
@@ -751,6 +799,46 @@ export function rejectVideoAdmin(token: string, videoId: string, payload: Modera
 }
 
 /**
+ * Admin Campaign Moderation (`GET /admin/campaigns`, approve/reject) — mirrors
+ * app/api/v1/endpoints/admin.py's campaign routes 1:1. Unlike Business/Product/
+ * Video's 3-value status, `CampaignStatus` has 7 reachable values (see
+ * lib/api.ts's CampaignStatus type) — `status` here still only takes one at a
+ * time (the backend has no "OR of statuses" filter), so the admin screen's
+ * broader tab groupings (e.g. "Live" = approved+active+paused+exhausted) are
+ * assembled client-side from multiple calls, same pattern as
+ * useAdminBusinessCounts' per-status Promise.all.
+ */
+export interface AdminListCampaignsParams {
+  status?: CampaignStatus
+  business_id?: string
+  q?: string
+  page?: number
+  page_size?: number
+}
+
+export function adminListCampaigns(token: string, params: AdminListCampaignsParams = {}): Promise<Page<CampaignDto>> {
+  return apiFetch<Page<CampaignDto>>(`${V1}/admin/campaigns${toQuery(params)}`, { headers: authHeaders(token) })
+}
+
+/** APPROVABLE_STATUSES only (pending_review or rejected) — 409 otherwise. Uses `resolve_status_after_approval()` server-side, so a pre-funded campaign lands straight on 'active' rather than 'approved'. */
+export function approveCampaignAdmin(token: string, campaignId: string, payload: ModerationActionPayload = {}): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/admin/campaigns/${campaignId}/approve`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** REJECTABLE_STATUSES (everything except completed) — a moderator can pull down a running, spending campaign immediately. */
+export function rejectCampaignAdmin(token: string, campaignId: string, payload: ModerationRejectPayload): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/admin/campaigns/${campaignId}/reject`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
  * Admin Category Management (`GET/POST /admin/categories`,
  * `PATCH /admin/categories/{id}`) — mirrors app/api/v1/endpoints/admin.py's
  * category routes. Deactivate-only (no delete route exists at all — see
@@ -955,5 +1043,177 @@ export function listFeaturedPurchases(
 ): Promise<Page<FeaturedPurchaseDto>> {
   return apiFetch<Page<FeaturedPurchaseDto>>(`${V1}/businesses/${businessId}/featured-purchases${toQuery(params)}`, {
     headers: authHeaders(token),
+  })
+}
+
+/**
+ * Self-serve advertiser campaign manager (Phase 1b) — mirrors
+ * app/schemas/campaign.py / app/api/v1/endpoints/campaigns.py 1:1. See
+ * docs/decisions.md's "Phase 1b design pass: self-serve advertiser campaign
+ * manager" entry (and its endpoints-shipped follow-up) for the full design:
+ * the lifecycle state machine, the funding/moderation-independence rules,
+ * and CPM-only-for-v1 billing. Unlike FeaturedPurchase (a one-shot,
+ * duration-based flat fee), a campaign is a real prepaid budget that depletes
+ * with impressions and can be topped up more than once over its life.
+ */
+
+export type CampaignStatus = 'pending_review' | 'rejected' | 'approved' | 'active' | 'paused' | 'exhausted' | 'completed'
+export type CampaignFundingStatus = 'pending' | 'completed' | 'failed'
+
+export interface CampaignPricingDto {
+  cpm_kes: string
+  cost_per_impression_kes: string
+  min_funding_kes: string
+}
+
+/** Public — never hardcode the CPM rate/minimum top-up in the frontend. */
+export function getCampaignPricing(): Promise<CampaignPricingDto> {
+  return apiFetch<CampaignPricingDto>(`${V1}/campaigns/pricing`)
+}
+
+export interface CampaignDto {
+  id: string
+  business_id: string
+  business: BusinessSummaryDto
+  /** Non-null when this campaign promotes one specific product rather than the business itself. */
+  product: ProductSummaryDto | null
+  name: string
+  /** Targeting — null means "all categories"/"all locations", see docs/decisions.md's ad-serving-mechanic section. */
+  category: CategoryDto | null
+  county: string | null
+  cpm_kes: string
+  budget_kes: string
+  spent_kes: string
+  /** Computed server-side: `budget_kes - spent_kes`, floored at 0. */
+  remaining_kes: string
+  impression_count: number
+  click_count: number
+  status: CampaignStatus
+  /** A moderator's rejection reason, or their approval note — same single-field reuse as Business.verification_note/Product.moderation_note. */
+  moderation_note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignCreatePayload {
+  name: string
+  /** Omit/null to promote the business itself; set to promote one specific product of that business. Immutable after creation. */
+  product_id?: string | null
+  /** Omit/null to target all categories. */
+  category_id?: number | null
+  /** Omit/null to target all locations. */
+  county?: string | null
+}
+
+/** PATCH semantics — target (`product_id`/`business_id`) is immutable, not present here at all; an owner who wants to promote a different product creates a new campaign. Editing an already-reviewed campaign re-queues it for moderation (server-side; see the endpoint's docstring). */
+export type CampaignUpdatePayload = Partial<Pick<CampaignCreatePayload, 'name' | 'category_id' | 'county'>>
+
+export function createCampaign(token: string, businessId: string, payload: CampaignCreatePayload): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/businesses/${businessId}/campaigns`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface ListCampaignsParams {
+  page?: number
+  page_size?: number
+}
+
+export function listBusinessCampaigns(
+  token: string,
+  businessId: string,
+  params: ListCampaignsParams = {},
+): Promise<Page<CampaignDto>> {
+  return apiFetch<Page<CampaignDto>>(`${V1}/businesses/${businessId}/campaigns${toQuery(params)}`, {
+    headers: authHeaders(token),
+  })
+}
+
+export function getCampaign(token: string, campaignId: string): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/campaigns/${campaignId}`, { headers: authHeaders(token) })
+}
+
+export function updateCampaign(token: string, campaignId: string, payload: CampaignUpdatePayload): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/campaigns/${campaignId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** ACTIVE -> PAUSED only — 409 (surfaced via ApiError) otherwise. The dashboard only ever shows this action when `status === 'active'`, so a 409 round-trip should never actually happen in normal use. */
+export function pauseCampaign(token: string, campaignId: string): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/campaigns/${campaignId}/pause`, { method: 'POST', headers: authHeaders(token) })
+}
+
+/** PAUSED -> ACTIVE only, unconditionally. */
+export function resumeCampaign(token: string, campaignId: string): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/campaigns/${campaignId}/resume`, { method: 'POST', headers: authHeaders(token) })
+}
+
+/** Owner's own "I'm done" — allowed from any non-COMPLETED status, 409 from COMPLETED itself (double-click safety). Truly terminal, unlike EXHAUSTED. */
+export function completeCampaign(token: string, campaignId: string): Promise<CampaignDto> {
+  return apiFetch<CampaignDto>(`${V1}/campaigns/${campaignId}/complete`, { method: 'POST', headers: authHeaders(token) })
+}
+
+export interface CampaignFundingDto {
+  id: string
+  campaign_id: string
+  amount_kes: string
+  status: CampaignFundingStatus
+  mpesa_receipt_number: string | null
+  created_at: string
+}
+
+export interface CampaignFundingCreatePayload {
+  /** Advertiser-chosen — validated against CampaignPricingDto.min_funding_kes both client- and server-side. */
+  amount_kes: number
+  /** Whatever Kenyan MSISDN shape the backend's app/utils/phone.py accepts — see lib/phone.ts. */
+  phone: string
+}
+
+/** Owner/admin only. Only creates a row once Daraja's STK Push itself succeeds — a synchronous failure surfaces as a 502 ApiError with no row created. Allowed from any campaign status except COMPLETED — funding is independent of moderation review, see docs/decisions.md. */
+export function createCampaignFunding(
+  token: string,
+  campaignId: string,
+  payload: CampaignFundingCreatePayload,
+): Promise<CampaignFundingDto> {
+  return apiFetch<CampaignFundingDto>(`${V1}/campaigns/${campaignId}/funding`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Owner/admin only — what the funding modal polls every 2-3s while status is 'pending'. */
+export function getCampaignFunding(token: string, fundingId: string): Promise<CampaignFundingDto> {
+  return apiFetch<CampaignFundingDto>(`${V1}/campaign-fundings/${fundingId}`, { headers: authHeaders(token) })
+}
+
+/** Owner/admin only — paginated top-up history for a campaign. */
+export function listCampaignFundings(
+  token: string,
+  campaignId: string,
+  params: ListCampaignsParams = {},
+): Promise<Page<CampaignFundingDto>> {
+  return apiFetch<Page<CampaignFundingDto>>(`${V1}/campaigns/${campaignId}/fundings${toQuery(params)}`, {
+    headers: authHeaders(token),
+  })
+}
+
+/** Public batch endpoints, same shape/reasoning as recordBusinessImpressions/recordProductImpressions above — the frontend calls these with the ids of campaigns whose Sponsored tie-break is currently rendered, batched at the same call site (see Search.tsx). `/clicks` is analytics-only and never bills `spent_kes` (CPM-only for v1). */
+export function recordCampaignImpressions(ids: string[]): Promise<ImpressionBatchResult> {
+  return apiFetch<ImpressionBatchResult>(`${V1}/campaigns/impressions`, {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })
+}
+
+export function recordCampaignClicks(ids: string[]): Promise<ImpressionBatchResult> {
+  return apiFetch<ImpressionBatchResult>(`${V1}/campaigns/clicks`, {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
   })
 }

@@ -42,6 +42,8 @@ export type IconName =
   | 'lock'
   | 'externalLink'
   | 'sparkle'
+  | 'megaphone'
+  | 'alertTriangle'
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -87,6 +89,9 @@ const PATHS: Record<IconName, string> = {
     '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
   sparkle:
     '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" fill="currentColor" stroke="none"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" fill="currentColor" stroke="none"/>',
+  megaphone:
+    '<path d="M3 11v2a2 2 0 002 2h1l2.5 5.5 1.8-.7L8.7 15H10l8 4V5l-8 4H5a2 2 0 00-2 2z"/><path d="M18 9.5a4 4 0 010 5"/>',
+  alertTriangle: '<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v4"/><circle cx="12" cy="17.3" r="0.4" fill="currentColor" stroke="none"/>',
 }
 
 interface IconProps {

@@ -4,6 +4,7 @@ import BusinessAnalytics from '../components/dashboard/BusinessAnalytics'
 import BusinessForm from '../components/dashboard/BusinessForm'
 import BusinessPanel from '../components/dashboard/BusinessPanel'
 import BusinessSwitcher from '../components/dashboard/BusinessSwitcher'
+import CampaignsSection from '../components/dashboard/CampaignsSection'
 import ProductForm from '../components/dashboard/ProductForm'
 import ProductManageCard from '../components/dashboard/ProductManageCard'
 import ProductsSection from '../components/dashboard/ProductsSection'
@@ -38,13 +39,14 @@ import { useToast } from '../lib/toast'
 
 type ProductModalState = { mode: 'create' } | { mode: 'edit'; product: ProductDto } | null
 type VideoModalState = { mode: 'create' } | { mode: 'edit'; video: VideoDto } | null
-type DashSectionId = 'overview' | 'profile' | 'products' | 'videos' | 'analytics'
+type DashSectionId = 'overview' | 'profile' | 'products' | 'videos' | 'campaigns' | 'analytics'
 
 const NAV_ITEMS: DashNavItem[] = [
   { id: 'overview', label: 'Overview', icon: 'grid' },
   { id: 'profile', label: 'Business Profile', icon: 'building' },
   { id: 'products', label: 'Products', icon: 'box' },
   { id: 'videos', label: 'Videos', icon: 'video' },
+  { id: 'campaigns', label: 'Ad Campaigns', icon: 'megaphone' },
   { id: 'analytics', label: 'Analytics', icon: 'chart' },
   { id: 'orders', label: 'Orders', icon: 'truck', soon: true },
 ]
@@ -54,6 +56,7 @@ const SECTION_TITLES: Record<DashSectionId, string> = {
   profile: 'Business Profile',
   products: 'Products',
   videos: 'Videos',
+  campaigns: 'Ad Campaigns',
   analytics: 'Analytics',
 }
 
@@ -412,6 +415,12 @@ function DashboardContent() {
             onUpload={() => setVideoModal({ mode: 'create' })}
             onEditVideo={(video) => setVideoModal({ mode: 'edit', video })}
           />
+        </div>
+      )}
+
+      {selectedBusiness && dashSection === 'campaigns' && (
+        <div className="mt-4">
+          <CampaignsSection business={selectedBusiness} products={products} />
         </div>
       )}
 

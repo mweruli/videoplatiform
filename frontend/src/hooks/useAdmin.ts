@@ -3,21 +3,31 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   adminGetUser,
   adminListBusinesses,
+  adminListCampaigns,
   adminListCategories,
   adminListProducts,
   adminListUsers,
   adminListVideos,
   adminUpdateUser,
   approveBusinessAdmin,
+  approveCampaignAdmin,
   approveProductAdmin,
   approveVideoAdmin,
   createCategoryAdmin,
   rejectBusinessAdmin,
+  rejectCampaignAdmin,
   rejectProductAdmin,
   rejectVideoAdmin,
   updateCategoryAdmin,
 } from '../lib/api'
-import type { AdminListUsersParams, CategoryCreatePayload, CategoryUpdatePayload, ModerationStatus, VerificationStatus } from '../lib/api'
+import type {
+  AdminListUsersParams,
+  CampaignStatus,
+  CategoryCreatePayload,
+  CategoryUpdatePayload,
+  ModerationStatus,
+  VerificationStatus,
+} from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 /**
@@ -135,6 +145,7 @@ function useInvalidateAdmin() {
     qc.invalidateQueries({ queryKey: ['products'] })
     qc.invalidateQueries({ queryKey: ['product'] })
     qc.invalidateQueries({ queryKey: ['videos'] })
+    qc.invalidateQueries({ queryKey: ['campaigns'] })
   }
 }
 
@@ -191,6 +202,90 @@ export function useRejectVideo() {
   return useMutation({
     mutationFn: ({ videoId, reason }: { videoId: string; reason: string }) =>
       rejectVideoAdmin(token as string, videoId, { reason }),
+    onSuccess: () => invalidate(),
+  })
+}
+
+/**
+ * Admin Campaign Moderation (`pages/Admin.tsx`'s "campaigns" section).
+ * `CampaignStatus` has 7 reachable values (see docs/decisions.md's Phase 1b
+ * design pass) — too many for StatusTabs' usual one-tab-per-status model, so
+ * this groups them into 4 tabs the way a moderator actually thinks about
+ * them: still needs a first look, currently live in some form (including
+ * paused/exhausted — a moderator reviewing "what's live" wants to see all of
+ * it, not just the actively-spending subset), formally rejected, and the
+ * advertiser's own closed-out campaigns. `GET /admin/campaigns` only accepts
+ * one `status` at a time, so a multi-status tab is assembled client-side from
+ * parallel calls — same Promise.all pattern as useAdminBusinessCounts below.
+ */
+export type AdminCampaignTab = 'needs_review' | 'live' | 'rejected' | 'completed'
+
+export const ADMIN_CAMPAIGN_TAB_STATUSES: Record<AdminCampaignTab, CampaignStatus[]> = {
+  needs_review: ['pending_review'],
+  live: ['approved', 'active', 'paused', 'exhausted'],
+  rejected: ['rejected'],
+  completed: ['completed'],
+}
+
+const ALL_CAMPAIGN_STATUSES: CampaignStatus[] = [
+  'pending_review',
+  'approved',
+  'active',
+  'paused',
+  'exhausted',
+  'rejected',
+  'completed',
+]
+
+/** Cheap per-status totals (page_size:1, so only `total` is paid for) — powers both the tab-count pills and the per-status breakdown a moderator might want on Overview. */
+export function useAdminCampaignCounts() {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'campaigns', 'counts'],
+    queryFn: async () => {
+      const results = await Promise.all(
+        ALL_CAMPAIGN_STATUSES.map((s) => adminListCampaigns(token as string, { status: s, page_size: 1 })),
+      )
+      return Object.fromEntries(ALL_CAMPAIGN_STATUSES.map((s, i) => [s, results[i].total])) as Record<CampaignStatus, number>
+    },
+    enabled: isStaff && Boolean(token),
+  })
+}
+
+/** Fetches every status belonging to `tab`, merges, and sorts newest-first — the multi-status tab's real row list. */
+export function useAdminCampaigns(tab: AdminCampaignTab) {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  const statuses = ADMIN_CAMPAIGN_TAB_STATUSES[tab]
+  return useQuery({
+    queryKey: ['admin', 'campaigns', 'tab', tab],
+    queryFn: async () => {
+      const results = await Promise.all(
+        statuses.map((s) => adminListCampaigns(token as string, { status: s, page_size: 100 })),
+      )
+      const items = results.flatMap((r) => r.items).sort((a, b) => b.created_at.localeCompare(a.created_at))
+      return { items, total: results.reduce((sum, r) => sum + r.total, 0) }
+    },
+    enabled: isStaff && Boolean(token),
+  })
+}
+
+export function useApproveCampaign() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateAdmin()
+  return useMutation({
+    mutationFn: (campaignId: string) => approveCampaignAdmin(token as string, campaignId),
+    onSuccess: () => invalidate(),
+  })
+}
+
+export function useRejectCampaign() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateAdmin()
+  return useMutation({
+    mutationFn: ({ campaignId, reason }: { campaignId: string; reason: string }) =>
+      rejectCampaignAdmin(token as string, campaignId, { reason }),
     onSuccess: () => invalidate(),
   })
 }

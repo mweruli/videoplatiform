@@ -185,18 +185,18 @@ export default function ProductModerationCard({ product }: ProductModerationCard
             type="button"
             onClick={handleApprove}
             disabled={approveMutation.isPending}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-teal px-4 py-2 text-sm font-bold text-white transition-opacity duration-150 ease-brand hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-teal px-3.5 py-1.5 text-xs font-bold text-white transition-opacity duration-150 ease-brand hover:opacity-90 disabled:pointer-events-none disabled:opacity-60"
           >
-            <Icon name="check" size={13} strokeWidth={3} />
+            <Icon name="check" size={11} strokeWidth={3} />
             {approveMutation.isPending ? 'Approving…' : 'Approve'}
           </button>
           <button
             type="button"
             onClick={() => setRejecting(true)}
             disabled={rejectMutation.isPending}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border-[1.5px] border-danger px-4 py-2 text-sm font-bold text-danger transition-colors duration-150 ease-brand hover:bg-danger hover:text-white disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full border-[1.5px] border-danger px-3.5 py-1.5 text-xs font-bold text-danger transition-colors duration-150 ease-brand hover:bg-danger hover:text-white disabled:pointer-events-none disabled:opacity-60"
           >
-            <Icon name="close" size={13} strokeWidth={3} />
+            <Icon name="close" size={11} strokeWidth={3} />
             Reject
           </button>
         </div>

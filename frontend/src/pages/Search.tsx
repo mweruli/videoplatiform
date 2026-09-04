@@ -17,7 +17,8 @@ import Icon from '../components/icons/Icon'
 import { useAllBusinesses, useAllProducts, useCategories } from '../hooks/useCatalog'
 import { SEARCH_SUGGESTIONS } from '../data/home'
 import { VIDEOS } from '../data/videos'
-import { filterBusinesses, filterProducts, filterVideos } from '../lib/searchCatalog'
+import { recordBusinessImpressions, recordCampaignImpressions, recordProductImpressions } from '../lib/api'
+import { filterBusinesses, filterProducts, filterVideos, isBusinessSponsored, isProductSponsored, matchingActiveCampaignId } from '../lib/searchCatalog'
 import { tokenize } from '../lib/searchMatch'
 
 /** How long to wait after the visitor stops typing before a live search re-runs — long enough to not thrash on every keystroke, short enough to feel instant. Submitting the form (Enter/tap Search) still applies immediately, bypassing this. */
@@ -163,6 +164,31 @@ export default function Search() {
 
   const isLoading = businessesQuery.isLoading || productsQuery.isLoading
   const isError = businessesQuery.isError || productsQuery.isError
+
+  // "Search appearances" reporting — fires once per meaningfully different
+  // rendered result set (query/filter/tab changes that actually change which
+  // businesses/products are on screen), not on every keystroke. Reports the
+  // real ids the viewer was shown (POST /businesses/impressions,
+  // /products/impressions — see docs/decisions.md's "core analytics" entry)
+  // batched alongside POST /campaigns/impressions for any campaign whose
+  // Sponsored tie-break is actually rendered in this context — one shared
+  // call site per the ad-serving-mechanic design, not a second separate
+  // effect. Fire-and-forget: a failed report shouldn't disrupt browsing, so
+  // errors are swallowed rather than surfaced.
+  useEffect(() => {
+    if (businesses.length === 0 && products.length === 0) return
+    const businessIds = businesses.map((b) => b.id)
+    const productIds = products.map((p) => p.id)
+    const campaignIds = [
+      ...businesses.map((b) => matchingActiveCampaignId(b, appliedFilters)),
+      ...products.map((p) => matchingActiveCampaignId(p, appliedFilters)),
+    ].filter((id): id is string => id !== null)
+
+    if (businessIds.length > 0) recordBusinessImpressions(businessIds).catch(() => {})
+    if (productIds.length > 0) recordProductImpressions(productIds).catch(() => {})
+    if (campaignIds.length > 0) recordCampaignImpressions(campaignIds).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businesses, products])
 
   function toggleCategory(id: number) {
     setDraftFilters((f) => {
@@ -341,7 +367,12 @@ export default function Search() {
                     )}
                     <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
                       {businesses.map((b) => (
-                        <BusinessResultCard key={b.id} business={b} />
+                        <BusinessResultCard
+                          key={b.id}
+                          business={b}
+                          sponsored={isBusinessSponsored(b, appliedFilters)}
+                          campaignId={matchingActiveCampaignId(b, appliedFilters)}
+                        />
                       ))}
                     </div>
                   </section>
@@ -355,7 +386,12 @@ export default function Search() {
                     )}
                     <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
                       {products.map((p) => (
-                        <ProductResultCard key={p.id} product={p} />
+                        <ProductResultCard
+                          key={p.id}
+                          product={p}
+                          sponsored={isProductSponsored(p, appliedFilters)}
+                          campaignId={matchingActiveCampaignId(p, appliedFilters)}
+                        />
                       ))}
                     </div>
                   </section>

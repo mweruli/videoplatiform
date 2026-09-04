@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import BusinessModerationCard from '../components/admin/BusinessModerationCard'
+import CampaignModerationCard from '../components/admin/CampaignModerationCard'
 import CategoryManagement from '../components/admin/CategoryManagement'
 import ProductModerationCard from '../components/admin/ProductModerationCard'
 import StatusTabs from '../components/admin/StatusTabs'
@@ -16,17 +17,20 @@ import Skeleton from '../components/ui/Skeleton'
 import {
   useAdminBusinessCounts,
   useAdminBusinesses,
+  useAdminCampaignCounts,
+  useAdminCampaigns,
   useAdminProductCounts,
   useAdminProducts,
   useAdminUsers,
   useAdminVideoCounts,
   useAdminVideos,
 } from '../hooks/useAdmin'
+import type { AdminCampaignTab } from '../hooks/useAdmin'
 import { useCategories } from '../hooks/useCatalog'
 import type { ModerationStatus, VerificationStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod' | 'categories' | 'users'
+type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod' | 'campmod' | 'categories' | 'users'
 
 const BUSINESS_STATUS_OPTIONS: { id: VerificationStatus; label: string }[] = [
   { id: 'pending', label: 'Pending' },
@@ -47,11 +51,19 @@ const VIDEO_STATUS_OPTIONS: { id: ModerationStatus; label: string }[] = [
   { id: 'rejected', label: 'Rejected' },
 ]
 
+const CAMPAIGN_TAB_OPTIONS: { id: AdminCampaignTab; label: string }[] = [
+  { id: 'needs_review', label: 'Needs review' },
+  { id: 'live', label: 'Live' },
+  { id: 'rejected', label: 'Rejected' },
+  { id: 'completed', label: 'Completed' },
+]
+
 const SECTION_TITLES: Record<AdminSectionId, string> = {
   overview: 'Overview',
   bizmod: 'Business Moderation',
   prodmod: 'Product Moderation',
   vidmod: 'Video Moderation',
+  campmod: 'Campaign Moderation',
   categories: 'Category Management',
   users: 'User Management',
 }
@@ -131,10 +143,12 @@ function AdminContent() {
   const [businessStatus, setBusinessStatus] = useState<VerificationStatus>('pending')
   const [productStatus, setProductStatus] = useState<ModerationStatus>('pending')
   const [videoStatus, setVideoStatus] = useState<ModerationStatus>('pending')
+  const [campaignTab, setCampaignTab] = useState<AdminCampaignTab>('needs_review')
 
   const businessCounts = useAdminBusinessCounts()
   const productCounts = useAdminProductCounts()
   const videoCounts = useAdminVideoCounts()
+  const campaignCounts = useAdminCampaignCounts()
   const categoriesQuery = useCategories()
   // Cheap counts for the Overview's two extra KPI cards (Total Businesses,
   // Platform Users) — no dedicated count endpoint needed: businessCounts
@@ -146,23 +160,39 @@ function AdminContent() {
   const pendingBusinessesQuery = useAdminBusinesses('pending')
   const pendingProductsQuery = useAdminProducts('pending')
   const pendingVideosQuery = useAdminVideos('pending')
+  const pendingCampaignsQuery = useAdminCampaigns('needs_review')
   const businessesQuery = useAdminBusinesses(businessStatus)
   const productsQuery = useAdminProducts(productStatus)
   const videosQuery = useAdminVideos(videoStatus)
+  const campaignsQuery = useAdminCampaigns(campaignTab)
 
   const businesses = businessesQuery.data?.items ?? []
   const products = productsQuery.data?.items ?? []
   const videos = videosQuery.data?.items ?? []
+  const campaigns = campaignsQuery.data?.items ?? []
 
   const pendingBusinesses = businessCounts.data?.pending ?? 0
   const pendingProducts = productCounts.data?.pending ?? 0
   const pendingVideos = videoCounts.data?.pending ?? 0
+  const pendingCampaigns = campaignCounts.data?.pending_review ?? 0
+  // Tab-level counts assembled from the per-status totals — mirrors
+  // ADMIN_CAMPAIGN_TAB_STATUSES' grouping so the pill on each tab always
+  // matches what that tab actually shows.
+  const campaignTabCounts: Partial<Record<AdminCampaignTab, number>> | undefined = campaignCounts.data
+    ? {
+        needs_review: campaignCounts.data.pending_review,
+        live: campaignCounts.data.approved + campaignCounts.data.active + campaignCounts.data.paused + campaignCounts.data.exhausted,
+        rejected: campaignCounts.data.rejected,
+        completed: campaignCounts.data.completed,
+      }
+    : undefined
 
   const navItems: DashNavItem[] = [
     { id: 'overview', label: 'Overview', icon: 'grid' },
     { id: 'bizmod', label: 'Business Moderation', icon: 'building', count: pendingBusinesses },
     { id: 'prodmod', label: 'Product Moderation', icon: 'box', count: pendingProducts },
     { id: 'vidmod', label: 'Video Moderation', icon: 'video', count: pendingVideos },
+    { id: 'campmod', label: 'Campaign Moderation', icon: 'megaphone', count: pendingCampaigns },
     { id: 'categories', label: 'Category Management', icon: 'tag' },
     { id: 'users', label: 'User Management', icon: 'user' },
   ]
@@ -171,17 +201,20 @@ function AdminContent() {
     { value: pendingBusinesses, label: 'Pending Biz', warn: pendingBusinesses > 0 },
     { value: pendingProducts, label: 'Pending Prod', warn: pendingProducts > 0 },
     { value: pendingVideos, label: 'Pending Vid', warn: pendingVideos > 0 },
+    { value: pendingCampaigns, label: 'Pending Camp', warn: pendingCampaigns > 0 },
   ]
 
-  // Oldest submissions first, businesses/products/videos interleaved by
-  // `created_at` — one queue to work through, not three separate lists to
-  // remember to check.
+  // Oldest submissions first, businesses/products/videos/campaigns
+  // interleaved by `created_at` — one queue to work through, not four
+  // separate lists to remember to check.
   const needsReview = [
     ...(pendingBusinessesQuery.data?.items ?? []).map((item) => ({ type: 'business' as const, item })),
     ...(pendingProductsQuery.data?.items ?? []).map((item) => ({ type: 'product' as const, item })),
     ...(pendingVideosQuery.data?.items ?? []).map((item) => ({ type: 'video' as const, item })),
+    ...(pendingCampaignsQuery.data?.items ?? []).map((item) => ({ type: 'campaign' as const, item })),
   ].sort((a, b) => a.item.created_at.localeCompare(b.item.created_at))
-  const reviewLoading = pendingBusinessesQuery.isLoading || pendingProductsQuery.isLoading || pendingVideosQuery.isLoading
+  const reviewLoading =
+    pendingBusinessesQuery.isLoading || pendingProductsQuery.isLoading || pendingVideosQuery.isLoading || pendingCampaignsQuery.isLoading
 
   return (
     <DashboardShell
@@ -199,6 +232,7 @@ function AdminContent() {
             <KpiCard value={businessCounts.isSuccess ? pendingBusinesses : '…'} label="Pending Businesses" accent={pendingBusinesses > 0} />
             <KpiCard value={productCounts.isSuccess ? pendingProducts : '…'} label="Pending Products" accent={pendingProducts > 0} />
             <KpiCard value={videoCounts.isSuccess ? pendingVideos : '…'} label="Pending Videos" accent={pendingVideos > 0} />
+            <KpiCard value={campaignCounts.isSuccess ? pendingCampaigns : '…'} label="Pending Campaigns" accent={pendingCampaigns > 0} />
             <KpiCard value={businessCounts.data?.verified ?? '…'} label="Verified Businesses" />
             <KpiCard value={categoriesQuery.data?.length ?? '…'} label="Live Categories" />
             <KpiCard
@@ -228,8 +262,10 @@ function AdminContent() {
                     <BusinessModerationCard key={`b-${entry.item.id}`} business={entry.item} />
                   ) : entry.type === 'product' ? (
                     <ProductModerationCard key={`p-${entry.item.id}`} product={entry.item} />
-                  ) : (
+                  ) : entry.type === 'video' ? (
                     <VideoModerationCard key={`v-${entry.item.id}`} video={entry.item} />
+                  ) : (
+                    <CampaignModerationCard key={`c-${entry.item.id}`} campaign={entry.item} />
                   ),
                 )}
               </div>
@@ -338,6 +374,41 @@ function AdminContent() {
             )}
             {videos.map((video) => (
               <VideoModerationCard key={video.id} video={video} />
+            ))}
+          </div>
+        </DashSection>
+      )}
+
+      {adminSection === 'campmod' && (
+        <DashSection>
+          <StatusTabs active={campaignTab} options={CAMPAIGN_TAB_OPTIONS} counts={campaignTabCounts} onChange={setCampaignTab} />
+          <div className="mt-4 flex flex-col gap-3">
+            {campaignsQuery.isLoading && (
+              <>
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+              </>
+            )}
+            {campaignsQuery.isError && (
+              <EmptyState tone="error" title="Couldn't load campaigns" subtitle="Check your connection and try again.">
+                <button
+                  type="button"
+                  onClick={() => campaignsQuery.refetch()}
+                  className="rounded-full border-[1.5px] border-foreground px-4 py-2 text-sm font-bold text-foreground transition-colors duration-150 ease-brand hover:bg-foreground hover:text-background"
+                >
+                  Retry
+                </button>
+              </EmptyState>
+            )}
+            {!campaignsQuery.isLoading && !campaignsQuery.isError && campaigns.length === 0 && (
+              <EmptyState
+                icon="📣"
+                title="Nothing here"
+                subtitle="Nothing in this tab right now — check another tab, or come back later."
+              />
+            )}
+            {campaigns.map((campaign) => (
+              <CampaignModerationCard key={campaign.id} campaign={campaign} />
             ))}
           </div>
         </DashSection>

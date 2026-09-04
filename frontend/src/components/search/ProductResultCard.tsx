@@ -6,10 +6,15 @@ import Icon from '../icons/Icon'
 import { toCompareProduct, useCompare } from '../../lib/compare'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 import { formatPriceRange } from '../../lib/format'
+import { recordCampaignClicks } from '../../lib/api'
 import type { ProductDto } from '../../lib/api'
 
 interface ProductResultCardProps {
   product: ProductDto
+  /** Whether the Sponsored badge/tie-break applies in the CURRENT browse/search context — see BusinessResultCard's identical prop docstring for why this isn't read directly off `product.is_featured`. */
+  sponsored?: boolean
+  /** The active campaign actually responsible for `sponsored` being true in this context — see BusinessResultCard's identical prop docstring. */
+  campaignId?: string | null
 }
 
 const firstSpec = (specs: Record<string, string>): string | null => {
@@ -17,14 +22,18 @@ const firstSpec = (specs: Record<string, string>): string | null => {
   return entry ? `${entry[0]}: ${entry[1]}` : null
 }
 
-export default function ProductResultCard({ product }: ProductResultCardProps) {
+export default function ProductResultCard({ product, sponsored = product.is_featured, campaignId = null }: ProductResultCardProps) {
   const { isSelected, toggle } = useCompare()
   const spec = firstSpec(product.specs)
   const added = isSelected(product.id)
 
+  function handleClickThrough() {
+    if (campaignId) recordCampaignClicks([campaignId]).catch(() => {})
+  }
+
   return (
     <div className="group flex gap-3.5 rounded-2xl border border-border bg-surface p-3 shadow-soft transition-[box-shadow,transform] duration-150 ease-brand hover:-translate-y-0.5 hover:shadow-elevated motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-      <Link to={`/product/${product.slug}`} className="relative h-[76px] w-[76px] flex-none overflow-hidden rounded-xl">
+      <Link to={`/product/${product.slug}`} onClick={handleClickThrough} className="relative h-[76px] w-[76px] flex-none overflow-hidden rounded-xl">
         <span
           className="absolute inset-0"
           style={{ backgroundImage: gradientFor(gradIndexForId(product.id)) }}
@@ -43,10 +52,10 @@ export default function ProductResultCard({ product }: ProductResultCardProps) {
       </Link>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <Link to={`/product/${product.slug}`} className="block min-w-0 truncate text-[0.9rem] font-bold text-foreground">
+          <Link to={`/product/${product.slug}`} onClick={handleClickThrough} className="block min-w-0 truncate text-[0.9rem] font-bold text-foreground">
             {product.name}
           </Link>
-          {product.is_featured && <SponsoredTag className="flex-none" />}
+          {sponsored && <SponsoredTag className="flex-none" />}
         </div>
         <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
           {product.business.name}
