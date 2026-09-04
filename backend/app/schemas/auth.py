@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models.otp import OtpPurpose
 from app.models.user import UserRole
+from app.schemas.business import BusinessSummary
 from app.utils.phone import is_valid_phone, normalize_phone
 
 # Roles a caller may self-select at registration. Platform admin / content
@@ -170,3 +172,36 @@ class ResetPasswordRequest(_IdentityMixin):
         if self.email and self.phone:
             raise ValueError("Provide either email or phone, not both.")
         return self
+
+
+class AdminUserRead(BaseModel):
+    """Admin dashboard user-list/detail shape. Deliberately never includes
+    `hashed_password`, OTP codes/secrets, or anything else sensitive — only
+    fields an admin reviewing an account actually needs (role, verified
+    contact info, join date, active state)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    phone: str | None
+    email: str | None
+    full_name: str | None
+    role: UserRole
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+
+
+class AdminUserDetail(AdminUserRead):
+    """Single-user admin view — adds the businesses this user owns, so an
+    admin reviewing an account doesn't need a second call."""
+
+    businesses: list[BusinessSummary] = Field(default_factory=list)
+
+
+class AdminUserUpdate(BaseModel):
+    """Admin-only. Currently just the deactivate/reactivate toggle — see
+    docs/decisions.md for the self-deactivation / platform_admin guards
+    enforced at the endpoint level (not expressible in the schema alone)."""
+
+    is_active: bool

@@ -19,13 +19,22 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_moderator
 from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
+from app.models.category import Category
 from app.models.product import ModerationStatus, Product
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.video import Video
-from app.schemas.business import BusinessModerationAction, BusinessRead, BusinessRejectAction
+from app.schemas.auth import AdminUserDetail, AdminUserRead, AdminUserUpdate
+from app.schemas.business import (
+    BusinessModerationAction,
+    BusinessRead,
+    BusinessRejectAction,
+    BusinessSummary,
+)
+from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
 from app.schemas.common import Page
 from app.schemas.product import ProductModerationAction, ProductRead, ProductRejectAction
 from app.schemas.video import VideoModerationAction, VideoRead, VideoRejectAction
+from app.utils.slug import unique_slug
 
 router = APIRouter()
 
@@ -391,3 +400,201 @@ def reject_video(
     db.commit()
     db.refresh(video)
     return video
+
+
+# --- Categories (Phase 1a: "Category framework ... admin-editable") -------
+# Deactivate-only, never hard-delete — products/videos reference categories
+# via FK/join tables (product_categories, video_categories) and businesses
+# via a direct category_id FK, so a hard-delete would either orphan those
+# references or require a cascade that silently strips categorisation from
+# existing listings. `is_active=False` hides a category from the public
+# `GET /categories` list (and therefore category pickers) while leaving
+# every existing reference to it intact — see docs/decisions.md for the full
+# reasoning.
+
+
+@router.get(
+    "/admin/categories",
+    response_model=list[CategoryRead],
+    tags=["admin"],
+    dependencies=[Depends(require_moderator)],
+)
+def admin_list_categories(db: Session = Depends(get_db)) -> list[Category]:
+    """Unlike the public `GET /categories`, this returns inactive categories
+    too — an admin managing the category list needs to see (and be able to
+    reactivate) ones they've previously deactivated."""
+    stmt = select(Category).order_by(Category.name)
+    return list(db.scalars(stmt).all())
+
+
+def _get_category_or_404(db: Session, category_id: int) -> Category:
+    category = db.get(Category, category_id)
+    if category is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found.")
+    return category
+
+
+@router.post(
+    "/admin/categories",
+    response_model=CategoryRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["admin"],
+)
+def create_category(
+    payload: CategoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Category:
+    existing = db.scalar(select(Category).where(func.lower(Category.name) == payload.name.lower()))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A category with that name already exists.",
+        )
+    slug = unique_slug(
+        payload.name, lambda s: db.scalar(select(Category).where(Category.slug == s)) is not None
+    )
+    category = Category(name=payload.name, slug=slug, is_active=True)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+@router.patch(
+    "/admin/categories/{category_id}",
+    response_model=CategoryRead,
+    tags=["admin"],
+)
+def update_category(
+    category_id: int,
+    payload: CategoryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Category:
+    category = _get_category_or_404(db, category_id)
+    update_data = payload.model_dump(exclude_unset=True)
+
+    if "name" in update_data and update_data["name"] is not None:
+        new_name = update_data["name"]
+        clash = db.scalar(
+            select(Category).where(
+                func.lower(Category.name) == new_name.lower(), Category.id != category_id
+            )
+        )
+        if clash is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A category with that name already exists.",
+            )
+
+    for field, value in update_data.items():
+        setattr(category, field, value)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+# --- Users (Phase 1a: "Admin dashboard: users, businesses, listings,
+# moderation") -------------------------------------------------------------
+# Deactivating a user is a soft-delete (is_active=False), matching the
+# soft-delete philosophy used everywhere else (businesses, products, videos)
+# in this codebase — it never deletes the account's data. It also does NOT
+# cascade to businesses the user owns (they stay exactly as they were,
+# verified/active or not) — see docs/decisions.md for the reasoning and the
+# self-deactivation / platform_admin guards enforced below.
+
+
+@router.get(
+    "/admin/users",
+    response_model=Page[AdminUserRead],
+    tags=["admin"],
+    dependencies=[Depends(require_moderator)],
+)
+def admin_list_users(
+    db: Session = Depends(get_db),
+    role: UserRole | None = None,
+    q: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> Page[AdminUserRead]:
+    page, page_size = _paginate_params(page, page_size)
+
+    stmt = select(User)
+    if role is not None:
+        stmt = stmt.where(User.role == role)
+    if q:
+        like = f"%{q.lower()}%"
+        stmt = stmt.where(
+            func.lower(User.full_name).like(like)
+            | func.lower(User.email).like(like)
+            | func.lower(User.phone).like(like)
+        )
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items = list(db.scalars(stmt).all())
+
+    return Page(
+        items=items, total=total, page=page, page_size=page_size,
+        pages=math.ceil(total / page_size) if total else 0,
+    )
+
+
+def _get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    return user
+
+
+@router.get(
+    "/admin/users/{user_id}",
+    response_model=AdminUserDetail,
+    tags=["admin"],
+)
+def admin_get_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> User:
+    user = _get_user_or_404(db, user_id)
+    businesses = list(
+        db.scalars(select(Business).where(Business.owner_id == user.id).order_by(
+            Business.created_at.desc()
+        )).all()
+    )
+    data = AdminUserRead.model_validate(user).model_dump()
+    data["businesses"] = [BusinessSummary.model_validate(b) for b in businesses]
+    return AdminUserDetail(**data)
+
+
+@router.patch(
+    "/admin/users/{user_id}",
+    response_model=AdminUserRead,
+    tags=["admin"],
+)
+def admin_update_user(
+    user_id: uuid.UUID,
+    payload: AdminUserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> User:
+    user = _get_user_or_404(db, user_id)
+
+    if payload.is_active is False:
+        if user.id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot deactivate your own account.",
+            )
+        if user.role == UserRole.PLATFORM_ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="platform_admin accounts cannot be deactivated via this endpoint.",
+            )
+
+    user.is_active = payload.is_active
+    db.commit()
+    db.refresh(user)
+    return user
