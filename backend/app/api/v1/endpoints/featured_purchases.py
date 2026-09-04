@@ -20,18 +20,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.core.featured_pricing import FEATURED_PRICING, get_pricing_option
 from app.db.session import get_db
 from app.models.business import Business
+from app.models.featured_pricing_tier import FeaturedPricingTier
 from app.models.featured_purchase import FeaturedPurchase, FeaturedPurchaseStatus
 from app.models.product import Product
 from app.models.user import User, UserRole
 from app.schemas.common import Page
-from app.schemas.featured_purchase import (
-    FeaturedPricingOptionRead,
-    FeaturedPurchaseCreate,
-    FeaturedPurchaseRead,
-)
+from app.schemas.featured_pricing_tier import FeaturedPricingTierRead
+from app.schemas.featured_purchase import FeaturedPurchaseCreate, FeaturedPurchaseRead
 from app.services.mpesa import MpesaError, get_payment_backend
 
 router = APIRouter()
@@ -74,21 +71,38 @@ def _resolve_target_product(
     return product
 
 
-@router.get(
-    "/featured/pricing", response_model=list[FeaturedPricingOptionRead], tags=["featured-purchases"]
-)
-def list_featured_pricing() -> list[FeaturedPricingOptionRead]:
-    """Public — so the frontend never hardcodes amounts/durations. See
-    app/core/featured_pricing.py, the single source of truth."""
-    return [
-        FeaturedPricingOptionRead(
-            tier=option.tier,
-            label=option.label,
-            amount_kes=option.amount_kes,
-            duration_days=option.duration_days,
+def _resolve_active_tier(db: Session, tier_id: int) -> FeaturedPricingTier:
+    """`tier_id` must reference a currently-active `FeaturedPricingTier` row
+    — an admin shouldn't be able to sell a tier they've deactivated. 400 for
+    both "doesn't exist" and "exists but inactive," same convention as
+    campaigns.py's `_resolve_category`/this file's own
+    `_resolve_target_product`."""
+    tier = db.get(FeaturedPricingTier, tier_id)
+    if tier is None or not tier.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tier_id must reference a currently active pricing tier.",
         )
-        for option in FEATURED_PRICING.values()
-    ]
+    return tier
+
+
+@router.get(
+    "/featured/pricing", response_model=list[FeaturedPricingTierRead], tags=["featured-purchases"]
+)
+def list_featured_pricing(db: Session = Depends(get_db)) -> list[FeaturedPricingTier]:
+    """Public — so the frontend never hardcodes amounts/durations. Reads
+    currently-active tiers from the DB (app/models/featured_pricing_tier.py)
+    — see docs/decisions.md's "Admin-editable pricing" entry for why this
+    replaced the old hardcoded `FEATURED_PRICING` dict. Each tier's `id` is
+    included so the frontend can pass it straight back as `tier_id` on
+    purchase."""
+    return list(
+        db.scalars(
+            select(FeaturedPricingTier)
+            .where(FeaturedPricingTier.is_active.is_(True))
+            .order_by(FeaturedPricingTier.duration_days)
+        ).all()
+    )
 
 
 @router.post(
@@ -117,22 +131,16 @@ def create_featured_purchase(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your business.")
 
     product = _resolve_target_product(db, business.id, payload.product_id)
-
-    try:
-        pricing = get_pricing_option(payload.tier)
-    except KeyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unknown pricing tier."
-        ) from exc
+    tier = _resolve_active_tier(db, payload.tier_id)
 
     target_label = product.name if product is not None else business.name
     account_reference = target_label[:12] or "Featured"
-    transaction_desc = f"Featured placement ({pricing.label})"[:100]
+    transaction_desc = f"Featured placement ({tier.label})"[:100]
 
     try:
         stk_result = get_payment_backend().initiate_stk_push(
             phone=payload.phone,
-            amount=int(pricing.amount_kes),
+            amount=int(tier.amount_kes),
             account_reference=account_reference,
             transaction_desc=transaction_desc,
         )
@@ -146,9 +154,9 @@ def create_featured_purchase(
         business_id=business.id,
         product_id=product.id if product is not None else None,
         initiated_by_user_id=current_user.id,
-        tier=pricing.tier,
-        amount_kes=pricing.amount_kes,
-        duration_days=pricing.duration_days,
+        tier_label=tier.label,
+        amount_kes=tier.amount_kes,
+        duration_days=tier.duration_days,
         status=FeaturedPurchaseStatus.PENDING,
         checkout_request_id=stk_result.checkout_request_id,
         merchant_request_id=stk_result.merchant_request_id,

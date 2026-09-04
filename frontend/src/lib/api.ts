@@ -970,15 +970,21 @@ export function getBusinessStats(token: string, businessId: string): Promise<Bus
  * this shape).
  */
 
-export type FeaturedPricingTier = '7_days' | '30_days'
 export type FeaturedPurchaseStatus = 'pending' | 'completed' | 'failed'
 
+/**
+ * Admin-editable pricing tiers (backend: app/models/featured_pricing_tier.py)
+ * — fully flexible, not locked to a fixed 7/30-day pair, so `id` (not a
+ * fixed tier string) is what identifies a tier now. See docs/decisions.md's
+ * "Admin-editable pricing" entry.
+ */
 export interface FeaturedPricingOptionDto {
-  tier: FeaturedPricingTier
+  id: number
   label: string
   /** Decimal-as-string over the wire (Pydantic Decimal) — parse with Number() only for display math, never for identity comparisons. */
   amount_kes: string
   duration_days: number
+  is_active: boolean
 }
 
 /** Public — never hardcode pricing amounts/durations in the frontend. */
@@ -991,7 +997,8 @@ export interface FeaturedPurchaseDto {
   business_id: string
   /** Non-null when this purchase features one specific product rather than the business itself. */
   product_id: string | null
-  tier: FeaturedPricingTier
+  /** Snapshotted label of the tier chosen at purchase time (e.g. "7 days") — not the live tier, which may since have been edited/deactivated. */
+  tier_label: string
   amount_kes: string
   duration_days: number
   status: FeaturedPurchaseStatus
@@ -1005,7 +1012,8 @@ export interface FeaturedPurchaseDto {
 }
 
 export interface FeaturedPurchaseCreatePayload {
-  tier: FeaturedPricingTier
+  /** References a currently-active FeaturedPricingOptionDto.id from `getFeaturedPricing()`. */
+  tier_id: number
   /** Omit/null to feature the business itself; set to feature one specific product of that business. */
   product_id?: string | null
   /** Whatever Kenyan MSISDN shape the backend's app/utils/phone.py accepts — see lib/phone.ts. */

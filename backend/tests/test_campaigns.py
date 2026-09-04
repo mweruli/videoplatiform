@@ -25,7 +25,6 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from app.core.campaign_pricing import CPM_KES
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.campaign import Campaign, CampaignStatus
@@ -54,6 +53,18 @@ def _dev_token(role: str = "general_user") -> tuple[str, dict]:
 
 def _auth_headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+def _current_cpm_kes() -> Decimal:
+    """Reads the *live* CPM rate off the public pricing endpoint rather than
+    a hardcoded constant — `app/core/campaign_pricing.py`'s old `CPM_KES`
+    constant no longer exists; pricing is DB-backed and admin-editable now
+    (app/models/campaign_pricing_settings.py). Tests that assert a freshly
+    created campaign snapshots "the current rate" must read that same live
+    value, not a stale import-time constant."""
+    resp = client.get("/api/v1/campaigns/pricing")
+    assert resp.status_code == 200, resp.text
+    return Decimal(resp.json()["cpm_kes"])
 
 
 def _create_business(token: str, **overrides) -> dict:
@@ -201,8 +212,9 @@ def test_pricing_endpoint_is_public() -> None:
     resp = client.get("/api/v1/campaigns/pricing")
     assert resp.status_code == 200
     body = resp.json()
-    assert Decimal(body["cpm_kes"]) == CPM_KES
-    assert Decimal(body["cost_per_impression_kes"]) == CPM_KES / 1000
+    cpm = Decimal(body["cpm_kes"])
+    assert Decimal(body["cost_per_impression_kes"]) == cpm / 1000
+    assert Decimal(body["min_funding_kes"]) > 0
 
 
 # --- Create -----------------------------------------------------------------
@@ -238,7 +250,7 @@ def test_create_campaign_happy_path_starts_pending_review_zero_budget() -> None:
     assert Decimal(campaign["budget_kes"]) == Decimal("0")
     assert Decimal(campaign["spent_kes"]) == Decimal("0")
     assert Decimal(campaign["remaining_kes"]) == Decimal("0")
-    assert Decimal(campaign["cpm_kes"]) == CPM_KES
+    assert Decimal(campaign["cpm_kes"]) == _current_cpm_kes()
     assert campaign["product"] is None
     assert campaign["business_id"] == business["id"]
 

@@ -29,7 +29,9 @@ silently ripple into the other's.
 `amount_kes` is advertiser-chosen at funding time (unlike
 `FeaturedPurchase.amount_kes`, which snapshots a fixed pricing tier) — a
 campaign top-up has no "tier," the advertiser types in how much to add,
-validated against `app/core/campaign_pricing.py`'s `MIN_FUNDING_KES` floor.
+validated (at the endpoint layer, see app/api/v1/endpoints/campaigns.py)
+against the live, admin-editable `min_funding_kes` floor
+(app/models/campaign_pricing_settings.py).
 
 M-Pesa STK Push correlation fields (`checkout_request_id`,
 `merchant_request_id`, `payer_phone`, `mpesa_receipt_number`, `result_code`,

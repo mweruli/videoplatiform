@@ -14,7 +14,6 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.core.campaign_pricing import MIN_FUNDING_KES
 from app.models.campaign import CampaignStatus
 from app.models.campaign_funding import CampaignFundingStatus
 from app.schemas.business import BusinessSummary
@@ -29,6 +28,7 @@ __all__ = [
     "CampaignFundingRead",
     "CampaignModerationAction",
     "CampaignPricingRead",
+    "CampaignPricingUpdate",
     "CampaignRead",
     "CampaignRejectAction",
     "CampaignTargetingRead",
@@ -38,12 +38,24 @@ __all__ = [
 
 class CampaignPricingRead(BaseModel):
     """`GET /campaigns/pricing` — public, so the frontend never hardcodes the
-    CPM rate/minimum top-up (see app/core/campaign_pricing.py, the single
-    source of truth these are read from)."""
+    CPM rate/minimum top-up. Reads from the single-row
+    `campaign_pricing_settings` table (app/models/campaign_pricing_settings.py)
+    — see docs/decisions.md's "Admin-editable pricing" entry for why this
+    replaced the old hardcoded `CPM_KES`/`MIN_FUNDING_KES` constants."""
 
     cpm_kes: Decimal
     cost_per_impression_kes: Decimal
     min_funding_kes: Decimal
+
+
+class CampaignPricingUpdate(BaseModel):
+    """Body for `PATCH /admin/campaign-pricing` — PATCH semantics, both
+    fields optional. Updates the live settings row; never retroactively
+    alters an already-created `Campaign`'s snapshotted `cpm_kes` (see
+    app/services/campaign_pricing.py's module docstring)."""
+
+    cpm_kes: Decimal | None = Field(default=None, gt=0)
+    min_funding_kes: Decimal | None = Field(default=None, gt=0)
 
 
 class CampaignCreate(BaseModel):
@@ -122,20 +134,18 @@ class CampaignRejectAction(BaseModel):
 class CampaignFundingCreate(BaseModel):
     """Body for `POST /campaigns/{id}/funding`. `amount_kes` is
     advertiser-chosen (no pricing tier for a top-up — see
-    app/models/campaign_funding.py's module docstring), validated against
-    `MIN_FUNDING_KES`. `phone` is the MSISDN the STK Push prompt is sent to,
-    same "explicitly supplied, not assumed to be the account's own phone"
-    reasoning as `FeaturedPurchaseCreate.phone`."""
+    app/models/campaign_funding.py's module docstring). Validated against the
+    live `min_funding_kes` at the endpoint layer (`campaigns.py`), NOT here
+    with a `field_validator` — unlike the old hardcoded `MIN_FUNDING_KES`
+    constant this schema used to import at module-load time, the minimum is
+    now a DB-backed, admin-editable value (app/models/campaign_pricing_
+    settings.py) that a pydantic schema has no DB session to read; only
+    `gt=0` (a real, static invariant) is enforced here. `phone` is the MSISDN
+    the STK Push prompt is sent to, same "explicitly supplied, not assumed to
+    be the account's own phone" reasoning as `FeaturedPurchaseCreate.phone`."""
 
     amount_kes: Decimal = Field(gt=0)
     phone: str = Field(min_length=7, max_length=20)
-
-    @field_validator("amount_kes")
-    @classmethod
-    def _validate_min_funding(cls, value: Decimal) -> Decimal:
-        if value < MIN_FUNDING_KES:
-            raise ValueError(f"amount_kes must be at least {MIN_FUNDING_KES}.")
-        return value
 
     @field_validator("phone")
     @classmethod

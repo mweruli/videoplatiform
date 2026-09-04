@@ -30,7 +30,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.core.campaign_pricing import CPM_KES, MIN_FUNDING_KES
 from app.db.session import get_db
 from app.models.business import Business
 from app.models.campaign import (
@@ -53,6 +52,7 @@ from app.schemas.campaign import (
 )
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
 from app.services.campaign_billing import record_campaign_clicks, record_campaign_impressions
+from app.services.campaign_pricing import get_campaign_pricing_settings
 from app.services.mpesa import MpesaError, get_payment_backend
 
 router = APIRouter()
@@ -114,13 +114,17 @@ def _resolve_category(db: Session, category_id: int | None) -> Category | None:
 
 
 @router.get("/campaigns/pricing", response_model=CampaignPricingRead, tags=["campaigns"])
-def get_campaign_pricing() -> CampaignPricingRead:
+def get_campaign_pricing(db: Session = Depends(get_db)) -> CampaignPricingRead:
     """Public — so the frontend never hardcodes the CPM rate/minimum top-up.
-    See app/core/campaign_pricing.py, the single source of truth."""
+    Reads the single-row `campaign_pricing_settings` table
+    (app/services/campaign_pricing.py) — see docs/decisions.md's
+    "Admin-editable pricing" entry for why this replaced the old hardcoded
+    `CPM_KES`/`MIN_FUNDING_KES` constants."""
+    settings = get_campaign_pricing_settings(db)
     return CampaignPricingRead(
-        cpm_kes=CPM_KES,
-        cost_per_impression_kes=CPM_KES / 1000,
-        min_funding_kes=MIN_FUNDING_KES,
+        cpm_kes=settings.cpm_kes,
+        cost_per_impression_kes=settings.cpm_kes / 1000,
+        min_funding_kes=settings.min_funding_kes,
     )
 
 
@@ -139,13 +143,21 @@ def create_campaign(
     """Owner/admin only. Always starts PENDING_REVIEW with zero budget —
     funding is a separate step (`POST /campaigns/{id}/funding`) and, per the
     funding/moderation-independence rule, can happen before, during, or
-    after moderation in any order."""
+    after moderation in any order.
+
+    Snapshots the *current* live `cpm_kes` (app/services/campaign_pricing.py)
+    onto `Campaign.cpm_kes` at creation time — this read happens exactly
+    once, here; a later admin rate change never retroactively alters an
+    already-created campaign's economics (see that module's docstring and
+    app/services/campaign_billing.py, which already correctly bills each
+    campaign's own snapshot)."""
     business = _get_business_or_404(db, business_id)
     if not _can_manage(business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your business.")
 
     product = _resolve_target_product(db, business.id, payload.product_id)
     _resolve_category(db, payload.category_id)
+    pricing_settings = get_campaign_pricing_settings(db)
 
     campaign = Campaign(
         business_id=business.id,
@@ -154,7 +166,7 @@ def create_campaign(
         name=payload.name,
         category_id=payload.category_id,
         county=payload.county,
-        cpm_kes=CPM_KES,
+        cpm_kes=pricing_settings.cpm_kes,
         budget_kes=0,
         spent_kes=0,
         status=CampaignStatus.PENDING_REVIEW,
@@ -360,7 +372,13 @@ def create_campaign_funding(
     Daraja failure has nothing a callback could ever correlate to, so a row
     with no `checkout_request_id` would just be dead data. Allowed from any
     `FUNDABLE_STATUSES` (everything except COMPLETED) — funding is
-    independent of moderation, see docs/decisions.md."""
+    independent of moderation, see docs/decisions.md.
+
+    `amount_kes` is validated against the *live* `min_funding_kes`
+    (app/services/campaign_pricing.py) here, at the endpoint layer, not in
+    `CampaignFundingCreate` — see that schema's docstring for why (the
+    minimum is DB-backed/admin-editable now, not a static import-time
+    constant a pydantic validator could read)."""
     campaign = _get_campaign_or_404(db, campaign_id)
     if not _can_manage(campaign.business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your campaign.")
@@ -368,6 +386,12 @@ def create_campaign_funding(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot fund a campaign with status '{campaign.status.value}'.",
+        )
+    pricing_settings = get_campaign_pricing_settings(db)
+    if payload.amount_kes < pricing_settings.min_funding_kes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"amount_kes must be at least {pricing_settings.min_funding_kes}.",
         )
 
     account_reference = campaign.name[:12] or "Campaign"
@@ -481,6 +505,6 @@ def record_campaign_clicks_endpoint(
     payload: ImpressionBatchRequest, db: Session = Depends(get_db)
 ) -> ImpressionBatchResult:
     """Public batch endpoint, analytics-only — never touches `spent_kes`
-    (CPM-only for v1, see app/core/campaign_pricing.py)."""
+    (CPM-only for v1, see app/services/campaign_pricing.py)."""
     updated = record_campaign_clicks(db, list(payload.ids))
     return ImpressionBatchResult(updated=updated)

@@ -37,6 +37,7 @@ from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
 from app.models.campaign import APPROVABLE_STATUSES, REJECTABLE_STATUSES, Campaign, CampaignStatus
 from app.models.category import Category
+from app.models.featured_pricing_tier import FeaturedPricingTier
 from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
 from app.models.video import Video, video_categories
@@ -47,12 +48,24 @@ from app.schemas.business import (
     BusinessRejectAction,
     BusinessSummary,
 )
-from app.schemas.campaign import CampaignModerationAction, CampaignRead, CampaignRejectAction
+from app.schemas.campaign import (
+    CampaignModerationAction,
+    CampaignPricingRead,
+    CampaignPricingUpdate,
+    CampaignRead,
+    CampaignRejectAction,
+)
 from app.schemas.category import AdminCategoryRead, CategoryCreate, CategoryRead, CategoryUpdate
 from app.schemas.common import Page
+from app.schemas.featured_pricing_tier import (
+    FeaturedPricingTierAdmin,
+    FeaturedPricingTierCreate,
+    FeaturedPricingTierUpdate,
+)
 from app.schemas.product import ProductModerationAction, ProductRead, ProductRejectAction
 from app.schemas.video import VideoModerationAction, VideoRead, VideoRejectAction
 from app.services.campaign_billing import resolve_status_after_approval
+from app.services.campaign_pricing import update_campaign_pricing_settings
 from app.utils.slug import unique_slug
 
 router = APIRouter()
@@ -706,6 +719,129 @@ def update_category(
     db.commit()
     db.refresh(category)
     return category
+
+
+# --- Pricing (admin-editable Featured Placement tiers + Ad Campaign
+# CPM/minimum-funding) -------------------------------------------------------
+# Replaces the old hardcoded `app/core/featured_pricing.py` (a 2-member
+# `FeaturedPricingTier` enum + `FEATURED_PRICING` dict) and
+# `app/core/campaign_pricing.py` (`CPM_KES`/`MIN_FUNDING_KES` constants),
+# both deleted — see docs/decisions.md's "Admin-editable pricing" entry for
+# the full design writeup (why tiers are deactivate-only rows with a
+# snapshotted `tier_label` rather than an FK, why campaign pricing is a
+# single-row settings table rather than a tier list).
+
+
+@router.get(
+    "/admin/featured-pricing-tiers",
+    response_model=list[FeaturedPricingTierAdmin],
+    tags=["admin"],
+    dependencies=[Depends(require_moderator)],
+)
+def admin_list_featured_pricing_tiers(db: Session = Depends(get_db)) -> list[FeaturedPricingTier]:
+    """Unlike the public `GET /featured/pricing`, this returns inactive tiers
+    too — an admin managing the tier list needs to see (and be able to
+    reactivate) ones they've previously deactivated."""
+    return list(
+        db.scalars(
+            select(FeaturedPricingTier).order_by(FeaturedPricingTier.duration_days)
+        ).all()
+    )
+
+
+def _get_featured_pricing_tier_or_404(db: Session, tier_id: int) -> FeaturedPricingTier:
+    tier = db.get(FeaturedPricingTier, tier_id)
+    if tier is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing tier not found.")
+    return tier
+
+
+@router.post(
+    "/admin/featured-pricing-tiers",
+    response_model=FeaturedPricingTierAdmin,
+    status_code=status.HTTP_201_CREATED,
+    tags=["admin"],
+)
+def create_featured_pricing_tier(
+    payload: FeaturedPricingTierCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> FeaturedPricingTier:
+    """Fully flexible — any positive `duration_days`/`amount_kes` combination
+    the admin chooses, not locked to a fixed set (PM decision). No
+    duplicate-label rejection: unlike `Category.name`, a tier's `label` is
+    display-only and never used as an identifier elsewhere (see
+    app/models/featured_pricing_tier.py's module docstring), so two tiers
+    coincidentally sharing a label is harmless."""
+    tier = FeaturedPricingTier(
+        label=payload.label,
+        duration_days=payload.duration_days,
+        amount_kes=payload.amount_kes,
+        is_active=True,
+    )
+    db.add(tier)
+    db.commit()
+    db.refresh(tier)
+    return tier
+
+
+@router.patch(
+    "/admin/featured-pricing-tiers/{tier_id}",
+    response_model=FeaturedPricingTierAdmin,
+    tags=["admin"],
+)
+def update_featured_pricing_tier(
+    tier_id: int,
+    payload: FeaturedPricingTierUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> FeaturedPricingTier:
+    """Edit label/duration_days/amount_kes and/or toggle is_active — PATCH
+    semantics, only supplied fields change. Never retroactively affects any
+    `FeaturedPurchase` already made under this tier: those snapshot
+    `tier_label`/`amount_kes`/`duration_days` onto their own row at purchase
+    time and never look back at this row (see
+    app/models/featured_purchase.py's module docstring). Deactivate-only in
+    spirit — there is no delete endpoint at all for this resource, same
+    precedent as Category."""
+    tier = _get_featured_pricing_tier_or_404(db, tier_id)
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(tier, field, value)
+    db.commit()
+    db.refresh(tier)
+    return tier
+
+
+@router.patch(
+    "/admin/campaign-pricing",
+    response_model=CampaignPricingRead,
+    tags=["admin"],
+)
+def update_campaign_pricing(
+    payload: CampaignPricingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> CampaignPricingRead:
+    """Updates the single `campaign_pricing_settings` row's CPM rate and/or
+    minimum top-up amount — PATCH semantics, only supplied fields change.
+    Never retroactively affects an already-created `Campaign`: `cpm_kes` is
+    snapshotted onto each `Campaign` row at creation time and never re-read
+    from this table afterward (see app/services/campaign_billing.py, which
+    already correctly bills each campaign's own snapshot — this endpoint
+    changes nothing about that). `min_funding_kes` IS read live on every
+    future `POST /campaigns/{id}/funding` call, by design — a top-up has no
+    snapshot of its own to protect."""
+    settings = update_campaign_pricing_settings(
+        db, cpm_kes=payload.cpm_kes, min_funding_kes=payload.min_funding_kes
+    )
+    db.commit()
+    db.refresh(settings)
+    return CampaignPricingRead(
+        cpm_kes=settings.cpm_kes,
+        cost_per_impression_kes=settings.cpm_kes / 1000,
+        min_funding_kes=settings.min_funding_kes,
+    )
 
 
 # --- Users (Phase 1a: "Admin dashboard: users, businesses, listings,

@@ -7,7 +7,6 @@ import { formatDate, formatKES } from '../../lib/format'
 import { isValidKenyanMsisdn, formatKenyanMsisdnForInput } from '../../lib/phone'
 import { useCreateFeaturedPurchase, useFeaturedPricing, useInvalidateAfterFeaturedPurchase, usePollFeaturedPurchase } from '../../hooks/useFeaturedPurchase'
 import { ApiError } from '../../lib/api'
-import type { FeaturedPricingTier } from '../../lib/api'
 
 /** Daraja's own STK prompt times out client-side around 60-90s — a 2-minute poll ceiling is a sane upper bound past that (see docs/decisions.md's "Phase 1b design pass" entry). */
 const POLL_TIMEOUT_MS = 120_000
@@ -40,7 +39,7 @@ export default function FeaturedPurchaseModal({ open, onClose, businessId, busin
   const invalidate = useInvalidateAfterFeaturedPurchase()
 
   const [step, setStep] = useState<Step>('picker')
-  const [selectedTier, setSelectedTier] = useState<FeaturedPricingTier | null>(null)
+  const [selectedTierId, setSelectedTierId] = useState<number | null>(null)
   const [phone, setPhone] = useState('')
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -59,7 +58,7 @@ export default function FeaturedPurchaseModal({ open, onClose, businessId, busin
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       setStep('picker')
-      setSelectedTier(null)
+      setSelectedTierId(null)
       setPhone(formatKenyanMsisdnForInput(businessPhone))
       setPhoneError(null)
       setSubmitError(null)
@@ -97,7 +96,7 @@ export default function FeaturedPurchaseModal({ open, onClose, businessId, busin
 
   function handleSubmit() {
     setSubmitError(null)
-    if (!selectedTier) {
+    if (!selectedTierId) {
       setSubmitError('Pick a placement duration to continue.')
       return
     }
@@ -110,7 +109,7 @@ export default function FeaturedPurchaseModal({ open, onClose, businessId, busin
       {
         businessId,
         payload: {
-          tier: selectedTier,
+          tier_id: selectedTierId,
           product_id: target.kind === 'product' ? target.productId : undefined,
           phone,
         },
@@ -170,14 +169,14 @@ export default function FeaturedPurchaseModal({ open, onClose, businessId, busin
           {pricingQuery.data && (
             <div className="mb-4 flex flex-col gap-2.5" role="radiogroup" aria-label="Placement duration">
               {pricingQuery.data.map((option) => {
-                const active = selectedTier === option.tier
+                const active = selectedTierId === option.id
                 return (
                   <button
-                    key={option.tier}
+                    key={option.id}
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    onClick={() => setSelectedTier(option.tier)}
+                    onClick={() => setSelectedTierId(option.id)}
                     className={`flex items-center justify-between rounded-xl border-[1.5px] px-4 py-3 text-left transition-[border-color,box-shadow] duration-150 ease-brand ${
                       active
                         ? 'border-brand bg-brand/5 shadow-[0_0_0_3px_rgba(16,52,166,0.12)] dark:border-ice dark:shadow-[0_0_0_3px_rgba(21,66,214,0.25)]'
@@ -236,8 +235,8 @@ export default function FeaturedPurchaseModal({ open, onClose, businessId, busin
             )}
             {createMutation.isPending
               ? 'Sending prompt…'
-              : selectedTier
-                ? `Pay ${formatKES(Number(pricingQuery.data?.find((o) => o.tier === selectedTier)?.amount_kes ?? 0))} via M-Pesa`
+              : selectedTierId
+                ? `Pay ${formatKES(Number(pricingQuery.data?.find((o) => o.id === selectedTierId)?.amount_kes ?? 0))} via M-Pesa`
                 : 'Pay via M-Pesa'}
           </button>
         </div>

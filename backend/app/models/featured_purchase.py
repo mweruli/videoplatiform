@@ -23,12 +23,30 @@ exactly like `Video.product_id`'s same-business check in
 app/api/v1/endpoints/videos.py), not a DB constraint — consistent with how
 this codebase already handles that class of cross-table invariant.
 
-`amount_kes`/`duration_days` are snapshotted from
-app/core/featured_pricing.py at purchase time, not live-joined to it — a
-future pricing change must never retroactively alter a historical purchase.
-`tier` is kept alongside the snapshot purely as a human-readable label of
-which tier was chosen (analytics/support convenience), not the source of
-truth for the amount/duration once the row exists.
+`amount_kes`/`duration_days` are snapshotted from the `FeaturedPricingTier`
+row (app/models/featured_pricing_tier.py) chosen at purchase time, not
+live-joined to it — a future pricing change (or even deactivating/editing
+that tier row) must never retroactively alter a historical purchase.
+
+**`tier_label` is a plain snapshotted string, NOT a foreign key to
+`FeaturedPricingTier`** — a deliberate departure from how e.g. `Video`
+references `Product` via a real FK. Reasoning (see docs/decisions.md's
+"Admin-editable pricing" entry for the full writeup): tiers are now
+admin-defined, freely editable/deactivatable rows rather than a fixed
+2-member enum, and an FK would force this codebase to keep a dead/
+deactivated tier row "alive" forever just so historical purchases could
+still resolve a label via join — exactly the kind of live-join fragility
+this codebase's own "snapshot everything at purchase time, never live-join"
+philosophy (already applied to `amount_kes`/`duration_days` here, and to
+`Campaign.cpm_kes` identically) exists to avoid. `tier_label` is purely
+"what to show a viewer" (e.g. "7 days", "Launch Special — 10 days");
+`amount_kes`/`duration_days` remain the actual source of truth for what the
+purchase was worth and how long it ran, unaffected by this field either way.
+This column used to be `tier: FeaturedPricingTier` (an `Enum(native_enum=
+False)` storing the enum member's `.name`, e.g. "SEVEN_DAYS") back when
+tiers were a fixed 2-member enum — migrated to `tier_label` (backfilled from
+each row's original tier's human-readable label) when that enum was
+replaced by the `FeaturedPricingTier` DB table.
 
 Status is a real "waiting to hear back" state machine, not a boolean,
 because M-Pesa's STK Push is fire-and-forget-then-async-callback: a purchase
@@ -52,7 +70,6 @@ from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Tex
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.featured_pricing import FeaturedPricingTier
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -97,12 +114,11 @@ class FeaturedPurchase(Base):
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
-    tier: Mapped[FeaturedPricingTier] = mapped_column(
-        Enum(FeaturedPricingTier, name="featured_purchase_tier", native_enum=False, length=20),
-        nullable=False,
-    )
-    # Snapshotted from app/core/featured_pricing.py at purchase time — see
-    # module docstring.
+    # Snapshotted label from the FeaturedPricingTier row chosen at purchase
+    # time — a plain string, not an FK. See module docstring for why.
+    tier_label: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Snapshotted from that same FeaturedPricingTier row at purchase time —
+    # see module docstring.
     amount_kes: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
 

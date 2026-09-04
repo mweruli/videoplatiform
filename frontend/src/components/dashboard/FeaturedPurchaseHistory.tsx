@@ -56,7 +56,7 @@ export default function FeaturedPurchaseHistory({ businessId, className = '' }: 
             <div key={purchase.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-panel px-3 py-2 text-xs">
               <div className="min-w-0">
                 <span className="font-semibold text-foreground">
-                  {purchase.tier === '30_days' ? '30 days' : '7 days'}
+                  {purchase.tier_label}
                   {purchase.product_id ? ' · Product' : ' · Business'}
                 </span>
                 <span className="ml-2 text-muted-foreground">{formatKES(Number(purchase.amount_kes))}</span>

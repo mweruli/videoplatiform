@@ -34,10 +34,11 @@ race-safe deduction). The campaign auto-transitions to EXHAUSTED the moment
 `spent_kes` would reach `budget_kes` — see `CampaignStatus` below for the
 full state machine.
 
-**Pricing is CPM-only for v1** (see app/core/campaign_pricing.py's module
-docstring for the full reasoning) — `cpm_kes` snapshots
-`campaign_pricing.CPM_KES` at creation time, same "snapshot, don't
-live-join" reasoning as `FeaturedPurchase.amount_kes`. `click_count` is
+**Pricing is CPM-only for v1** (see app/services/campaign_pricing.py's
+module docstring for the full reasoning) — `cpm_kes` snapshots the live
+`campaign_pricing_settings.cpm_kes` (app/models/campaign_pricing_settings.py,
+admin-editable) at creation time, same "snapshot, don't live-join" reasoning
+as `FeaturedPurchase.amount_kes`. `click_count` is
 tracked for analytics (PROJECT_BRIEF.md's Advertising Analytics bullet
 explicitly lists "clicks") but is NOT billed — clicks never touch
 `spent_kes`.
@@ -207,10 +208,10 @@ class Campaign(Base):
     )
     county: Mapped[str | None] = mapped_column(String(100), index=True)
 
-    # --- Pricing (CPM-only v1 — see app/core/campaign_pricing.py) ---
-    # Snapshotted from campaign_pricing.CPM_KES at creation time, same
-    # "never let a later rate change retroactively alter this campaign's
-    # economics" reasoning as FeaturedPurchase.amount_kes.
+    # --- Pricing (CPM-only v1 — see app/services/campaign_pricing.py) ---
+    # Snapshotted from the live campaign_pricing_settings.cpm_kes at
+    # creation time, same "never let a later rate change retroactively alter
+    # this campaign's economics" reasoning as FeaturedPurchase.amount_kes.
     cpm_kes: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     # --- Budget (prepaid, depletes with spend — NOT a duration/flat fee) ---

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
@@ -48,6 +49,20 @@ def _dev_token(role: str = "general_user") -> tuple[str, dict]:
 
 def _auth_headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+def _get_tier_id(label: str) -> int:
+    """Looks up a currently-active pricing tier's id by label via the real
+    public endpoint, rather than assuming a fixed id — tiers are admin-
+    editable rows now (app/models/featured_pricing_tier.py), not a fixed
+    2-member enum, so a test should resolve "the 7-day tier" the same way
+    the real frontend would (see docs/decisions.md's "Admin-editable
+    pricing" entry)."""
+    resp = client.get("/api/v1/featured/pricing")
+    assert resp.status_code == 200, resp.text
+    matches = [t for t in resp.json() if t["label"] == label]
+    assert matches, f"No active tier labeled {label!r} found: {resp.json()}"
+    return matches[0]["id"]
 
 
 def _create_business(token: str, **overrides) -> dict:
@@ -133,11 +148,17 @@ def _fetch_product(product_id: str) -> Product:
 # --- Pricing ------------------------------------------------------------
 
 
-def test_pricing_endpoint_is_public_and_lists_both_tiers() -> None:
+def test_pricing_endpoint_is_public_and_lists_both_seeded_tiers() -> None:
     resp = client.get("/api/v1/featured/pricing")
     assert resp.status_code == 200
-    tiers = {item["tier"] for item in resp.json()}
-    assert tiers == {"7_days", "30_days"}
+    body = resp.json()
+    labels = {item["label"] for item in body}
+    assert {"7 days", "30 days"}.issubset(labels)
+    seven = next(item for item in body if item["label"] == "7 days")
+    assert seven["duration_days"] == 7
+    assert Decimal(seven["amount_kes"]) == Decimal("500.00")
+    assert seven["is_active"] is True
+    assert isinstance(seven["id"], int)
 
 
 # --- Access control / validation ----------------------------------------
@@ -148,7 +169,7 @@ def test_purchase_initiation_requires_auth() -> None:
     business = _create_business(token)
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
     )
     assert resp.status_code == 401
 
@@ -160,27 +181,60 @@ def test_non_owner_cannot_initiate_purchase(fake_payment_backend) -> None:
     other_token, _ = _dev_token()
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
         headers=_auth_headers(other_token),
     )
     assert resp.status_code == 403
     assert fake_payment_backend.calls == []  # never even reached the payment backend
 
 
-def test_invalid_tier_and_phone_are_422(fake_payment_backend) -> None:
+def test_unknown_tier_id_is_400(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
 
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "365_days", "phone": "0708374149"},
+        json={"tier_id": 999_999_999, "phone": "0708374149"},
         headers=_auth_headers(owner_token),
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
+    assert fake_payment_backend.calls == []
+
+
+def test_deactivated_tier_id_is_400(fake_payment_backend) -> None:
+    """An admin shouldn't be able to sell a tier they've deactivated — see
+    docs/decisions.md's "Admin-editable pricing" entry."""
+    admin_token, _ = _dev_token(role="platform_admin")
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+
+    created = client.post(
+        "/api/v1/admin/featured-pricing-tiers",
+        json={"label": _unique("Temp Tier"), "duration_days": 3, "amount_kes": "100.00"},
+        headers=_auth_headers(admin_token),
+    ).json()
+    client.patch(
+        f"/api/v1/admin/featured-pricing-tiers/{created['id']}",
+        json={"is_active": False},
+        headers=_auth_headers(admin_token),
+    )
 
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "not-a-phone"},
+        json={"tier_id": created["id"], "phone": "0708374149"},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 400
+    assert fake_payment_backend.calls == []
+
+
+def test_invalid_phone_is_422(fake_payment_backend) -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/featured-purchases",
+        json={"tier_id": _get_tier_id("7 days"), "phone": "not-a-phone"},
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 422
@@ -195,7 +249,11 @@ def test_product_id_must_belong_to_the_business(fake_payment_backend) -> None:
 
     resp = client.post(
         f"/api/v1/businesses/{business_a['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149", "product_id": product_b["id"]},
+        json={
+            "tier_id": _get_tier_id("7 days"),
+            "phone": "0708374149",
+            "product_id": product_b["id"],
+        },
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 400
@@ -211,7 +269,7 @@ def test_synchronous_daraja_failure_creates_no_row(fake_payment_backend) -> None
 
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 502
@@ -234,13 +292,14 @@ def test_purchase_happy_path_completes_and_features_the_business(fake_payment_ba
 
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 201, resp.text
     purchase = resp.json()
     assert purchase["status"] == "pending"
     assert purchase["product_id"] is None
+    assert purchase["tier_label"] == "7 days"
     assert purchase["amount_kes"] == "500.00"
     assert purchase["duration_days"] == 7
     assert len(fake_payment_backend.calls) == 1
@@ -299,7 +358,11 @@ def test_purchase_can_target_a_specific_product(fake_payment_backend) -> None:
 
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "30_days", "phone": "0708374149", "product_id": product["id"]},
+        json={
+            "tier_id": _get_tier_id("30 days"),
+            "phone": "0708374149",
+            "product_id": product["id"],
+        },
         headers=_auth_headers(owner_token),
     )
     assert resp.status_code == 201, resp.text
@@ -335,7 +398,7 @@ def test_callback_failure_records_reason_and_does_not_feature(fake_payment_backe
 
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
         headers=_auth_headers(owner_token),
     )
     purchase = resp.json()
@@ -371,7 +434,7 @@ def test_duplicate_callback_is_a_noop(fake_payment_backend) -> None:
     business = _create_business(owner_token)
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
         headers=_auth_headers(owner_token),
     )
     purchase = resp.json()
@@ -403,7 +466,7 @@ def test_callback_with_mismatched_merchant_request_id_is_rejected(fake_payment_b
     business = _create_business(owner_token)
     resp = client.post(
         f"/api/v1/businesses/{business['id']}/featured-purchases",
-        json={"tier": "7_days", "phone": "0708374149"},
+        json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
         headers=_auth_headers(owner_token),
     )
     purchase = resp.json()
@@ -450,10 +513,10 @@ def test_stacking_extends_existing_featured_until_instead_of_overwriting(
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
 
-    def _buy_and_complete(tier: str) -> None:
+    def _buy_and_complete(tier_id: int) -> None:
         resp = client.post(
             f"/api/v1/businesses/{business['id']}/featured-purchases",
-            json={"tier": tier, "phone": "0708374149"},
+            json={"tier_id": tier_id, "phone": "0708374149"},
             headers=_auth_headers(owner_token),
         )
         purchase = resp.json()
@@ -468,11 +531,12 @@ def test_stacking_extends_existing_featured_until_instead_of_overwriting(
             ),
         )
 
-    _buy_and_complete("7_days")
+    seven_day_tier_id = _get_tier_id("7 days")
+    _buy_and_complete(seven_day_tier_id)
     after_first = _fetch_business(business["id"]).featured_until
     assert after_first is not None
 
-    _buy_and_complete("7_days")
+    _buy_and_complete(seven_day_tier_id)
     after_second = _fetch_business(business["id"]).featured_until
     assert after_second is not None
 
@@ -493,7 +557,7 @@ def test_business_purchase_history_is_owner_admin_gated_and_paginated(
     for _ in range(2):
         client.post(
             f"/api/v1/businesses/{business['id']}/featured-purchases",
-            json={"tier": "7_days", "phone": "0708374149"},
+            json={"tier_id": _get_tier_id("7 days"), "phone": "0708374149"},
             headers=_auth_headers(owner_token),
         )
 
@@ -566,3 +630,64 @@ def test_sweep_does_not_touch_permanently_admin_featured_rows() -> None:
     business_row = _fetch_business(business["id"])
     assert business_row.is_featured is True
     assert business_row.featured_until is None
+
+
+# --- Admin-editable pricing: the snapshot guarantee -----------------------
+# The single most important thing this feature must never break (see
+# docs/decisions.md's "Admin-editable pricing" entry): a purchase already
+# made under a tier's old price/label must be completely unaffected by a
+# later edit to (or deactivation of) that tier.
+
+
+def test_purchase_unaffected_by_later_tier_price_change(fake_payment_backend) -> None:
+    admin_token, _ = _dev_token(role="platform_admin")
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+
+    tier = client.post(
+        "/api/v1/admin/featured-pricing-tiers",
+        json={"label": _unique("Snapshot Tier"), "duration_days": 5, "amount_kes": "300.00"},
+        headers=_auth_headers(admin_token),
+    ).json()
+
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/featured-purchases",
+        json={"tier_id": tier["id"], "phone": "0708374149"},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 201, resp.text
+    purchase = resp.json()
+    assert purchase["tier_label"] == tier["label"]
+    assert purchase["amount_kes"] == "300.00"
+    assert purchase["duration_days"] == 5
+
+    # Now the admin changes the tier's price/duration/label AND deactivates
+    # it — none of this may retroactively alter the purchase already made.
+    client.patch(
+        f"/api/v1/admin/featured-pricing-tiers/{tier['id']}",
+        json={
+            "label": "Completely Different Label",
+            "duration_days": 99,
+            "amount_kes": "9999.00",
+            "is_active": False,
+        },
+        headers=_auth_headers(admin_token),
+    )
+
+    resp = client.get(
+        f"/api/v1/featured-purchases/{purchase['id']}", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 200
+    unchanged = resp.json()
+    assert unchanged["tier_label"] == tier["label"]
+    assert unchanged["amount_kes"] == "300.00"
+    assert unchanged["duration_days"] == 5
+
+    # A brand new purchase against the now-deactivated tier is correctly
+    # rejected — deactivating a tier only affects *future* purchases.
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/featured-purchases",
+        json={"tier_id": tier["id"], "phone": "0708374149"},
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 400
