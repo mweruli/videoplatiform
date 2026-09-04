@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import Modal from '../ui/Modal'
 import { Field, FormBanner, Spinner, TextArea } from '../ui/FormControls'
@@ -11,6 +11,12 @@ interface RejectModalProps {
   title: string
   itemName: string
   onSubmit: (reason: string) => Promise<unknown>
+  /** Overrides the default "Rejecting X. This reason is shown to the owner…" explainer — used when pulling down something already live, where the framing/stakes differ from a first-pass review. */
+  description?: ReactNode
+  /** Overrides the default "Confirm rejection" submit label. */
+  confirmLabel?: string
+  /** Overrides the default "Rejecting…" pending label. */
+  pendingLabel?: string
 }
 
 /**
@@ -22,8 +28,22 @@ interface RejectModalProps {
  * (that's this app's "positive/primary action" language) — a rejection gets
  * its own danger-colored confirm button so the two moderation outcomes read
  * as visually distinct, not just differently labelled.
+ *
+ * Also reused for the "pull down" action on already-approved/verified items
+ * (see Product/Video/BusinessModerationCard) — same endpoint, same required
+ * reason, but `description`/`confirmLabel` let the caller make clear this is
+ * reversing something already live rather than a first review decision.
  */
-export default function RejectModal({ open, onClose, title, itemName, onSubmit }: RejectModalProps) {
+export default function RejectModal({
+  open,
+  onClose,
+  title,
+  itemName,
+  onSubmit,
+  description,
+  confirmLabel = 'Confirm rejection',
+  pendingLabel = 'Rejecting…',
+}: RejectModalProps) {
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [banner, setBanner] = useState<string | null>(null)
@@ -63,8 +83,12 @@ export default function RejectModal({ open, onClose, title, itemName, onSubmit }
       <form onSubmit={handleSubmit} noValidate>
         <FormBanner kind="error" message={banner} />
         <p className="mb-3.5 text-sm leading-relaxed text-muted-foreground">
-          Rejecting <span className="font-bold text-foreground">{itemName}</span>. This reason is shown to the owner so they know what
-          to fix.
+          {description ?? (
+            <>
+              Rejecting <span className="font-bold text-foreground">{itemName}</span>. This reason is shown to the owner so they know
+              what to fix.
+            </>
+          )}
         </p>
         <Field label="Reason" error={error ?? undefined}>
           <TextArea
@@ -82,7 +106,7 @@ export default function RejectModal({ open, onClose, title, itemName, onSubmit }
           className="flex w-full items-center justify-center gap-2 rounded-full bg-danger py-3 text-sm font-bold text-white shadow-soft transition-opacity duration-150 ease-brand hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
         >
           {submitting && <Spinner />}
-          {submitting ? 'Rejecting…' : 'Confirm rejection'}
+          {submitting ? pendingLabel : confirmLabel}
         </button>
       </form>
     </Modal>

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from '../dashboard/ModerationStatusBadge'
 import CategoryChips from '../ui/CategoryChips'
+import ToggleSwitch from '../ui/ToggleSwitch'
 import RejectModal from './RejectModal'
 import { useApproveVideo, useRejectVideo } from '../../hooks/useAdmin'
 import { ApiError } from '../../lib/api'
@@ -41,13 +42,16 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
   const [expanded, setExpanded] = useState(false)
 
   const pending = video.moderation_status === 'pending'
+  const approved = video.moderation_status === 'approved'
+  const rejected = video.moderation_status === 'rejected'
   const grad = gradIndexForId(video.id)
   const duration = formatDuration(video.duration_seconds)
 
   function handleApprove() {
     setError(null)
     approveMutation.mutate(video.id, {
-      onSuccess: () => showToast(`${video.title} approved — now live`),
+      onSuccess: () =>
+        showToast(rejected ? `${video.title} approved — reinstated and live again` : `${video.title} approved — now live`),
       onError: (err) => setError(err instanceof ApiError ? err.message : 'Could not approve this video.'),
     })
   }
@@ -75,7 +79,17 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="line-clamp-1 text-sm font-bold text-foreground">{video.title}</h3>
-            <ModerationStatusBadge status={video.moderation_status} />
+            <div className="flex flex-none items-center gap-2">
+              <ModerationStatusBadge status={video.moderation_status} />
+              {(approved || rejected) && (
+                <ToggleSwitch
+                  on={approved}
+                  onToggle={approved ? () => setRejecting(true) : handleApprove}
+                  label={approved ? `Pull down ${video.title}` : `Restore ${video.title}`}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                />
+              )}
+            </div>
           </div>
           <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">{video.business.name}</p>
           <p className="mt-0.5 text-xs font-semibold text-muted-foreground">{formatViews(video.view_count)} views</p>
@@ -174,9 +188,23 @@ export default function VideoModerationCard({ video }: VideoModerationCardProps)
       <RejectModal
         open={rejecting}
         onClose={() => setRejecting(false)}
-        title="Reject video"
+        title={approved ? 'Pull down video' : 'Reject video'}
         itemName={video.title}
-        onSubmit={(reason) => rejectMutation.mutateAsync({ videoId: video.id, reason }).then(() => showToast(`${video.title} rejected`))}
+        description={
+          approved ? (
+            <>
+              <span className="font-bold text-foreground">{video.title}</span> is currently live in the public feed. Pulling it down
+              removes it immediately and shows the owner why.
+            </>
+          ) : undefined
+        }
+        confirmLabel={approved ? 'Confirm pull-down' : undefined}
+        pendingLabel={approved ? 'Pulling down…' : undefined}
+        onSubmit={(reason) =>
+          rejectMutation
+            .mutateAsync({ videoId: video.id, reason })
+            .then(() => showToast(approved ? `${video.title} pulled down` : `${video.title} rejected`))
+        }
       />
     </div>
   )

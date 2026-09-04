@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import Icon from '../icons/Icon'
 import RejectModal from './RejectModal'
+import ToggleSwitch from '../ui/ToggleSwitch'
 import VerificationStatusBadge from '../ui/VerificationStatusBadge'
 import { useApproveBusiness, useRejectBusiness } from '../../hooks/useAdmin'
 import { ApiError } from '../../lib/api'
@@ -16,9 +17,13 @@ interface BusinessModerationCardProps {
 /**
  * One business in the moderation queue — enough to make a real decision
  * (name, category, location, description, submitted-when), not just a bare
- * name. Approve/reject only render for `pending` businesses — the backend
- * 409s from any other status (see admin.py's approve_business/reject_business),
- * so a verified/rejected/unverified business is shown read-only here.
+ * name. Action shown depends on current status: `pending` gets the original
+ * approve/reject pair; `verified` gets a "pull down" reject (backend now
+ * permits reject from `verified`, see docs/decisions.md's approve/reject-
+ * can-act-on-already-reviewed-content follow-up); `rejected` gets a
+ * reversing approve. `unverified` businesses stay read-only here — the
+ * backend still only allows approve/reject from pending/rejected/verified
+ * (see admin.py's approve_business/reject_business), never from unverified.
  */
 export default function BusinessModerationCard({ business }: BusinessModerationCardProps) {
   const { showToast } = useToast()
@@ -28,12 +33,15 @@ export default function BusinessModerationCard({ business }: BusinessModerationC
   const [error, setError] = useState<string | null>(null)
 
   const pending = business.verification_status === 'pending'
+  const verified = business.verification_status === 'verified'
+  const rejected = business.verification_status === 'rejected'
   const location = [business.city, business.county].filter(Boolean).join(', ')
 
   function handleApprove() {
     setError(null)
     approveMutation.mutate(business.id, {
-      onSuccess: () => showToast(`${business.name} approved — now live in search`),
+      onSuccess: () =>
+        showToast(rejected ? `${business.name} approved — reinstated and live again` : `${business.name} approved — now live in search`),
       onError: (err) => setError(err instanceof ApiError ? err.message : 'Could not approve this business.'),
     })
   }
@@ -62,7 +70,17 @@ export default function BusinessModerationCard({ business }: BusinessModerationC
             </p>
           </div>
         </div>
-        <VerificationStatusBadge status={business.verification_status} withLabel className="flex-none" />
+        <div className="flex flex-none items-center gap-2">
+          <VerificationStatusBadge status={business.verification_status} withLabel className="flex-none" />
+          {(verified || rejected) && (
+            <ToggleSwitch
+              on={verified}
+              onToggle={verified ? () => setRejecting(true) : handleApprove}
+              label={verified ? `Pull down ${business.name}` : `Restore ${business.name}`}
+              disabled={approveMutation.isPending || rejectMutation.isPending}
+            />
+          )}
+        </div>
       </div>
 
       {business.description && (
@@ -111,10 +129,22 @@ export default function BusinessModerationCard({ business }: BusinessModerationC
       <RejectModal
         open={rejecting}
         onClose={() => setRejecting(false)}
-        title="Reject business"
+        title={verified ? 'Pull down business' : 'Reject business'}
         itemName={business.name}
+        description={
+          verified ? (
+            <>
+              <span className="font-bold text-foreground">{business.name}</span> is currently verified and live in search. Pulling it
+              down removes it immediately and shows the owner why.
+            </>
+          ) : undefined
+        }
+        confirmLabel={verified ? 'Confirm pull-down' : undefined}
+        pendingLabel={verified ? 'Pulling down…' : undefined}
         onSubmit={(reason) =>
-          rejectMutation.mutateAsync({ businessId: business.id, reason }).then(() => showToast(`${business.name} rejected`))
+          rejectMutation
+            .mutateAsync({ businessId: business.id, reason })
+            .then(() => showToast(verified ? `${business.name} pulled down` : `${business.name} rejected`))
         }
       />
     </div>

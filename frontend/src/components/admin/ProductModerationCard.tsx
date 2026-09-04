@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import Icon from '../icons/Icon'
 import ModerationStatusBadge from '../dashboard/ModerationStatusBadge'
 import CategoryChips from '../ui/CategoryChips'
+import ToggleSwitch from '../ui/ToggleSwitch'
 import RejectModal from './RejectModal'
 import { useApproveProduct, useRejectProduct } from '../../hooks/useAdmin'
 import { ApiError } from '../../lib/api'
@@ -19,8 +20,13 @@ interface ProductModerationCardProps {
 /**
  * One product/listing in the moderation queue — name, owning business,
  * price and a specs summary (enough to judge without opening the public
- * listing), plus approve/reject for `pending` items. Same read-only
- * treatment as BusinessModerationCard for non-pending statuses.
+ * listing), plus a decision action appropriate to its current status:
+ * pending gets the original approve/reject pair; approved gets a "pull
+ * down" reject (backend now permits reject from `approved`, see
+ * docs/decisions.md's approve/reject-can-act-on-already-reviewed-content
+ * follow-up); rejected gets a reversing approve. Framed distinctly from the
+ * pending actions since an admin here is reversing something already
+ * decided, not making a first call.
  *
  * The full description, complete image gallery and a link to the real public
  * listing are one click away behind a "Show details" disclosure (same
@@ -38,13 +44,16 @@ export default function ProductModerationCard({ product }: ProductModerationCard
   const [activeImage, setActiveImage] = useState(0)
 
   const pending = product.moderation_status === 'pending'
+  const approved = product.moderation_status === 'approved'
+  const rejected = product.moderation_status === 'rejected'
   const specEntries = Object.entries(product.specs).slice(0, 3)
   const grad = gradIndexForId(product.id)
 
   function handleApprove() {
     setError(null)
     approveMutation.mutate(product.id, {
-      onSuccess: () => showToast(`${product.name} approved — now live`),
+      onSuccess: () =>
+        showToast(rejected ? `${product.name} approved — reinstated and live again` : `${product.name} approved — now live`),
       onError: (err) => setError(err instanceof ApiError ? err.message : 'Could not approve this listing.'),
     })
   }
@@ -63,7 +72,17 @@ export default function ProductModerationCard({ product }: ProductModerationCard
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate text-sm font-bold text-foreground">{product.name}</h3>
-            <ModerationStatusBadge status={product.moderation_status} />
+            <div className="flex flex-none items-center gap-2">
+              <ModerationStatusBadge status={product.moderation_status} />
+              {(approved || rejected) && (
+                <ToggleSwitch
+                  on={approved}
+                  onToggle={approved ? () => setRejecting(true) : handleApprove}
+                  label={approved ? `Pull down ${product.name}` : `Restore ${product.name}`}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
+                />
+              )}
+            </div>
           </div>
           <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">{product.business.name}</p>
           <p className="mt-0.5 text-sm font-extrabold text-foreground">
@@ -186,10 +205,22 @@ export default function ProductModerationCard({ product }: ProductModerationCard
       <RejectModal
         open={rejecting}
         onClose={() => setRejecting(false)}
-        title="Reject listing"
+        title={approved ? 'Pull down listing' : 'Reject listing'}
         itemName={product.name}
+        description={
+          approved ? (
+            <>
+              <span className="font-bold text-foreground">{product.name}</span> is currently live in search and on its business page.
+              Pulling it down removes it immediately and shows the owner why.
+            </>
+          ) : undefined
+        }
+        confirmLabel={approved ? 'Confirm pull-down' : undefined}
+        pendingLabel={approved ? 'Pulling down…' : undefined}
         onSubmit={(reason) =>
-          rejectMutation.mutateAsync({ productId: product.id, reason }).then(() => showToast(`${product.name} rejected`))
+          rejectMutation
+            .mutateAsync({ productId: product.id, reason })
+            .then(() => showToast(approved ? `${product.name} pulled down` : `${product.name} rejected`))
         }
       />
     </div>
