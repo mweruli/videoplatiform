@@ -171,6 +171,8 @@ export interface BusinessDto {
   verification_status: VerificationStatus
   verification_note: string | null
   is_active: boolean
+  /** Platform-controlled manual placement (see docs/decisions.md's "Phase 1a: manual featured placement" entry) — never settable by the owner, only by admin/moderator via POST /admin/businesses/{id}/feature|unfeature. */
+  is_featured: boolean
   created_at: string
   updated_at: string
   product_count: number
@@ -209,6 +211,8 @@ export interface ProductDto {
   moderation_status: ModerationStatus
   moderation_note: string | null
   is_active: boolean
+  /** Platform-controlled manual placement (see docs/decisions.md's "Phase 1a: manual featured placement" entry) — never settable by the owner, only by admin/moderator via POST /admin/products/{id}/feature|unfeature. */
+  is_featured: boolean
   created_at: string
   updated_at: string
   related_products: ProductSummaryDto[]
@@ -241,6 +245,8 @@ export interface ListBusinessesParams {
   county?: string
   city?: string
   q?: string
+  /** `true` scopes to exactly the platform-curated featured set (Home's "Featured Businesses" rail); `false` explicitly excludes them. Omit for no filtering either way. */
+  is_featured?: boolean
   page?: number
   page_size?: number
 }

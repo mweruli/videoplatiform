@@ -31,13 +31,13 @@ const SEARCH_DEBOUNCE_MS = 280
  * per DEVELOPMENT_PLAN.md), so this fetches one full page from each real
  * endpoint and matches/ranks client-side — see src/lib/searchCatalog.ts.
  *
- * Known gap raised to the Backend Engineer: neither Business nor Product has
- * a `featured`/`sponsored` field yet, so unlike the approved prototype this
- * screen has no real sponsored businesses/products to label — the
- * SponsoredTag/visually-distinct-card treatment is still in place and used
- * by sponsored videos (fixture data carries a `sponsored` flag) so the
- * pattern is exercised, but it can't be wired for businesses/products until
- * that field exists.
+ * Businesses/products carry a real `is_featured` flag now (see
+ * docs/decisions.md's "Phase 1a: manual featured placement" entry) —
+ * BusinessResultCard/ProductResultCard show the same amber SponsoredTag used
+ * elsewhere for that flag, and lib/searchCatalog.ts's `rank()` gives featured
+ * items a same-relevance-tier ranking boost (documented there). Videos stay
+ * fixture-only (a fixture `sponsored` flag) since there's no video backend
+ * field or endpoint for it yet.
  */
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams()

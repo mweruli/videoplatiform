@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import VerificationStatusBadge from '../ui/VerificationStatusBadge'
+import { FeaturedTag } from '../ui/Tags'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 import type { BusinessDto } from '../../lib/api'
 
@@ -16,11 +17,14 @@ function locationLabel(business: BusinessDto): string | null {
 
 /**
  * Real business card for Home's featured rail (GET /api/v1/businesses —
- * verified/active only, backend-enforced). No `featured`/`sponsored` field
- * exists on Business yet (see FeaturedBusinesses.tsx for the substitute
- * selection), so unlike the fixture-era version of this card there's no
- * amber "Featured" tag here — that badge would assert something not
- * actually true of any individual row. Verified-status badge is real.
+ * verified/active only, backend-enforced). `is_featured` is a real
+ * platform-controlled flag now (docs/decisions.md's "Phase 1a: manual
+ * featured placement" entry) — every row this card renders on
+ * FeaturedBusinesses.tsx's rail is featured by construction (the query
+ * itself filters to `is_featured=true`), so the badge is shown
+ * unconditionally there; it's still gated on the flag here (rather than
+ * always-on) so this card stays correct if it's ever reused somewhere that
+ * mixes featured and non-featured businesses. Verified-status badge is real.
  */
 export default function BusinessCard({ business, tone = 'light' }: BusinessCardProps) {
   const onDark = tone === 'onDark'
@@ -36,6 +40,11 @@ export default function BusinessCard({ business, tone = 'light' }: BusinessCardP
           : 'border-border bg-surface shadow-soft hover:shadow-elevated'
       }`}
     >
+      {business.is_featured && (
+        <span className="absolute top-2.5 right-2.5 z-10">
+          <FeaturedTag tone={onDark ? 'onDark' : 'default'} />
+        </span>
+      )}
       <span
         className="relative mb-2.5 flex h-[42px] w-[42px] items-center justify-center overflow-hidden rounded-xl text-[1.1rem] font-bold text-white shadow-[0_6px_14px_-4px_rgba(0,0,0,0.35)]"
         style={{ backgroundImage: gradientFor(gradIndexForId(business.id)) }}

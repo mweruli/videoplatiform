@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import VerificationStatusBadge from '../ui/VerificationStatusBadge'
+import { SponsoredTag } from '../ui/Tags'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 import type { BusinessDto } from '../../lib/api'
 
@@ -34,9 +35,12 @@ export default function BusinessResultCard({ business }: BusinessResultCardProps
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate text-[0.9rem] font-bold text-foreground">{business.name}</span>
-          <VerificationStatusBadge status={business.verification_status} />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[0.9rem] font-bold text-foreground">{business.name}</span>
+            <VerificationStatusBadge status={business.verification_status} />
+          </div>
+          {business.is_featured && <SponsoredTag className="flex-none" />}
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {[business.category?.name, location].filter(Boolean).join(' · ') || 'Business'}

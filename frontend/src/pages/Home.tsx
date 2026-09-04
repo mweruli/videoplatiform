@@ -11,9 +11,10 @@ import TrendingVideos from '../components/home/TrendingVideos'
  *
  * Categories (CategoryRail/CategoryGrid) and featured businesses
  * (FeaturedBusinesses) are real backend data now, via the same
- * hooks/useCatalog.ts hooks Search.tsx uses — see those components for the
- * "no real `featured` field yet" substitute and loading/empty/error
- * handling. TrendingVideos is still fixture-backed (src/data/videos.ts) —
+ * hooks/useCatalog.ts hooks Search.tsx uses — FeaturedBusinesses queries the
+ * real `is_featured` flag (see docs/decisions.md's "Phase 1a: manual
+ * featured placement" entry) rather than a placeholder. TrendingVideos is
+ * still fixture-backed (src/data/videos.ts) —
  * there is no video backend yet (see VideoFeed.tsx). Section
  * order/curation for the still-fixture-backed video rail lives in
  * src/data/home.ts.

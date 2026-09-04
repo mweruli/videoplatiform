@@ -10,10 +10,40 @@ import type { SearchFilters } from '../components/search/filterState'
  * get tangled with render/query-state concerns.
  */
 
-function rank<T>(items: T[], tokens: string[], haystackOf: (item: T) => (string | null | undefined)[]): T[] {
-  const withScore = items.map((item) => ({ item, score: scoreTokens(haystackOf(item), tokens) }))
-  if (tokens.length === 0) return withScore.map((x) => x.item)
-  return withScore.sort((a, b) => b.score - a.score).map((x) => x.item)
+/**
+ * Judgment call (documented per docs/PROJECT_BRIEF.md's manual-featured-
+ * placement scope, no explicit spec either way): featured/sponsored items
+ * get a same-relevance-tier ranking boost, not just a visual badge. Rationale
+ * — DEVELOPMENT_PLAN.md itself describes this feature as "manual 'featured'
+ * placement, clearly labelled sponsored," and a sponsored placement that
+ * never actually surfaces any higher than an identical organic result isn't
+ * really a placement, just a label. This is a *tie-break*, not a relevance
+ * override: a featured item never outranks a genuinely better keyword match
+ * (score is still primary whenever there's an active query), it only wins
+ * ties within the same score bucket — including the "no query yet" browse
+ * case, where every item ties at score 0 and this is the only ordering
+ * signal beyond the API's own return order. `Array.sort` is stable, so
+ * non-featured items keep their relative order among themselves either way.
+ */
+function rank<T>(
+  items: T[],
+  tokens: string[],
+  haystackOf: (item: T) => (string | null | undefined)[],
+  isFeaturedOf: (item: T) => boolean = () => false,
+): T[] {
+  const withScore = items.map((item) => ({
+    item,
+    score: scoreTokens(haystackOf(item), tokens),
+    featured: isFeaturedOf(item),
+  }))
+  return withScore
+    .sort((a, b) => {
+      const scoreDiff = b.score - a.score
+      if (scoreDiff !== 0) return scoreDiff
+      if (a.featured !== b.featured) return a.featured ? -1 : 1
+      return 0
+    })
+    .map((x) => x.item)
 }
 
 export function filterBusinesses(items: BusinessDto[], tokens: string[], filters: SearchFilters): BusinessDto[] {
@@ -28,7 +58,7 @@ export function filterBusinesses(items: BusinessDto[], tokens: string[], filters
     }
     return true
   })
-  return rank(matched, tokens, haystackOf)
+  return rank(matched, tokens, haystackOf, (b) => b.is_featured)
 }
 
 export function filterProducts(items: ProductDto[], tokens: string[], filters: SearchFilters): ProductDto[] {
@@ -57,7 +87,7 @@ export function filterProducts(items: ProductDto[], tokens: string[], filters: S
     if (max !== null && priceMin !== null && priceMin > max) return false
     return true
   })
-  return rank(matched, tokens, haystackOf)
+  return rank(matched, tokens, haystackOf, (p) => p.is_featured)
 }
 
 /**

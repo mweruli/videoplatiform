@@ -1,28 +1,29 @@
 import SectionHeading from '../ui/SectionHeading'
 import Skeleton from '../ui/Skeleton'
 import BusinessCard from './BusinessCard'
-import { useAllBusinesses } from '../../hooks/useCatalog'
+import { useFeaturedBusinesses } from '../../hooks/useCatalog'
 import { GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 
-const FEATURED_COUNT = 4
+/** Loading-state skeleton count only — not a claim about how many featured
+ * businesses actually exist (that's whatever the API returns, could be
+ * fewer). */
+const SKELETON_COUNT = 4
 
 /**
  * The dark "digital showroom" band — restores the brand doc's alternating
  * dark/light section rhythm rather than letting the page read as one flat
  * scroll.
  *
- * Real businesses now (GET /api/v1/businesses, verified+active only,
- * backend-enforced). There's no `featured`/`sponsored` field on Business yet
- * (flagged in docs/decisions.md) — as a substitute, this takes the first
- * FEATURED_COUNT rows as returned by the API, which the backend orders by
- * `created_at DESC` (see backend/app/api/v1/endpoints/businesses.py), i.e.
- * "most recently onboarded verified businesses". Swap this slice for a real
- * `featured`/`is_featured` filter once that field exists — search this file
- * for FEATURED_COUNT when it lands.
+ * Real featured businesses now (`GET /api/v1/businesses?is_featured=true`,
+ * verified+active only, backend-enforced) — see docs/decisions.md's "Phase
+ * 1a: manual featured placement" entry. This is the platform-curated set
+ * only; it does NOT pad with non-featured rows if fewer than 4 come back
+ * (currently just Solaris Power Kenya), so the rail can legitimately render
+ * 1–N cards.
  */
 export default function FeaturedBusinesses() {
-  const businessesQuery = useAllBusinesses()
-  const businesses = (businessesQuery.data?.items ?? []).slice(0, FEATURED_COUNT)
+  const businessesQuery = useFeaturedBusinesses()
+  const businesses = businessesQuery.data?.items ?? []
 
   return (
     <section
@@ -38,7 +39,7 @@ export default function FeaturedBusinesses() {
 
       {businessesQuery.isLoading ? (
         <div className="relative z-10 flex gap-3 px-5 lg:grid lg:grid-cols-4 lg:gap-5 lg:px-14">
-          {Array.from({ length: FEATURED_COUNT }, (_, i) => (
+          {Array.from({ length: SKELETON_COUNT }, (_, i) => (
             <Skeleton key={i} className="h-[132px] w-[180px] flex-none bg-white/[0.06] lg:w-full" />
           ))}
         </div>
@@ -56,7 +57,7 @@ export default function FeaturedBusinesses() {
       ) : businesses.length === 0 ? (
         <div className="relative z-10 px-5 lg:px-14">
           <p className="text-sm text-ice/60">
-            No verified businesses yet — new businesses are being onboarded. Check back soon.
+            No featured businesses right now — check back soon.
           </p>
         </div>
       ) : (

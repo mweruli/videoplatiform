@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import VerificationStatusBadge from '../ui/VerificationStatusBadge'
+import { SponsoredTag } from '../ui/Tags'
 import Icon from '../icons/Icon'
 import { toCompareProduct, useCompare } from '../../lib/compare'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
@@ -41,9 +42,12 @@ export default function ProductResultCard({ product }: ProductResultCardProps) {
         )}
       </Link>
       <div className="min-w-0 flex-1">
-        <Link to={`/product/${product.slug}`} className="block truncate text-[0.9rem] font-bold text-foreground">
-          {product.name}
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link to={`/product/${product.slug}`} className="block min-w-0 truncate text-[0.9rem] font-bold text-foreground">
+            {product.name}
+          </Link>
+          {product.is_featured && <SponsoredTag className="flex-none" />}
+        </div>
         <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
           {product.business.name}
           <VerificationStatusBadge status={product.business.verification_status} />

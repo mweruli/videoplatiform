@@ -38,6 +38,20 @@ export function useAllBusinesses() {
   })
 }
 
+/**
+ * Platform-curated featured set (`GET /businesses?is_featured=true`) — Home's
+ * "Featured Businesses" rail. Real backend flag now (see
+ * docs/decisions.md's "Phase 1a: manual featured placement" entry); this
+ * replaces the old "first 4 by recency" substitute that used to live in
+ * FeaturedBusinesses.tsx.
+ */
+export function useFeaturedBusinesses() {
+  return useQuery({
+    queryKey: ['businesses', 'featured'],
+    queryFn: () => listBusinesses({ is_featured: true, page_size: 100 }),
+  })
+}
+
 export function useAllProducts(params: ListProductsParams = {}) {
   return useQuery({
     queryKey: ['products', 'all', params],
