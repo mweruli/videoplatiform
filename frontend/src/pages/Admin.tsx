@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import BusinessModerationCard from '../components/admin/BusinessModerationCard'
 import CampaignModerationCard from '../components/admin/CampaignModerationCard'
 import CategoryManagement from '../components/admin/CategoryManagement'
+import PricingSettings from '../components/admin/PricingSettings'
 import ProductModerationCard from '../components/admin/ProductModerationCard'
 import StatusTabs from '../components/admin/StatusTabs'
 import UserManagement from '../components/admin/UserManagement'
@@ -30,7 +31,7 @@ import { useCategories } from '../hooks/useCatalog'
 import type { ModerationStatus, VerificationStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod' | 'campmod' | 'categories' | 'users'
+type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod' | 'campmod' | 'categories' | 'pricing' | 'users'
 
 const BUSINESS_STATUS_OPTIONS: { id: VerificationStatus; label: string }[] = [
   { id: 'pending', label: 'Pending' },
@@ -65,6 +66,7 @@ const SECTION_TITLES: Record<AdminSectionId, string> = {
   vidmod: 'Video Moderation',
   campmod: 'Campaign Moderation',
   categories: 'Category Management',
+  pricing: 'Pricing Settings',
   users: 'User Management',
 }
 
@@ -194,6 +196,7 @@ function AdminContent() {
     { id: 'vidmod', label: 'Video Moderation', icon: 'video', count: pendingVideos },
     { id: 'campmod', label: 'Campaign Moderation', icon: 'megaphone', count: pendingCampaigns },
     { id: 'categories', label: 'Category Management', icon: 'tag' },
+    { id: 'pricing', label: 'Pricing Settings', icon: 'cash' },
     { id: 'users', label: 'User Management', icon: 'user' },
   ]
 
@@ -415,6 +418,8 @@ function AdminContent() {
       )}
 
       {adminSection === 'categories' && <CategoryManagement />}
+
+      {adminSection === 'pricing' && <PricingSettings />}
 
       {adminSection === 'users' && <UserManagement />}
     </DashboardShell>

@@ -5,6 +5,7 @@ import {
   adminListBusinesses,
   adminListCampaigns,
   adminListCategories,
+  adminListFeaturedPricingTiers,
   adminListProducts,
   adminListUsers,
   adminListVideos,
@@ -14,17 +15,23 @@ import {
   approveProductAdmin,
   approveVideoAdmin,
   createCategoryAdmin,
+  createFeaturedPricingTierAdmin,
   rejectBusinessAdmin,
   rejectCampaignAdmin,
   rejectProductAdmin,
   rejectVideoAdmin,
+  updateCampaignPricingAdmin,
   updateCategoryAdmin,
+  updateFeaturedPricingTierAdmin,
 } from '../lib/api'
 import type {
   AdminListUsersParams,
+  CampaignPricingUpdatePayload,
   CampaignStatus,
   CategoryCreatePayload,
   CategoryUpdatePayload,
+  FeaturedPricingTierCreatePayload,
+  FeaturedPricingTierUpdatePayload,
   ModerationStatus,
   VerificationStatus,
 } from '../lib/api'
@@ -371,5 +378,75 @@ export function useUpdateUserActive() {
       qc.invalidateQueries({ queryKey: ['admin', 'users'] })
       qc.invalidateQueries({ queryKey: ['admin', 'users', 'detail', variables.userId] })
     },
+  })
+}
+
+/**
+ * Pricing Settings (`pages/Admin.tsx`'s "pricing" section) — Featured
+ * Placement tiers half. Same deactivate-only shape as Category Management
+ * (see docs/decisions.md's "Admin-editable pricing" entry): `GET
+ * /admin/featured-pricing-tiers` returns every tier including inactive ones,
+ * unlike the public `useFeaturedPricing()` (hooks/useFeaturedPurchase.ts)
+ * which only ever sees active tiers.
+ */
+export function useAdminFeaturedPricingTiers() {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'featured-pricing-tiers'],
+    queryFn: () => adminListFeaturedPricingTiers(token as string),
+    enabled: isStaff && Boolean(token),
+  })
+}
+
+/**
+ * A new/edited/(de)activated tier changes what the real purchase flow's tier
+ * picker (`FeaturedPurchaseModal.tsx`, via `useFeaturedPricing()`) shows —
+ * invalidate both the admin list and the public `['featured', 'pricing']`
+ * cache so the change is visible immediately, not just after that query's
+ * 5-minute staleTime lapses.
+ */
+function useInvalidateFeaturedPricingTiers() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'featured-pricing-tiers'] })
+    qc.invalidateQueries({ queryKey: ['featured', 'pricing'] })
+  }
+}
+
+export function useCreateFeaturedPricingTier() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateFeaturedPricingTiers()
+  return useMutation({
+    mutationFn: (payload: FeaturedPricingTierCreatePayload) => createFeaturedPricingTierAdmin(token as string, payload),
+    onSuccess: () => invalidate(),
+  })
+}
+
+export function useUpdateFeaturedPricingTier() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateFeaturedPricingTiers()
+  return useMutation({
+    mutationFn: ({ tierId, payload }: { tierId: number; payload: FeaturedPricingTierUpdatePayload }) =>
+      updateFeaturedPricingTierAdmin(token as string, tierId, payload),
+    onSuccess: () => invalidate(),
+  })
+}
+
+/**
+ * Pricing Settings — Ad Campaign CPM/minimum-funding half. Reads use the
+ * existing public `useCampaignPricing()` (hooks/useCampaigns.ts) directly, no
+ * admin-specific GET needed (`GET /campaigns/pricing` is public and already
+ * shows the live values everywhere else campaign pricing is displayed).
+ * Saving invalidates that same `['campaigns', 'pricing']` cache so
+ * `CreateCampaignModal`/wherever else it's shown reflects the new value
+ * immediately rather than after its 5-minute staleTime.
+ */
+export function useUpdateCampaignPricing() {
+  const { token } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CampaignPricingUpdatePayload) => updateCampaignPricingAdmin(token as string, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaigns', 'pricing'] }),
   })
 }

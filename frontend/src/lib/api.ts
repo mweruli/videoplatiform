@@ -992,6 +992,61 @@ export function getFeaturedPricing(): Promise<FeaturedPricingOptionDto[]> {
   return apiFetch<FeaturedPricingOptionDto[]>(`${V1}/featured/pricing`)
 }
 
+/**
+ * Admin Pricing Settings → Featured Placement tiers (`GET/POST
+ * /admin/featured-pricing-tiers`, `PATCH /admin/featured-pricing-tiers/{id}`)
+ * — mirrors the admin Category endpoints' exact shape (see
+ * docs/decisions.md's "Admin-editable pricing" entry): deactivate-only, no
+ * delete route exists, because a tier referenced by historical
+ * FeaturedPurchase rows can't be safely hard-deleted.
+ */
+export interface AdminFeaturedPricingTierDto extends FeaturedPricingOptionDto {
+  created_at: string
+}
+
+/** All tiers including inactive ones — the admin list, unlike the public `getFeaturedPricing()`. */
+export function adminListFeaturedPricingTiers(token: string): Promise<AdminFeaturedPricingTierDto[]> {
+  return apiFetch<AdminFeaturedPricingTierDto[]>(`${V1}/admin/featured-pricing-tiers`, { headers: authHeaders(token) })
+}
+
+export interface FeaturedPricingTierCreatePayload {
+  label: string
+  duration_days: number
+  /** Numeric-as-string over the wire is also accepted server-side (Pydantic Decimal); a plain number works too. */
+  amount_kes: number
+}
+
+export function createFeaturedPricingTierAdmin(
+  token: string,
+  payload: FeaturedPricingTierCreatePayload,
+): Promise<AdminFeaturedPricingTierDto> {
+  return apiFetch<AdminFeaturedPricingTierDto>(`${V1}/admin/featured-pricing-tiers`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface FeaturedPricingTierUpdatePayload {
+  label?: string
+  duration_days?: number
+  amount_kes?: number
+  is_active?: boolean
+}
+
+/** Editing an existing tier never touches purchases already made under it — see FeaturedPurchase.tier_label's snapshot design in docs/decisions.md. */
+export function updateFeaturedPricingTierAdmin(
+  token: string,
+  tierId: number,
+  payload: FeaturedPricingTierUpdatePayload,
+): Promise<AdminFeaturedPricingTierDto> {
+  return apiFetch<AdminFeaturedPricingTierDto>(`${V1}/admin/featured-pricing-tiers/${tierId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
 export interface FeaturedPurchaseDto {
   id: string
   business_id: string
@@ -1077,6 +1132,26 @@ export interface CampaignPricingDto {
 /** Public — never hardcode the CPM rate/minimum top-up in the frontend. */
 export function getCampaignPricing(): Promise<CampaignPricingDto> {
   return apiFetch<CampaignPricingDto>(`${V1}/campaigns/pricing`)
+}
+
+export interface CampaignPricingUpdatePayload {
+  cpm_kes?: number
+  min_funding_kes?: number
+}
+
+/**
+ * Admin Pricing Settings → Ad Campaign pricing (`PATCH
+ * /admin/campaign-pricing`) — a single settings row, not a tier list (see
+ * docs/decisions.md's "Admin-editable pricing" entry). Only ever changes the
+ * live rate for *future* campaigns/top-ups: `Campaign.cpm_kes` is snapshotted
+ * at campaign-creation time and never re-read from this row afterward.
+ */
+export function updateCampaignPricingAdmin(token: string, payload: CampaignPricingUpdatePayload): Promise<CampaignPricingDto> {
+  return apiFetch<CampaignPricingDto>(`${V1}/admin/campaign-pricing`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
 }
 
 export interface CampaignDto {

@@ -44,6 +44,7 @@ export type IconName =
   | 'sparkle'
   | 'megaphone'
   | 'alertTriangle'
+  | 'cash'
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -92,6 +93,7 @@ const PATHS: Record<IconName, string> = {
   megaphone:
     '<path d="M3 11v2a2 2 0 002 2h1l2.5 5.5 1.8-.7L8.7 15H10l8 4V5l-8 4H5a2 2 0 00-2 2z"/><path d="M18 9.5a4 4 0 010 5"/>',
   alertTriangle: '<path d="M12 3l10 18H2L12 3z"/><path d="M12 10v4"/><circle cx="12" cy="17.3" r="0.4" fill="currentColor" stroke="none"/>',
+  cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v.01M18 15v.01"/>',
 }
 
 interface IconProps {
