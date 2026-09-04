@@ -5,6 +5,22 @@ app.api.deps.require_moderator). Business verification approve/reject is
 admin/moderator-only per PROJECT_BRIEF.md's roles table; product approve/
 reject uses the same gate since both are "review UGC/commercial content
 before publication" per the Content Moderation section.
+
+State machine (updated 2026-09-04 — see docs/decisions.md for the full
+history): approve/reject are no longer pending-only.
+- **Reject** succeeds from `pending` *or* `approved`/`verified` (an admin can
+  pull down a previously-approved item, e.g. a policy violation found after
+  the fact) but 409s from `rejected` (double-click safety — no silent
+  re-reject no-op). A reject always (re-)records the reason in the same
+  `moderation_note`/`verification_note` field the owner already sees on
+  their own resource.
+- **Approve** succeeds from `pending` *or* `rejected` (an admin reversing an
+  earlier rejection, e.g. after the owner fixes the flagged issue, or an
+  admin who rejected in error) but 409s from `approved` (already approved —
+  a no-op, same double-click-safety reasoning as reject-from-rejected).
+Rejecting something that was `approved`/`verified` takes it out of public
+view immediately, since every public GET already filters on
+`moderation_status/verification_status == APPROVED/VERIFIED`.
 """
 
 from __future__ import annotations
@@ -100,11 +116,12 @@ def approve_business(
     current_user: User = Depends(require_moderator),
 ) -> Business:
     business = _get_business_or_404(db, business_id)
-    if business.verification_status != VerificationStatus.PENDING:
+    allowed = (VerificationStatus.PENDING, VerificationStatus.REJECTED)
+    if business.verification_status not in allowed:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot approve from status '{business.verification_status.value}'; "
-            "business must be 'pending'.",
+            "business must be 'pending' or 'rejected'.",
         )
     business.verification_status = VerificationStatus.VERIFIED
     business.verification_note = payload.note
@@ -125,11 +142,12 @@ def reject_business(
     current_user: User = Depends(require_moderator),
 ) -> Business:
     business = _get_business_or_404(db, business_id)
-    if business.verification_status != VerificationStatus.PENDING:
+    allowed = (VerificationStatus.PENDING, VerificationStatus.VERIFIED)
+    if business.verification_status not in allowed:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot reject from status '{business.verification_status.value}'; "
-            "business must be 'pending'.",
+            "business must be 'pending' or 'verified'.",
         )
     business.verification_status = VerificationStatus.REJECTED
     business.verification_note = payload.reason
@@ -235,11 +253,11 @@ def approve_product(
     current_user: User = Depends(require_moderator),
 ) -> Product:
     product = _get_product_or_404(db, product_id)
-    if product.moderation_status != ModerationStatus.PENDING:
+    if product.moderation_status not in (ModerationStatus.PENDING, ModerationStatus.REJECTED):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot approve from status '{product.moderation_status.value}'; "
-            "product must be 'pending'.",
+            "product must be 'pending' or 'rejected'.",
         )
     product.moderation_status = ModerationStatus.APPROVED
     product.moderation_note = payload.note
@@ -260,11 +278,11 @@ def reject_product(
     current_user: User = Depends(require_moderator),
 ) -> Product:
     product = _get_product_or_404(db, product_id)
-    if product.moderation_status != ModerationStatus.PENDING:
+    if product.moderation_status not in (ModerationStatus.PENDING, ModerationStatus.APPROVED):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot reject from status '{product.moderation_status.value}'; "
-            "product must be 'pending'.",
+            "product must be 'pending' or 'approved'.",
         )
     product.moderation_status = ModerationStatus.REJECTED
     product.moderation_note = payload.reason
@@ -364,11 +382,11 @@ def approve_video(
     current_user: User = Depends(require_moderator),
 ) -> Video:
     video = _get_video_or_404(db, video_id)
-    if video.moderation_status != ModerationStatus.PENDING:
+    if video.moderation_status not in (ModerationStatus.PENDING, ModerationStatus.REJECTED):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot approve from status '{video.moderation_status.value}'; "
-            "video must be 'pending'.",
+            "video must be 'pending' or 'rejected'.",
         )
     video.moderation_status = ModerationStatus.APPROVED
     video.moderation_note = payload.note
@@ -389,11 +407,11 @@ def reject_video(
     current_user: User = Depends(require_moderator),
 ) -> Video:
     video = _get_video_or_404(db, video_id)
-    if video.moderation_status != ModerationStatus.PENDING:
+    if video.moderation_status not in (ModerationStatus.PENDING, ModerationStatus.APPROVED):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot reject from status '{video.moderation_status.value}'; "
-            "video must be 'pending'.",
+            "video must be 'pending' or 'approved'.",
         )
     video.moderation_status = ModerationStatus.REJECTED
     video.moderation_note = payload.reason

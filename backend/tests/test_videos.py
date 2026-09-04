@@ -223,6 +223,60 @@ def test_video_reject_and_permissions() -> None:
     assert resp.status_code == 409
 
 
+def test_video_reject_after_approval_hides_it_immediately() -> None:
+    """A previously-approved video is a legitimate reject target, not just a
+    pending one. Rejecting it must remove it from the public listing right
+    away, and re-approving from rejected is a documented, supported path."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    video = _upload_video(owner_token, business["id"])
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.post(
+        f"/api/v1/admin/videos/{video['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["moderation_status"] == "approved"
+
+    resp = client.get("/api/v1/videos", params={"business_id": business["id"]})
+    assert resp.json()["total"] == 1
+
+    resp = client.post(
+        f"/api/v1/admin/videos/{video['id']}/reject",
+        json={"reason": "Policy violation discovered post-approval."},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["moderation_status"] == "rejected"
+    assert body["moderation_note"] == "Policy violation discovered post-approval."
+
+    resp = client.get("/api/v1/videos", params={"business_id": business["id"]})
+    assert resp.json()["total"] == 0  # immediately hidden from public listing
+
+    # Admin can reverse the rejection straight back to approved.
+    resp = client.post(
+        f"/api/v1/admin/videos/{video['id']}/approve",
+        json={"note": "Issue resolved."},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["moderation_status"] == "approved"
+
+    resp = client.get("/api/v1/videos", params={"business_id": business["id"]})
+    assert resp.json()["total"] == 1
+
+    # Approving an already-approved video is a no-op 409.
+    resp = client.post(
+        f"/api/v1/admin/videos/{video['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 409
+
+
 def test_removed_video_stays_gone_from_owner_view() -> None:
     """Regression guard matching
     test_removed_product_stays_gone_from_owner_view: is_active must always be

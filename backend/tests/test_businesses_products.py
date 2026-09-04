@@ -180,6 +180,71 @@ def test_verification_reject_workflow() -> None:
     assert resp.json()["verification_status"] == "pending"
 
 
+def test_business_reject_after_approval_hides_it_immediately() -> None:
+    """A previously-verified business is a legitimate reject target (e.g. a
+    policy violation found after the fact) — not just a pending one. Once
+    rejected, it must disappear from the public directory right away, and an
+    already-rejected business can't be rejected again (double-click safety)."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    client.post(
+        f"/api/v1/businesses/{business['id']}/submit-for-verification",
+        headers=_auth_headers(owner_token),
+    )
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["verification_status"] == "verified"
+
+    resp = client.get("/api/v1/businesses", params={"q": business["name"]})
+    assert resp.json()["total"] == 1
+
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/reject",
+        json={"reason": "Policy violation discovered post-approval."},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["verification_status"] == "rejected"
+    assert body["verification_note"] == "Policy violation discovered post-approval."
+
+    resp = client.get("/api/v1/businesses", params={"q": business["name"]})
+    assert resp.json()["total"] == 0  # immediately hidden from public directory
+
+    # Rejecting an already-rejected business is a no-op 409, not a silent success.
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/reject",
+        json={"reason": "Again"},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 409
+
+    # Admin can reverse the rejection straight back to verified.
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={"note": "Reviewed again, issue resolved."},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["verification_status"] == "verified"
+
+    resp = client.get("/api/v1/businesses", params={"q": business["name"]})
+    assert resp.json()["total"] == 1
+
+    # Approving an already-verified business is a no-op 409.
+    resp = client.post(
+        f"/api/v1/admin/businesses/{business['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 409
+
+
 def test_product_lifecycle_and_moderation() -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
@@ -305,6 +370,73 @@ def test_product_reject_and_permissions() -> None:
     )
     assert resp.status_code == 200
     assert resp.json()["moderation_status"] == "rejected"
+
+    # Can't reject an already-rejected product again (double-click safety).
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/reject",
+        json={"reason": "Again"},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 409
+
+
+def test_product_reject_after_approval_hides_it_immediately() -> None:
+    """A previously-approved product is a legitimate reject target, not just
+    a pending one. Rejecting it must remove it from the public listing right
+    away, and re-approving from rejected is a documented, supported path."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    resp = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Reject After Approve Tank")},
+        headers=_auth_headers(owner_token),
+    )
+    product = resp.json()
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["moderation_status"] == "approved"
+
+    resp = client.get("/api/v1/products", params={"business_id": business["id"]})
+    assert resp.json()["total"] == 1
+
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/reject",
+        json={"reason": "Policy violation discovered post-approval."},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["moderation_status"] == "rejected"
+    assert body["moderation_note"] == "Policy violation discovered post-approval."
+
+    resp = client.get("/api/v1/products", params={"business_id": business["id"]})
+    assert resp.json()["total"] == 0  # immediately hidden from public listing
+
+    # Admin can reverse the rejection straight back to approved.
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/approve",
+        json={"note": "Issue resolved."},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["moderation_status"] == "approved"
+
+    resp = client.get("/api/v1/products", params={"business_id": business["id"]})
+    assert resp.json()["total"] == 1
+
+    # Approving an already-approved product is a no-op 409.
+    resp = client.post(
+        f"/api/v1/admin/products/{product['id']}/approve",
+        json={},
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 409
 
 
 def test_admin_queue_filters_by_status() -> None:
