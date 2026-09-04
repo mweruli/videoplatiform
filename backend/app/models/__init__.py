@@ -5,6 +5,8 @@ Base.metadata) can see all tables.
 """
 
 from app.models.business import Business  # noqa: F401
+from app.models.campaign import Campaign  # noqa: F401
+from app.models.campaign_funding import CampaignFunding  # noqa: F401
 from app.models.category import Category  # noqa: F401
 from app.models.featured_purchase import FeaturedPurchase  # noqa: F401
 from app.models.otp import OtpCode  # noqa: F401
