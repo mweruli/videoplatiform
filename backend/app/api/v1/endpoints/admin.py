@@ -20,9 +20,9 @@ from app.api.deps import require_moderator
 from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
 from app.models.category import Category
-from app.models.product import ModerationStatus, Product
+from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
-from app.models.video import Video
+from app.models.video import Video, video_categories
 from app.schemas.auth import AdminUserDetail, AdminUserRead, AdminUserUpdate
 from app.schemas.business import (
     BusinessModerationAction,
@@ -30,7 +30,7 @@ from app.schemas.business import (
     BusinessRejectAction,
     BusinessSummary,
 )
-from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
+from app.schemas.category import AdminCategoryRead, CategoryCreate, CategoryRead, CategoryUpdate
 from app.schemas.common import Page
 from app.schemas.product import ProductModerationAction, ProductRead, ProductRejectAction
 from app.schemas.video import VideoModerationAction, VideoRead, VideoRejectAction
@@ -415,16 +415,59 @@ def reject_video(
 
 @router.get(
     "/admin/categories",
-    response_model=list[CategoryRead],
+    response_model=list[AdminCategoryRead],
     tags=["admin"],
     dependencies=[Depends(require_moderator)],
 )
-def admin_list_categories(db: Session = Depends(get_db)) -> list[Category]:
+def admin_list_categories(db: Session = Depends(get_db)) -> list[AdminCategoryRead]:
     """Unlike the public `GET /categories`, this returns inactive categories
     too — an admin managing the category list needs to see (and be able to
-    reactivate) ones they've previously deactivated."""
-    stmt = select(Category).order_by(Category.name)
-    return list(db.scalars(stmt).all())
+    reactivate) ones they've previously deactivated. Also adds a "used by"
+    count per category (active businesses/products/videos referencing it) for
+    the Admin Category Management screen — see docs/decisions.md.
+
+    Each count is a single grouped aggregate query (not N+1 per category),
+    same pattern as businesses.py's get_business_stats."""
+    categories = list(db.scalars(select(Category).order_by(Category.name)).all())
+
+    business_counts: dict[int, int] = dict(
+        db.execute(
+            select(Business.category_id, func.count(Business.id))
+            .where(Business.is_active.is_(True), Business.category_id.is_not(None))
+            .group_by(Business.category_id)
+        ).all()
+    )
+    product_counts: dict[int, int] = dict(
+        db.execute(
+            select(product_categories.c.category_id, func.count(product_categories.c.product_id))
+            .select_from(
+                product_categories.join(Product, Product.id == product_categories.c.product_id)
+            )
+            .where(Product.is_active.is_(True))
+            .group_by(product_categories.c.category_id)
+        ).all()
+    )
+    video_counts: dict[int, int] = dict(
+        db.execute(
+            select(video_categories.c.category_id, func.count(video_categories.c.video_id))
+            .select_from(video_categories.join(Video, Video.id == video_categories.c.video_id))
+            .where(Video.is_active.is_(True))
+            .group_by(video_categories.c.category_id)
+        ).all()
+    )
+
+    return [
+        AdminCategoryRead(
+            id=category.id,
+            name=category.name,
+            slug=category.slug,
+            is_active=category.is_active,
+            business_count=business_counts.get(category.id, 0),
+            product_count=product_counts.get(category.id, 0),
+            video_count=video_counts.get(category.id, 0),
+        )
+        for category in categories
+    ]
 
 
 def _get_category_or_404(db: Session, category_id: int) -> Category:

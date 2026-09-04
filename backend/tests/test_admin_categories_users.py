@@ -6,6 +6,7 @@ Same TestClient + real-DB pattern as test_businesses_products.py.
 
 from __future__ import annotations
 
+import io
 import uuid
 
 from fastapi.testclient import TestClient
@@ -13,6 +14,13 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
+
+# Same tiny-but-valid MP4 fixture as tests/test_videos.py — just enough to
+# exercise upload plumbing, not a real playable clip.
+_TINY_MP4_BYTES = (
+    b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom"
+    b"\x00\x00\x00\x08free"
+)
 
 
 def _unique(prefix: str) -> str:
@@ -166,6 +174,75 @@ def test_content_moderator_can_manage_categories_too() -> None:
         headers=_auth_headers(moderator_token),
     )
     assert resp.status_code == 201
+
+
+def _row_for(category_id: int, admin_token: str) -> dict:
+    resp = client.get("/api/v1/admin/categories", headers=_auth_headers(admin_token))
+    assert resp.status_code == 200
+    return next(c for c in resp.json() if c["id"] == category_id)
+
+
+def test_admin_category_list_reports_active_usage_counts() -> None:
+    """GET /admin/categories reports how many currently-active
+    businesses/products/videos reference each category (see
+    docs/decisions.md) — a real aggregate, not the fixture-only
+    approximation the design prototype originally flagged. Soft-deleted
+    rows (is_active=False) must not inflate the count, matching
+    Business.product_count's existing "active only" convention."""
+    admin_token, _ = _dev_token(role="platform_admin")
+    category = client.post(
+        "/api/v1/admin/categories",
+        json={"name": _unique("Usage Count Category")},
+        headers=_auth_headers(admin_token),
+    ).json()
+    category_id = category["id"]
+
+    row = _row_for(category_id, admin_token)
+    assert row["business_count"] == 0
+    assert row["product_count"] == 0
+    assert row["video_count"] == 0
+
+    # Business references the category via its direct category_id FK.
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token, category_id=category_id)
+
+    # Product references it via the product_categories join table.
+    product = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Counted Product"), "category_ids": [category_id]},
+        headers=_auth_headers(owner_token),
+    ).json()
+
+    # A second product that gets soft-deleted afterward -- must NOT count.
+    doomed_product = client.post(
+        f"/api/v1/businesses/{business['id']}/products",
+        json={"name": _unique("Soft Deleted Product"), "category_ids": [category_id]},
+        headers=_auth_headers(owner_token),
+    ).json()
+    resp = client.delete(
+        f"/api/v1/products/{doomed_product['id']}", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 204
+
+    # Video references it via the video_categories join table.
+    video = client.post(
+        f"/api/v1/businesses/{business['id']}/videos",
+        data={"title": _unique("Counted Video"), "category_ids": [str(category_id)]},
+        files={"file": ("clip.mp4", io.BytesIO(_TINY_MP4_BYTES), "video/mp4")},
+        headers=_auth_headers(owner_token),
+    ).json()
+
+    row = _row_for(category_id, admin_token)
+    assert row["business_count"] == 1
+    assert row["product_count"] == 1  # not 2 -- the soft-deleted one is excluded
+    assert row["video_count"] == 1
+
+    # Cleanup verifies the count follows the live rows back down too.
+    client.delete(f"/api/v1/products/{product['id']}", headers=_auth_headers(owner_token))
+    client.delete(f"/api/v1/videos/{video['id']}", headers=_auth_headers(owner_token))
+    row = _row_for(category_id, admin_token)
+    assert row["product_count"] == 0
+    assert row["video_count"] == 0
 
 
 # --- Users -------------------------------------------------------------

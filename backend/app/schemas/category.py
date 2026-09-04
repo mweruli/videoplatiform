@@ -10,6 +10,22 @@ class CategoryRead(BaseModel):
     is_active: bool
 
 
+class AdminCategoryRead(CategoryRead):
+    """Admin-only shape for `GET /admin/categories` — adds "used by" counts
+    for the Admin Category Management screen. Kept separate from the public
+    `CategoryRead` (shared by `GET /categories` and embedded in
+    `BusinessRead`/`ProductRead`/`VideoRead`) so those responses don't carry
+    three extra aggregate fields nobody there needs.
+
+    Counts are active-rows-only (`is_active=True` on Business/Product/Video),
+    matching `Business.product_count`'s existing "active only" convention —
+    a soft-deleted listing shouldn't inflate a category's usage count."""
+
+    business_count: int
+    product_count: int
+    video_count: int
+
+
 class CategoryCreate(BaseModel):
     """Admin-only. Slug is auto-generated from `name` (see
     app/utils/slug.py's `unique_slug`) — never taken as input, same
