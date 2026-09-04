@@ -6,7 +6,9 @@ from app.api.v1.endpoints import (
     auth_dev,
     businesses,
     categories,
+    featured_purchases,
     health,
+    payments,
     products,
     videos,
 )
@@ -20,5 +22,7 @@ api_router.include_router(businesses.router)
 api_router.include_router(products.router)
 api_router.include_router(videos.router)
 api_router.include_router(admin.router)
+api_router.include_router(featured_purchases.router)
+api_router.include_router(payments.router)
 
 # Sprint 4+ adds: search, ads/analytics routers here.

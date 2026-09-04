@@ -31,6 +31,7 @@ from app.schemas.business import (
     ModerationStatusCounts,
 )
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
+from app.services.featured_expiry import sweep_expired_featured_businesses
 from app.services.storage import get_storage_backend
 from app.services.uploads import read_and_validate_image
 from app.utils.slug import unique_slug
@@ -95,6 +96,7 @@ def list_businesses(
     admin's feature/unfeature endpoints) — e.g. for a Home "Featured
     Businesses" rail — instead of the frontend having to fetch everything
     and guess via recency."""
+    sweep_expired_featured_businesses(db)
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
 
@@ -149,6 +151,7 @@ def get_business(
     by id (so an owner can preview their own pending profile via the same
     URL the public will eventually see) — the frontend is responsible for
     only linking to verified businesses from public browse/search surfaces."""
+    sweep_expired_featured_businesses(db)
     return _get_business_or_404(db, business_id)
 
 
@@ -156,6 +159,7 @@ def get_business(
     "/businesses/slug/{slug}", response_model=BusinessRead, tags=["businesses"]
 )
 def get_business_by_slug(slug: str, db: Session = Depends(get_db)) -> Business:
+    sweep_expired_featured_businesses(db)
     business = db.scalar(select(Business).where(Business.slug == slug))
     if business is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")

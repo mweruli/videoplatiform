@@ -28,6 +28,7 @@ from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate, ProductViewResult
+from app.services.featured_expiry import sweep_expired_featured_products
 from app.services.storage import get_storage_backend
 from app.services.uploads import read_and_validate_image
 from app.utils.slug import unique_slug
@@ -214,6 +215,7 @@ def list_products(
     `is_featured=true` scopes to platform-curated featured products (see
     admin's feature/unfeature endpoints) — e.g. for a Home/Search "Featured
     Products" rail."""
+    sweep_expired_featured_products(db)
     page = max(page, 1)
     page_size = min(max(page_size, 1), 100)
 
@@ -277,6 +279,7 @@ def get_product(
     product_id: uuid.UUID,
     db: Session = Depends(get_db),
 ) -> Product:
+    sweep_expired_featured_products(db)
     product = _get_product_or_404(db, product_id)
     if not product.related_products:
         # No curated related products — fall back to same-category, then

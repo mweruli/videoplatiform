@@ -26,6 +26,7 @@ set an env var by hand.
 from __future__ import annotations
 
 import os
+import uuid
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -147,3 +148,60 @@ def _isolated_test_database() -> None:
     print(f"[conftest] Isolated test Redis: {_TEST_REDIS_URL}")
     _ensure_test_database_exists(_TEST_DB_URL)
     _migrate_test_database(_TEST_DB_URL)
+
+
+@pytest.fixture()
+def fake_payment_backend(monkeypatch: pytest.MonkeyPatch):
+    """Installs a fake `PaymentBackend` in place of the real Daraja-calling
+    one, for tests of app/api/v1/endpoints/featured_purchases.py.
+
+    This mirrors the shape of this codebase's other pluggable-backend
+    factories (`get_otp_sender()`, `get_video_backend()`,
+    `get_storage_backend()`) — see app/services/mpesa.py's module docstring
+    — but as of writing this is the first test in the suite that actually
+    needs a fake instance of one of them, since no existing test faked
+    get_otp_sender()/get_video_backend() (see docs/decisions.md's Phase 1b
+    design-pass entry). `get_payment_backend` isn't a FastAPI dependency
+    (it's called directly as a plain function inside the endpoint module),
+    so this patches it at the import site
+    (`app.api.v1.endpoints.featured_purchases.get_payment_backend`) rather
+    than via `app.dependency_overrides`.
+
+    Returns the `FakePaymentBackend` instance so a test can inspect
+    `.calls` (what the endpoint actually sent) or set `.next_error` to
+    simulate a synchronous Daraja failure (e.g. `MpesaError("boom")`).
+    """
+    import app.api.v1.endpoints.featured_purchases as featured_purchases_module
+    from app.services.mpesa import StkPushResult
+
+    class FakePaymentBackend:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+            self.next_error: Exception | None = None
+            self._counter = 0
+
+        def initiate_stk_push(
+            self, *, phone: str, amount: int, account_reference: str, transaction_desc: str
+        ) -> StkPushResult:
+            self.calls.append(
+                {
+                    "phone": phone,
+                    "amount": amount,
+                    "account_reference": account_reference,
+                    "transaction_desc": transaction_desc,
+                }
+            )
+            if self.next_error is not None:
+                raise self.next_error
+            self._counter += 1
+            return StkPushResult(
+                merchant_request_id=f"fake-merchant-{uuid.uuid4().hex[:12]}",
+                checkout_request_id=f"fake-checkout-{uuid.uuid4().hex[:12]}",
+                response_code="0",
+                response_description="Success. Request accepted for processing.",
+                customer_message="Success. Request accepted for processing.",
+            )
+
+    backend = FakePaymentBackend()
+    monkeypatch.setattr(featured_purchases_module, "get_payment_backend", lambda: backend)
+    return backend
