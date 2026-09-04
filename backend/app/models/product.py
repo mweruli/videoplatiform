@@ -181,6 +181,12 @@ class Product(Base):
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     impression_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # Self-serve, time-limited featuring (Phase 1b) — mirrors
+    # Business.featured_until exactly, see that column's comment and
+    # app/models/featured_purchase.py / app/services/featured_expiry.py for
+    # the full design.
+    featured_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
