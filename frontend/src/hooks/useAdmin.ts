@@ -1,17 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
+  adminGetUser,
   adminListBusinesses,
+  adminListCategories,
   adminListProducts,
+  adminListUsers,
   adminListVideos,
+  adminUpdateUser,
   approveBusinessAdmin,
   approveProductAdmin,
   approveVideoAdmin,
+  createCategoryAdmin,
   rejectBusinessAdmin,
   rejectProductAdmin,
   rejectVideoAdmin,
+  updateCategoryAdmin,
 } from '../lib/api'
-import type { ModerationStatus, VerificationStatus } from '../lib/api'
+import type { AdminListUsersParams, CategoryCreatePayload, CategoryUpdatePayload, ModerationStatus, VerificationStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
 /**
@@ -186,5 +192,89 @@ export function useRejectVideo() {
     mutationFn: ({ videoId, reason }: { videoId: string; reason: string }) =>
       rejectVideoAdmin(token as string, videoId, { reason }),
     onSuccess: () => invalidate(),
+  })
+}
+
+/**
+ * Category Management (`pages/Admin.tsx`'s "categories" section). Unlike the
+ * public `useCategories()` (hooks/useCatalog.ts), this returns inactive
+ * categories too plus usage counts — see AdminCategoryRead's docstring.
+ */
+export function useAdminCategories() {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'categories'],
+    queryFn: () => adminListCategories(token as string),
+    enabled: isStaff && Boolean(token),
+  })
+}
+
+/** A new/renamed/(de)activated category can change what the public category pickers (Home's grid, video upload's select) show — invalidate both the admin list and the public `useCategories()` cache. */
+function useInvalidateCategories() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'categories'] })
+    qc.invalidateQueries({ queryKey: ['categories'] })
+  }
+}
+
+export function useCreateCategory() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateCategories()
+  return useMutation({
+    mutationFn: (payload: CategoryCreatePayload) => createCategoryAdmin(token as string, payload),
+    onSuccess: () => invalidate(),
+  })
+}
+
+export function useUpdateCategory() {
+  const { token } = useAuth()
+  const invalidate = useInvalidateCategories()
+  return useMutation({
+    mutationFn: ({ categoryId, payload }: { categoryId: number; payload: CategoryUpdatePayload }) =>
+      updateCategoryAdmin(token as string, categoryId, payload),
+    onSuccess: () => invalidate(),
+  })
+}
+
+/**
+ * User Management (`pages/Admin.tsx`'s "users" section). `keepPreviousData`
+ * keeps the current page's rows on screen while a new page/filter loads
+ * instead of flashing to a loading state — a paginated table reads much
+ * better that way than the moderation queues' full-replace loading skeletons.
+ */
+export function useAdminUsers(params: AdminListUsersParams) {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'users', params],
+    queryFn: () => adminListUsers(token as string, params),
+    enabled: isStaff && Boolean(token),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Fetched lazily, only once a row is expanded — `GET /admin/users` (the list) doesn't include owned businesses, only `GET /admin/users/{id}` does. */
+export function useAdminUserDetail(userId: string | null) {
+  const { token } = useAuth()
+  const isStaff = useIsStaff()
+  return useQuery({
+    queryKey: ['admin', 'users', 'detail', userId],
+    queryFn: () => adminGetUser(token as string, userId as string),
+    enabled: isStaff && Boolean(token) && Boolean(userId),
+  })
+}
+
+export function useUpdateUserActive() {
+  const { token } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
+      adminUpdateUser(token as string, userId, { is_active: isActive }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'users', 'detail', variables.userId] })
+    },
   })
 }

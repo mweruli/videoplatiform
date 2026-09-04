@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 
 import BusinessModerationCard from '../components/admin/BusinessModerationCard'
+import CategoryManagement from '../components/admin/CategoryManagement'
 import ProductModerationCard from '../components/admin/ProductModerationCard'
 import StatusTabs from '../components/admin/StatusTabs'
+import UserManagement from '../components/admin/UserManagement'
 import VideoModerationCard from '../components/admin/VideoModerationCard'
 import DashboardShell from '../components/dashboardshell/DashboardShell'
 import type { DashNavItem } from '../components/dashboardshell/DashboardShell'
@@ -16,6 +18,7 @@ import {
   useAdminBusinesses,
   useAdminProductCounts,
   useAdminProducts,
+  useAdminUsers,
   useAdminVideoCounts,
   useAdminVideos,
 } from '../hooks/useAdmin'
@@ -23,7 +26,7 @@ import { useCategories } from '../hooks/useCatalog'
 import type { ModerationStatus, VerificationStatus } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
-type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod'
+type AdminSectionId = 'overview' | 'bizmod' | 'prodmod' | 'vidmod' | 'categories' | 'users'
 
 const BUSINESS_STATUS_OPTIONS: { id: VerificationStatus; label: string }[] = [
   { id: 'pending', label: 'Pending' },
@@ -49,6 +52,8 @@ const SECTION_TITLES: Record<AdminSectionId, string> = {
   bizmod: 'Business Moderation',
   prodmod: 'Product Moderation',
   vidmod: 'Video Moderation',
+  categories: 'Category Management',
+  users: 'User Management',
 }
 
 /**
@@ -131,6 +136,12 @@ function AdminContent() {
   const productCounts = useAdminProductCounts()
   const videoCounts = useAdminVideoCounts()
   const categoriesQuery = useCategories()
+  // Cheap counts for the Overview's two extra KPI cards (Total Businesses,
+  // Platform Users) — no dedicated count endpoint needed: businessCounts
+  // already sums to a total across every verification status, and a
+  // page_size:1 users call only pays for `total`, not the rows (same
+  // "cheap aggregate" pattern as useAdminBusinessCounts/useAdminProductCounts).
+  const userCountQuery = useAdminUsers({ page: 1, page_size: 1 })
 
   const pendingBusinessesQuery = useAdminBusinesses('pending')
   const pendingProductsQuery = useAdminProducts('pending')
@@ -152,6 +163,8 @@ function AdminContent() {
     { id: 'bizmod', label: 'Business Moderation', icon: 'building', count: pendingBusinesses },
     { id: 'prodmod', label: 'Product Moderation', icon: 'box', count: pendingProducts },
     { id: 'vidmod', label: 'Video Moderation', icon: 'video', count: pendingVideos },
+    { id: 'categories', label: 'Category Management', icon: 'tag' },
+    { id: 'users', label: 'User Management', icon: 'user' },
   ]
 
   const stats = [
@@ -182,12 +195,17 @@ function AdminContent() {
     >
       {adminSection === 'overview' && (
         <div>
-          <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-5">
+          <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <KpiCard value={businessCounts.isSuccess ? pendingBusinesses : '…'} label="Pending Businesses" accent={pendingBusinesses > 0} />
             <KpiCard value={productCounts.isSuccess ? pendingProducts : '…'} label="Pending Products" accent={pendingProducts > 0} />
             <KpiCard value={videoCounts.isSuccess ? pendingVideos : '…'} label="Pending Videos" accent={pendingVideos > 0} />
             <KpiCard value={businessCounts.data?.verified ?? '…'} label="Verified Businesses" />
             <KpiCard value={categoriesQuery.data?.length ?? '…'} label="Live Categories" />
+            <KpiCard
+              value={businessCounts.isSuccess ? Object.values(businessCounts.data).reduce((a, b) => a + b, 0) : '…'}
+              label="Total Businesses"
+            />
+            <KpiCard value={userCountQuery.data?.total ?? '…'} label="Platform Users" />
           </div>
 
           <DashSection title="Needs your review" subtitle="Oldest submissions first.">
@@ -324,6 +342,10 @@ function AdminContent() {
           </div>
         </DashSection>
       )}
+
+      {adminSection === 'categories' && <CategoryManagement />}
+
+      {adminSection === 'users' && <UserManagement />}
     </DashboardShell>
   )
 }

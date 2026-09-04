@@ -5,6 +5,7 @@ import {
   createProduct,
   deactivateProduct,
   deactivateVideo,
+  getBusinessStats,
   getMyBusinesses,
   listProducts,
   listVideos,
@@ -200,6 +201,21 @@ export function useUploadProductImages() {
     mutationFn: ({ productId, files }: { productId: string; files: File[] }) =>
       uploadProductImages(token as string, productId, files),
     onSuccess: (data) => invalidate(data.business_id),
+  })
+}
+
+/**
+ * Business Dashboard "Analytics" section (`GET /businesses/{id}/stats`) —
+ * owner (or platform admin) only, recomputes whenever the business switcher
+ * changes `businessId`, same live-recompute pattern as
+ * useMyBusinessProducts/useMyBusinessVideos above.
+ */
+export function useBusinessStats(businessId: string | undefined) {
+  const { token, status } = useAuth()
+  return useQuery({
+    queryKey: ['businesses', 'stats', businessId],
+    queryFn: () => getBusinessStats(token as string, businessId as string),
+    enabled: status === 'authenticated' && Boolean(token) && Boolean(businessId),
   })
 }
 

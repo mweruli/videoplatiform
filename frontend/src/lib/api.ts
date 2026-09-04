@@ -728,3 +728,124 @@ export function rejectVideoAdmin(token: string, videoId: string, payload: Modera
     body: JSON.stringify(payload),
   })
 }
+
+/**
+ * Admin Category Management (`GET/POST /admin/categories`,
+ * `PATCH /admin/categories/{id}`) — mirrors app/api/v1/endpoints/admin.py's
+ * category routes. Deactivate-only (no delete route exists at all — see
+ * docs/decisions.md), so `CategoryUpdatePayload.is_active` is the only way
+ * to hide a category from the public `GET /categories` picker.
+ */
+
+export interface AdminCategoryDto extends CategoryDto {
+  /** Active-rows-only counts (see AdminCategoryRead's docstring) — real backend aggregates, not a client-side approximation. */
+  business_count: number
+  product_count: number
+  video_count: number
+}
+
+export function adminListCategories(token: string): Promise<AdminCategoryDto[]> {
+  return apiFetch<AdminCategoryDto[]>(`${V1}/admin/categories`, { headers: authHeaders(token) })
+}
+
+export interface CategoryCreatePayload {
+  name: string
+}
+
+/** Slug is never accepted as input — the server always generates it (see CategoryCreate's docstring). */
+export function createCategoryAdmin(token: string, payload: CategoryCreatePayload): Promise<CategoryDto> {
+  return apiFetch<CategoryDto>(`${V1}/admin/categories`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface CategoryUpdatePayload {
+  name?: string
+  is_active?: boolean
+}
+
+/** Renaming does NOT regenerate the slug (see CategoryUpdate's docstring). */
+export function updateCategoryAdmin(token: string, categoryId: number, payload: CategoryUpdatePayload): Promise<CategoryDto> {
+  return apiFetch<CategoryDto>(`${V1}/admin/categories/${categoryId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
+ * Admin User Management (`GET /admin/users`, `GET /admin/users/{id}`,
+ * `PATCH /admin/users/{id}`) — mirrors app/api/v1/endpoints/admin.py's user
+ * routes. Deactivation is a soft-delete (`is_active=false`) guarded
+ * server-side by two rules this frontend also enforces in the row rendering
+ * itself (see components/admin/UserManagement.tsx): a user can't deactivate
+ * their own account, and no `platform_admin` row can be deactivated by
+ * anyone through this endpoint.
+ */
+
+export interface AdminUserDto {
+  id: string
+  phone: string | null
+  email: string | null
+  full_name: string | null
+  role: UserRole
+  is_active: boolean
+  is_verified: boolean
+  created_at: string
+}
+
+export interface AdminUserDetailDto extends AdminUserDto {
+  businesses: BusinessSummaryDto[]
+}
+
+export interface AdminListUsersParams {
+  role?: UserRole
+  q?: string
+  page?: number
+  page_size?: number
+}
+
+export function adminListUsers(token: string, params: AdminListUsersParams = {}): Promise<Page<AdminUserDto>> {
+  return apiFetch<Page<AdminUserDto>>(`${V1}/admin/users${toQuery(params)}`, { headers: authHeaders(token) })
+}
+
+export function adminGetUser(token: string, userId: string): Promise<AdminUserDetailDto> {
+  return apiFetch<AdminUserDetailDto>(`${V1}/admin/users/${userId}`, { headers: authHeaders(token) })
+}
+
+export function adminUpdateUser(token: string, userId: string, payload: { is_active: boolean }): Promise<AdminUserDto> {
+  return apiFetch<AdminUserDto>(`${V1}/admin/users/${userId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
+ * Business Analytics (`GET /businesses/{id}/stats`) — owner (or platform
+ * admin) only aggregate view, backs the Business Dashboard's "Analytics" nav
+ * item. Product/video counts-by-status and view sums are active-rows-only,
+ * matching `BusinessDto.product_count`'s existing convention.
+ */
+
+export interface ModerationStatusCounts {
+  pending: number
+  approved: number
+  rejected: number
+}
+
+export interface BusinessStatsDto {
+  business_id: string
+  business_view_count: number
+  business_impression_count: number
+  total_product_views: number
+  total_video_views: number
+  product_counts: ModerationStatusCounts
+  video_counts: ModerationStatusCounts
+}
+
+export function getBusinessStats(token: string, businessId: string): Promise<BusinessStatsDto> {
+  return apiFetch<BusinessStatsDto>(`${V1}/businesses/${businessId}/stats`, { headers: authHeaders(token) })
+}

@@ -37,6 +37,9 @@ export type IconName =
   | 'upload'
   | 'volumeOn'
   | 'volumeOff'
+  | 'tag'
+  | 'edit'
+  | 'lock'
 
 const PATHS: Record<IconName, string> = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -75,6 +78,9 @@ const PATHS: Record<IconName, string> = {
     '<path d="M4 9v6h3.5l4.5 4V5l-4.5 4H4z" fill="currentColor" stroke="none"/><path d="M15.5 9a4 4 0 010 6"/><path d="M18 6.5a8 8 0 010 11"/>',
   volumeOff:
     '<path d="M4 9v6h3.5l4.5 4V5l-4.5 4H4z" fill="currentColor" stroke="none"/><line x1="15" y1="9" x2="20" y2="14"/><line x1="20" y1="9" x2="15" y2="14"/>',
+  tag: '<path d="M20.6 13.4L13 21a2 2 0 01-2.8 0l-8-8A2 2 0 012 11.6V4a2 2 0 012-2h7.6a2 2 0 011.4.6l8 8a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
 }
 
 interface IconProps {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import BusinessAnalytics from '../components/dashboard/BusinessAnalytics'
 import BusinessForm from '../components/dashboard/BusinessForm'
 import BusinessPanel from '../components/dashboard/BusinessPanel'
 import BusinessSwitcher from '../components/dashboard/BusinessSwitcher'
@@ -35,14 +36,14 @@ import { useAuth } from '../lib/auth'
 import { useToast } from '../lib/toast'
 
 type ProductModalState = { mode: 'create' } | { mode: 'edit'; product: ProductDto } | null
-type DashSectionId = 'overview' | 'profile' | 'products' | 'videos'
+type DashSectionId = 'overview' | 'profile' | 'products' | 'videos' | 'analytics'
 
 const NAV_ITEMS: DashNavItem[] = [
   { id: 'overview', label: 'Overview', icon: 'grid' },
   { id: 'profile', label: 'Business Profile', icon: 'building' },
   { id: 'products', label: 'Products', icon: 'box' },
   { id: 'videos', label: 'Videos', icon: 'video' },
-  { id: 'analytics', label: 'Analytics', icon: 'chart', soon: true },
+  { id: 'analytics', label: 'Analytics', icon: 'chart' },
   { id: 'orders', label: 'Orders', icon: 'truck', soon: true },
 ]
 
@@ -51,6 +52,7 @@ const SECTION_TITLES: Record<DashSectionId, string> = {
   profile: 'Business Profile',
   products: 'Products',
   videos: 'Videos',
+  analytics: 'Analytics',
 }
 
 /**
@@ -397,6 +399,12 @@ function DashboardContent() {
       {selectedBusiness && dashSection === 'videos' && (
         <div className="mt-4">
           <VideosSection videosQuery={videosQuery} onUpload={() => setShowVideoUpload(true)} />
+        </div>
+      )}
+
+      {selectedBusiness && dashSection === 'analytics' && (
+        <div className="mt-4">
+          <BusinessAnalytics businessId={selectedBusiness.id} />
         </div>
       )}
 
