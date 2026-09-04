@@ -141,6 +141,14 @@ class BusinessRead(BaseModel):
     verification_note: str | None
     is_active: bool
     is_featured: bool
+    # Nullable — set only while a time-limited self-serve featured purchase
+    # is active (see app/services/featured_expiry.py); NULL for an
+    # admin-permanent feature or when not featured at all. Column already
+    # existed on the model (see docs/decisions.md's "Phase 1b design pass:
+    # M-Pesa self-serve payments" entry) but was missed from this response
+    # shape until the featured-purchase frontend needed it to show "Featured
+    # until <date>" without a second call.
+    featured_until: datetime | None
     view_count: int
     impression_count: int
     created_at: datetime

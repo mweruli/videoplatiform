@@ -143,6 +143,8 @@ class ProductRead(BaseModel):
     moderation_note: str | None
     is_active: bool
     is_featured: bool
+    # See BusinessRead.featured_until's comment — same gap, same fix.
+    featured_until: datetime | None
     view_count: int
     impression_count: int
     created_at: datetime

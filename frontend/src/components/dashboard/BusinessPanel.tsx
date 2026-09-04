@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import { useRef } from 'react'
 
 import Icon from '../icons/Icon'
+import FeatureCard from './FeatureCard'
+import FeaturedPurchaseHistory from './FeaturedPurchaseHistory'
+import FeaturedPurchaseModal from './FeaturedPurchaseModal'
 import VerificationStatusBadge from '../ui/VerificationStatusBadge'
 import { gradIndexForId, gradientFor, GRAIN_TEXTURE } from '../../lib/thumbTreatment'
 import type { BusinessDto } from '../../lib/api'
@@ -41,6 +45,7 @@ export default function BusinessPanel({
   const location = [business.city, business.county].filter(Boolean).join(', ')
   const initial = business.name.trim().charAt(0).toUpperCase() || '?'
   const canSubmitVerification = business.verification_status === 'unverified' || business.verification_status === 'rejected'
+  const [featureModalOpen, setFeatureModalOpen] = useState(false)
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-elevated">
@@ -140,6 +145,16 @@ export default function BusinessPanel({
         </div>
 
         <div className="mt-4">
+          <FeatureCard
+            target="business"
+            isFeatured={business.is_featured}
+            featuredUntil={business.featured_until}
+            onOpen={() => setFeatureModalOpen(true)}
+          />
+          <FeaturedPurchaseHistory businessId={business.id} className="mt-2.5" />
+        </div>
+
+        <div className="mt-4">
           {business.verification_status === 'verified' && (
             <div className="flex items-start gap-2 rounded-xl border border-teal/30 bg-teal/10 p-3 text-xs leading-relaxed text-teal">
               <Icon name="check" size={15} className="mt-0.5 flex-none" />
@@ -185,6 +200,14 @@ export default function BusinessPanel({
           )}
         </div>
       </div>
+
+      <FeaturedPurchaseModal
+        open={featureModalOpen}
+        onClose={() => setFeatureModalOpen(false)}
+        businessId={business.id}
+        businessPhone={business.phone}
+        target={{ kind: 'business', label: business.name }}
+      />
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 import Icon from '../icons/Icon'
+import FeatureCard from './FeatureCard'
+import FeaturedPurchaseModal from './FeaturedPurchaseModal'
 import ModerationStatusBadge from './ModerationStatusBadge'
 import CategoryChips from '../ui/CategoryChips'
 import { useDeactivateProduct, useUploadProductImages } from '../../hooks/useDashboard'
@@ -13,6 +15,8 @@ import { ApiError } from '../../lib/api'
 interface ProductManageCardProps {
   product: ProductDto
   onEdit: () => void
+  /** The owning business's own contact phone, for pre-filling the featured-purchase modal's M-Pesa number field — ProductDto's embedded `business` is the slim BusinessSummaryDto, which doesn't carry `phone`, so the parent (which already holds the full BusinessDto) passes it down explicitly. */
+  businessPhone?: string | null
 }
 
 /**
@@ -21,12 +25,13 @@ interface ProductManageCardProps {
  * unlike the public catalog which just hides non-approved items), and the
  * three actions an owner needs per listing: edit, add photos, remove.
  */
-export default function ProductManageCard({ product, onEdit }: ProductManageCardProps) {
+export default function ProductManageCard({ product, onEdit, businessPhone = null }: ProductManageCardProps) {
   const { showToast } = useToast()
   const deactivateMutation = useDeactivateProduct()
   const uploadImagesMutation = useUploadProductImages()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [featureModalOpen, setFeatureModalOpen] = useState(false)
   const confirmTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearTimeout(confirmTimerRef.current), [])
@@ -116,6 +121,13 @@ export default function ProductManageCard({ product, onEdit }: ProductManageCard
             className="hidden"
             onChange={(e) => handleFilesSelected(e.target.files)}
           />
+          <FeatureCard
+            variant="inline"
+            target="product"
+            isFeatured={product.is_featured}
+            featuredUntil={product.featured_until}
+            onOpen={() => setFeatureModalOpen(true)}
+          />
           <button
             type="button"
             onClick={handleDeleteClick}
@@ -131,6 +143,14 @@ export default function ProductManageCard({ product, onEdit }: ProductManageCard
           </button>
         </div>
       </div>
+
+      <FeaturedPurchaseModal
+        open={featureModalOpen}
+        onClose={() => setFeatureModalOpen(false)}
+        businessId={product.business_id}
+        businessPhone={businessPhone}
+        target={{ kind: 'product', productId: product.id, label: product.name }}
+      />
     </div>
   )
 }

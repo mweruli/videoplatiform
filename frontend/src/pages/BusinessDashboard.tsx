@@ -349,7 +349,12 @@ function DashboardContent() {
             {!productsQuery.isLoading && products.length > 0 && (
               <div className="flex flex-col gap-2.5">
                 {products.slice(0, 4).map((product) => (
-                  <ProductManageCard key={product.id} product={product} onEdit={() => setProductModal({ mode: 'edit', product })} />
+                  <ProductManageCard
+                    key={product.id}
+                    product={product}
+                    onEdit={() => setProductModal({ mode: 'edit', product })}
+                    businessPhone={selectedBusiness.phone}
+                  />
                 ))}
               </div>
             )}
@@ -395,6 +400,7 @@ function DashboardContent() {
             productsQuery={productsQuery}
             onAdd={() => setProductModal({ mode: 'create' })}
             onEditProduct={(product) => setProductModal({ mode: 'edit', product })}
+            businessPhone={selectedBusiness.phone}
           />
         </div>
       )}

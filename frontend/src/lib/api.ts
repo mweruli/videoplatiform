@@ -173,6 +173,8 @@ export interface BusinessDto {
   is_active: boolean
   /** Platform-controlled manual placement (see docs/decisions.md's "Phase 1a: manual featured placement" entry) — never settable by the owner, only by admin/moderator via POST /admin/businesses/{id}/feature|unfeature. */
   is_featured: boolean
+  /** Set only while a time-limited self-serve featured purchase (see FeaturedPurchaseDto below) is active; null for an admin-permanent feature or when not featured at all. */
+  featured_until: string | null
   created_at: string
   updated_at: string
   product_count: number
@@ -213,6 +215,8 @@ export interface ProductDto {
   is_active: boolean
   /** Platform-controlled manual placement (see docs/decisions.md's "Phase 1a: manual featured placement" entry) — never settable by the owner, only by admin/moderator via POST /admin/products/{id}/feature|unfeature. */
   is_featured: boolean
+  /** Set only while a time-limited self-serve featured purchase (see FeaturedPurchaseDto below) is active; null for an admin-permanent feature or when not featured at all. */
+  featured_until: string | null
   created_at: string
   updated_at: string
   related_products: ProductSummaryDto[]
@@ -865,4 +869,91 @@ export interface BusinessStatsDto {
 
 export function getBusinessStats(token: string, businessId: string): Promise<BusinessStatsDto> {
   return apiFetch<BusinessStatsDto>(`${V1}/businesses/${businessId}/stats`, { headers: authHeaders(token) })
+}
+
+/**
+ * M-Pesa self-serve featured placement (`GET /featured/pricing`,
+ * `POST /businesses/{id}/featured-purchases`, `GET /featured-purchases/{id}`,
+ * `GET /businesses/{id}/featured-purchases`) — mirrors
+ * app/schemas/featured_purchase.py 1:1. See docs/decisions.md's "Phase 1b
+ * design pass" and endpoint-implementation follow-up entries for the full
+ * design (pricing snapshotting, stacking/extension math, callback validation
+ * posture — all backend-side, not the frontend's concern beyond consuming
+ * this shape).
+ */
+
+export type FeaturedPricingTier = '7_days' | '30_days'
+export type FeaturedPurchaseStatus = 'pending' | 'completed' | 'failed'
+
+export interface FeaturedPricingOptionDto {
+  tier: FeaturedPricingTier
+  label: string
+  /** Decimal-as-string over the wire (Pydantic Decimal) — parse with Number() only for display math, never for identity comparisons. */
+  amount_kes: string
+  duration_days: number
+}
+
+/** Public — never hardcode pricing amounts/durations in the frontend. */
+export function getFeaturedPricing(): Promise<FeaturedPricingOptionDto[]> {
+  return apiFetch<FeaturedPricingOptionDto[]>(`${V1}/featured/pricing`)
+}
+
+export interface FeaturedPurchaseDto {
+  id: string
+  business_id: string
+  /** Non-null when this purchase features one specific product rather than the business itself. */
+  product_id: string | null
+  tier: FeaturedPricingTier
+  amount_kes: string
+  duration_days: number
+  status: FeaturedPurchaseStatus
+  payer_phone: string
+  /** Only set once status is 'completed'. */
+  mpesa_receipt_number: string | null
+  /** Only set once status is 'failed' — the real Daraja result description, not a generic message. */
+  failure_reason: string | null
+  featured_until: string | null
+  created_at: string
+}
+
+export interface FeaturedPurchaseCreatePayload {
+  tier: FeaturedPricingTier
+  /** Omit/null to feature the business itself; set to feature one specific product of that business. */
+  product_id?: string | null
+  /** Whatever Kenyan MSISDN shape the backend's app/utils/phone.py accepts — see lib/phone.ts. */
+  phone: string
+}
+
+/** Owner/admin only. Only creates a row once Daraja's STK Push itself succeeds — a synchronous failure surfaces as a 502 ApiError with no row created (see the backend design doc). */
+export function createFeaturedPurchase(
+  token: string,
+  businessId: string,
+  payload: FeaturedPurchaseCreatePayload,
+): Promise<FeaturedPurchaseDto> {
+  return apiFetch<FeaturedPurchaseDto>(`${V1}/businesses/${businessId}/featured-purchases`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Owner/admin only — what the purchase modal polls every 2-3s while status is 'pending'. */
+export function getFeaturedPurchase(token: string, purchaseId: string): Promise<FeaturedPurchaseDto> {
+  return apiFetch<FeaturedPurchaseDto>(`${V1}/featured-purchases/${purchaseId}`, { headers: authHeaders(token) })
+}
+
+export interface ListFeaturedPurchasesParams {
+  page?: number
+  page_size?: number
+}
+
+/** Owner/admin only — paginated purchase history for a business. */
+export function listFeaturedPurchases(
+  token: string,
+  businessId: string,
+  params: ListFeaturedPurchasesParams = {},
+): Promise<Page<FeaturedPurchaseDto>> {
+  return apiFetch<Page<FeaturedPurchaseDto>>(`${V1}/businesses/${businessId}/featured-purchases${toQuery(params)}`, {
+    headers: authHeaders(token),
+  })
 }

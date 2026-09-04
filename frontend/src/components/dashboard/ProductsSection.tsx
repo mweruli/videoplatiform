@@ -10,9 +10,11 @@ interface ProductsSectionProps {
   productsQuery: UseQueryResult<Page<ProductDto>>
   onAdd: () => void
   onEditProduct: (product: ProductDto) => void
+  /** Passed through to ProductManageCard for the featured-purchase modal's phone prefill — see that component's prop docstring. */
+  businessPhone?: string | null
 }
 
-export default function ProductsSection({ productsQuery, onAdd, onEditProduct }: ProductsSectionProps) {
+export default function ProductsSection({ productsQuery, onAdd, onEditProduct, businessPhone = null }: ProductsSectionProps) {
   const products = productsQuery.data?.items ?? []
 
   return (
@@ -54,7 +56,7 @@ export default function ProductsSection({ productsQuery, onAdd, onEditProduct }:
         )}
 
         {products.map((product) => (
-          <ProductManageCard key={product.id} product={product} onEdit={() => onEditProduct(product)} />
+          <ProductManageCard key={product.id} product={product} onEdit={() => onEditProduct(product)} businessPhone={businessPhone} />
         ))}
       </div>
     </div>
