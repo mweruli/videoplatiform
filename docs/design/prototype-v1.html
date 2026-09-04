@@ -816,6 +816,53 @@ body{
 .pill-danger{background:linear-gradient(155deg,#F0787B,var(--danger) 60%,#C93338);color:#fff;box-shadow:0 8px 20px -6px rgba(229,72,77,.55),inset 0 1px 0 rgba(255,255,255,.25);}
 .pill-danger:hover{box-shadow:0 10px 26px -6px rgba(229,72,77,.75),inset 0 1px 0 rgba(255,255,255,.25);}
 
+/* ==== v8: Category Management / User Management (Admin Panel) ====
+   New primitives added by this pass, reused across both screens:
+   a toolbar row (search + filter chips), a toggle-switch (deactivate/
+   reactivate — a flag flip, not a destructive action, so it doesn't borrow
+   the reject/danger red anywhere), a muted-row treatment for inactive
+   categories, a small role-pill for the user table, an inline-rename affordance,
+   an expandable table row (user -> owned businesses), a stat-bar row for the
+   Analytics screen's moderation-status breakdown, and a numbered pager. */
+.dash-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.dash-search{position:relative;flex:1 1 220px;min-width:180px;max-width:320px;}
+.dash-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-soft);pointer-events:none;}
+.dash-search input{width:100%;padding:9px 12px 9px 36px;border-radius:999px;border:1.5px solid var(--line);background:var(--panel);font-size:.8rem;color:var(--ink);font-family:inherit;}
+.dash-search input::placeholder{color:var(--ink-soft);opacity:.75;}
+.dash-search input:focus{outline:0;border-color:var(--brand-blue);box-shadow:0 0 0 3px rgba(16,52,166,.15);}
+.role-filter-row{display:flex;flex-wrap:wrap;gap:6px;}
+.role-filter-row .chip{padding:7px 12px;font-size:.72rem;}
+.toggle-switch{position:relative;display:inline-flex;align-items:center;width:38px;height:22px;border-radius:999px;background:var(--line);flex:0 0 auto;transition:background .16s var(--ease);border:0;padding:0;cursor:pointer;}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .16s var(--ease);}
+.toggle-switch.on{background:var(--teal);}
+.toggle-switch.on::after{transform:translateX(16px);}
+.toggle-switch:hover{filter:brightness(1.08);}
+.dash-row-entity.muted .t,.dash-row-entity.muted .m{opacity:.5;}
+.dash-row-entity.muted .ic{opacity:.5;filter:grayscale(1);}
+.role-pill{display:inline-flex;align-items:center;gap:5px;font-size:.62rem;font-weight:800;letter-spacing:.02em;padding:4px 9px;border-radius:999px;white-space:nowrap;background:var(--panel);color:var(--ink-soft);border:1px solid var(--line);}
+.role-pill.staff{background:rgba(16,52,166,.1);color:var(--brand-blue);border-color:rgba(16,52,166,.25);}
+.app[data-app-theme="dark"] .role-pill.staff{color:#93AAF5;}
+.inline-edit-row{display:flex;align-items:center;gap:6px;}
+.inline-edit-row input{flex:1;min-width:120px;padding:6px 9px;border-radius:8px;border:1.5px solid var(--brand-blue);background:var(--panel);font-size:.8rem;color:var(--ink);font-weight:700;font-family:inherit;}
+.inline-edit-row input:focus{outline:0;box-shadow:0 0 0 3px rgba(16,52,166,.15);}
+.icon-btn-xs{width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-soft);background:var(--panel);border:1px solid var(--line);flex:0 0 auto;transition:color .15s,border-color .15s,transform .15s var(--ease);}
+.icon-btn-xs:hover{color:var(--ink);border-color:var(--teal);}
+.lock-note{display:inline-flex;align-items:center;gap:4px;font-size:.64rem;font-weight:700;color:var(--ink-soft);white-space:nowrap;}
+.user-expand-row td{padding:0;border-bottom:1px solid var(--line);}
+.user-expand-inner{padding:14px 14px 18px;background:var(--panel);}
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;flex-wrap:wrap;}
+.pager button{min-width:30px;height:30px;padding:0 8px;border-radius:8px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-size:.76rem;font-weight:700;}
+.pager button.active{background:var(--brand-blue);color:#fff;border-color:var(--brand-blue);}
+.pager button:disabled{opacity:.4;}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.bar-row:last-child{margin-bottom:0;}
+.bar-row .lbl{width:84px;flex:0 0 auto;font-size:.7rem;font-weight:700;color:var(--ink-soft);}
+.bar-track{flex:1;height:9px;border-radius:999px;background:var(--line);overflow:hidden;}
+.bar-fill{height:100%;border-radius:999px;background:var(--teal);transition:width .3s var(--ease);}
+.bar-fill.pending{background:var(--amber);}
+.bar-fill.rejected{background:var(--danger);}
+.bar-row .val{width:24px;flex:0 0 auto;text-align:right;font-size:.72rem;font-weight:800;color:var(--ink);}
+
 /* ---- portal mode: consumer desktop-nav is retired while inside the shell ---- */
 .app.portal .desktop-nav{display:none!important;}
 
@@ -1169,6 +1216,10 @@ body{
           <!-- Admin Panel: capture a required reason when rejecting a pending
                video — see renderRejectVideoSheet(). -->
           <div class="sheet" id="videoRejectSheet"></div>
+          <!-- Admin Panel: Category Management's "Add category" form — see
+               renderCategoryAddSheet(). Inline rename happens directly in the
+               table row (no sheet), per the brief's "inline rename" ask. -->
+          <div class="sheet" id="categoryAddSheet"></div>
           <!-- shared mobile drawer for the Business Dashboard / Admin Panel sidebar —
                reuses the sheet-backdrop/openSheet mechanism, slides from the left
                instead of up from the bottom (see .sheet-side) -->
@@ -1178,8 +1229,18 @@ body{
     </div>
 
     <aside class="notes-panel" id="notesPanel">
-      <h3>Design notes for PM review — v7</h3>
+      <h3>Design notes for PM review — v8</h3>
       <ul>
+        <li><b>New in v8 — Category Management, User Management &amp; Analytics added to the v6/v7 internal-tool shell (2026-09-04), status: draft, first pass, not yet reviewed. Additive only</b> — every existing screen, the v6 sidebar/topbar/footer shell, and v7's video work are untouched. This pass closes the design gap behind the three backend endpoints shipped the same day (see docs/decisions.md's two 2026-09-04 entries: "category admin-CRUD + admin user management" and "core analytics ... and rule-based recommendations") — reuses the approved shell/KPI-card/section primitives wholesale, no new layout grammar.
+        <br><br><b>Admin Panel → new "Category Management" nav item</b>, placed after Video Moderation. A table of all 18 launch categories (icon, name, <code>/slug</code>) with a <b>Status</b> column (Active/Inactive, the same <code>.status-pill</code> verified/unverified tones used everywhere else) and a <b>Used by</b> column (business/product/video counts). <b>Add category</b> opens a sheet — name field only; the slug is generated live underneath as you type and shown read-only ("auto-generated, not editable"), matching the real endpoint's behaviour exactly (slug is never accepted as input). <b>Inline rename</b> happens directly in the row — click the pencil, the name becomes a text input with inline save/cancel icon buttons, no sheet/modal — renaming does not touch the slug, same as the real <code>PATCH</code>'s documented behaviour. <b>Deactivate/reactivate is a toggle switch, not a delete button</b> — there is deliberately no delete control anywhere on this screen, matching the documented decision that hard-delete was never built (categories are still referenced by existing listings). A deactivated row stays in this list — muted icon/text, "Inactive" pill — rather than disappearing, which is the intended contrast with every public-facing category picker (Home's category grid, the video-upload category select), both of which now filter to active-only and were verified to drop "Entertainment" (deactivated in the seed data for this pass) while this admin screen keeps showing it, muted.
+        <br><br><b>Open question flagged for PM/backend:</b> the "Used by" counts are a fixture-only approximation for this design pass (businesses/videos matched by category label directly; products approximated via their owning business's categories, since this mock's product fixtures don't carry a per-product category the way the real <code>product_categories</code> join table does) — <code>GET /admin/categories</code> does not currently return usage counts. The brief flagged this as "nice-to-have if cheap" and asked to check with backend before assuming the frontend can compute it client-side — for the real build, either backend adds a cheap aggregate to that endpoint, or the frontend computes it from already-fetched product/video lists (more requests, no schema change). Flagging explicitly rather than deciding silently.
+        <br><br><b>Admin Panel → new "User Management" nav item.</b> A search box (name/email/phone, live-as-you-type, debounce-free since the fixture list is tiny — matches the sub-container-only re-render pattern <code>runSearch()</code> already uses for the consumer Search screen so the input never loses focus mid-keystroke) plus a role-filter chip row covering all 7 real brief roles. Table columns: an expand chevron, Name (+ "N businesses owned" when applicable), Contact (email/phone), Role (a small pill, staff roles — Platform Admin/Content Moderator — get a brand-blue-tinted variant so they read as a different weight class from shopper/business roles at a glance), Verified/Unverified and Active/Deactivated (stacked <code>.status-pill</code>s, deliberately the same visual weight as the moderation queues' status badges per the brief's "moderation-adjacent" framing), Joined date, and the deactivate/reactivate action. Clicking the chevron expands an inline row showing that user's owned businesses (name, category, location, verification badge) — reuses <code>.dash-row-entity</code> wholesale, no new card component needed. Paginated 10/page with a numbered pager (16 demo users → 2 pages, so the pager actually has something to demonstrate).
+        <br><br><b>The two access-control rules are enforced in the row rendering, not just on click</b> — exactly as the brief asked ("shouldn't offer an action that will just 403"): every <code>platform_admin</code> row shows a locked "Protected" label instead of a toggle, for every viewer, with no way to trigger it; the signed-in admin's own row shows a locked "This is you" label instead of a toggle, regardless of role. Both are demonstrated live in the seed data: sign in via the Admin Panel quick-link (auto-signs in as <b>demo-admin@miles.tech</b>) and its own row reads "This is you", while <b>Wanjiru Kariuki</b>'s separate platform_admin row reads "Protected" even though it isn't the signed-in account — proving the rule is "no platform_admin, ever," not just "not yourself." A regular business_admin/general_user row's toggle still works normally (try deactivating <b>Tom Kiplangat</b>, seeded already-deactivated, to see the reactivate direction).
+        <br><br><b>Business Dashboard → "Analytics" is now a real screen</b>, no longer the disabled "Soon" placeholder (Overview / Business Profile / Products / Videos / <b>Analytics</b> / Orders <i>still Soon</i> — Orders has no backend at all, unchanged). Backs <code>GET /businesses/{id}/stats</code>: four <code>KpiCard</code>-style tiles (Profile Views, Search Impressions, Total Product Views, Total Video Views — the latter two are sums across the business's own listings, matching the endpoint's documented aggregation), then two simple stat-bar breakdowns (Products by review status, Videos by review status — Approved/Pending/Rejected, teal/amber/red matching the moderation queues' existing status colours) instead of a chart library, per the brief's "keep scope proportional... no chart library needed unless a dead-simple bar meaningfully improves at-a-glance reading" guidance — a labelled proportional bar reads faster than three bare numbers here, a pie/line chart would not have added anything a table of three numbers couldn't already say. Switching businesses in the existing business-switcher (AquaTank ⇄ SunFlow) recomputes this screen from that business's own products/videos, same live-recompute pattern the rest of the dashboard already uses.
+        <br><br><b>Judgment call to flag for the PM — Admin does NOT get a dedicated "Analytics" nav item this pass.</b> The brief explicitly left this open ("use your judgment on whether Admin needs a dedicated Analytics screen at all versus just richer KPI cards on the existing Overview"). Went with richer KPI cards: the real backend only shipped <code>GET /businesses/{id}/stats</code>, scoped to one business at a time (owner/admin-gated) — there is no cross-business platform-wide aggregate endpoint yet, so a dedicated "Admin Analytics" screen today would either be a thin wrapper that makes an admin pick one business first (redundant with just opening that business from Business Moderation) or would require fabricating platform-wide numbers with nothing backing them, which felt worse than not building it. Instead, Admin Overview's existing KPI grid gained two more cards — <b>Total Businesses</b> and <b>Platform Users</b> — cheap, already-available counts (not a new endpoint) that make the Overview read as a fuller platform pulse-check without over-building. Flagging explicitly: if the PM wants true platform-wide analytics (revenue-shaped, engagement-shaped, trend-over-time), that's real backend aggregation work — a reasonable Phase 1b-adjacent ask, not something to improvise into this pass.
+        <br><br><b>Component states added to the design system by this pass</b> (for reuse beyond these three screens): a <code>.toggle-switch</code> (on/off, teal-when-on — a flag flip, not a destructive action, so it deliberately does NOT borrow the reject/danger red) for any future "deactivate, don't delete" control; a <code>.role-pill</code> (neutral by default, brand-blue-tinted <code>.staff</code> variant); an inline-rename pattern (<code>.inline-edit-row</code>) as an alternative to opening a sheet for a one-field edit; an expandable table row (<code>.user-expand-row</code>) for "show more detail without leaving the list"; a <code>.bar-row</code>/<code>.bar-track</code>/<code>.bar-fill</code> proportional-bar primitive for any future simple breakdown; a numbered <code>.pager</code>.
+        <br><br><b>Not touched, deliberately out of scope for this pass:</b> the consumer-facing category pickers elsewhere (filter sheet's category chips) already used a small hardcoded shortlist rather than the full <code>CATEGORIES</code> array and were left as-is — only the two places that iterate the full list (Home's category grid, video upload's category select) needed the active-only filter. No delete/hard-remove control was added anywhere, on purpose (see above). Admin's Business/Product/Video Moderation screens are visually unchanged.
+        <br><br>Try it: open the <b>Admin Panel</b> (top toolbar button, auto-signs in as the demo Platform Admin) → <b>Category Management</b> (toggle "DIY" off and see it vanish from Home's category grid on the Home screen behind it; toggle "Entertainment" back on; try renaming a category and adding a new one) → <b>User Management</b> (search "mutua", filter by "Business Admin", expand Kevin Mutua's row to see BuildRight Hardware listed, try deactivating a normal user vs. the locked rows). Then open the <b>Business Dashboard</b> (auto-signs in as the demo Business Owner) → <b>Analytics</b> (switch AquaTank ⇄ SunFlow with the business switcher above it to see the numbers actually change).</li>
         <li><b>New in v7 — Real video support added to the v6 internal-tool shell (2026-08-30), status: draft, first pass, not yet reviewed. This is additive only</b> — the v6 sidebar/topbar/footer shell, both nav lists' existing items, and every other screen are untouched; per the Business Dashboard incident (see docs/decisions.md's "shipped without a design pass" entry), this got a real design pass before any build work, same as v6 did.
         <br><br><b>Business Dashboard → new "Videos" nav item</b>, placed between Products and Analytics (Overview / Business Profile / Products / <b>Videos</b> / Analytics <i>Soon</i> / Orders <i>Soon</i>) — video sits with the other content-you-manage items, ahead of the two not-yet-built placeholders. Content is a card grid, not a data table like Products — a video's thumbnail is the point, so each card gets the same out-of-focus-footage thumb treatment (grain/bokeh/vignette + duration badge) used everywhere else in the app, not shrunk to a small square icon. Each card shows the thumb, title, the exact pending/approved/rejected <code>.status-pill</code> used by Products and Business Moderation (a rejected card also surfaces its rejection reason inline), view count, and a linked-product chip when one was set at upload. <b>Upload video</b> opens a sheet — file picker (a real native file input behind a styled dropzone; filename+size shown once picked, no real upload target, same "wired at build time" honesty as every other stubbed action in this file), title (required), description, category and "link to a product" (both optional, product list scoped to the current business) — this is the one genuinely new interactive flow in this pass, not a stub: submitting pushes a real <code>pending</code> video into the shared data, so it shows up immediately both in this grid and in the Admin Panel's new Video Moderation queue. <b>Edit</b> intentionally stays a stub (identical "not in this sprint" toast Products' own Edit button already uses) — no working edit form exists for Products either, and building one only for Videos would be inconsistent, not extra credit. <b>Remove</b> is a real two-click soft-delete (button turns solid red "Confirm remove?" for 4s, then removes on a second click) — deliberately named and shaped to match the "two-click-remove" pattern already shipped in the real product-management build per docs/decisions.md, so this design stays consistent with what's already live, not just internally consistent with itself. The Overview's "Videos" KPI card is now computed live from the same video list (previously a static fixture field) so an upload or a removal visibly moves the number right next to where it happened.
         <br><br><b>Admin Panel → new "Video Moderation" nav item</b>, placed after Product Moderation (Overview / Business Moderation / Product Moderation / <b>Video Moderation</b>) — mirrors Business/Product Moderation's exact tab pattern (Pending / Approved / Rejected, with a live count in each tab label) and table layout. Each row gives a moderator enough to judge without leaving the table: a real video-still thumbnail (not the small square icon business/product rows use), title, business name, "Submitted N days ago", and a one-line clamp of the submitted description. <b>Approve is one click</b>, same as Business/Product Moderation. <b>Reject is the one deliberate departure from mirroring those exactly</b>: instead of rejecting instantly with no reason (what Business/Product Moderation still do today), it opens a small sheet requiring a reason before it will submit — a reason field reuses the exact same <code>.field</code>/<code>.err-msg</code>/<code>setFieldError</code> validation as every form already in this file. Rationale flagged for the PM: asking a business to re-shoot or re-edit a video is a much bigger ask than fixing a product field, so a silent reject felt like it'd generate support tickets instead of resubmissions — worth considering backporting reason-capture to Business/Product reject too, but that's a call for the PM, not something changed unasked in this pass.
@@ -1222,38 +1283,59 @@ body{
 
 <script>
 /* ================= DATA ================= */
+// `active` added for v8's Admin "Category Management" screen — every one of
+// the 18 launch categories defaults to active:true (mirrors the real
+// Category.is_active column), except one deliberately flipped off below so
+// the deactivated/muted row state has something real to show on first load
+// without needing a live toggle first. `id` doubles as the mock "slug" —
+// close enough to the real backend's auto-generated slugify() output for a
+// design pass (see docs/decisions.md's 2026-09-04 category-CRUD entry).
 const CATEGORIES = [
-  {id:'manufacturing',label:'Manufacturing',icon:'🏭'},
-  {id:'agriculture',label:'Agriculture',icon:'🌾'},
-  {id:'education',label:'Education',icon:'🎓'},
-  {id:'health',label:'Health',icon:'🩺'},
-  {id:'technology',label:'Technology',icon:'💻'},
-  {id:'science',label:'Science',icon:'🔬'},
-  {id:'construction',label:'Construction',icon:'🏗️'},
-  {id:'automotive',label:'Automotive',icon:'🚗'},
-  {id:'retail',label:'Retail',icon:'🛍️'},
-  {id:'beauty',label:'Beauty & Lifestyle',icon:'💄'},
-  {id:'energy',label:'Energy',icon:'⚡'},
-  {id:'finance',label:'Finance',icon:'💰'},
-  {id:'hospitality',label:'Hospitality',icon:'🏨'},
-  {id:'arts',label:'Arts & Culture',icon:'🎨'},
-  {id:'books',label:'Books & Journals',icon:'📚'},
-  {id:'entertainment',label:'Entertainment',icon:'🎬'},
-  {id:'diy',label:'DIY',icon:'🔧'},
-  {id:'professional',label:'Professional Services',icon:'💼'},
+  {id:'manufacturing',label:'Manufacturing',icon:'🏭',active:true},
+  {id:'agriculture',label:'Agriculture',icon:'🌾',active:true},
+  {id:'education',label:'Education',icon:'🎓',active:true},
+  {id:'health',label:'Health',icon:'🩺',active:true},
+  {id:'technology',label:'Technology',icon:'💻',active:true},
+  {id:'science',label:'Science',icon:'🔬',active:true},
+  {id:'construction',label:'Construction',icon:'🏗️',active:true},
+  {id:'automotive',label:'Automotive',icon:'🚗',active:true},
+  {id:'retail',label:'Retail',icon:'🛍️',active:true},
+  {id:'beauty',label:'Beauty & Lifestyle',icon:'💄',active:true},
+  {id:'energy',label:'Energy',icon:'⚡',active:true},
+  {id:'finance',label:'Finance',icon:'💰',active:true},
+  {id:'hospitality',label:'Hospitality',icon:'🏨',active:true},
+  {id:'arts',label:'Arts & Culture',icon:'🎨',active:true},
+  {id:'books',label:'Books & Journals',icon:'📚',active:true},
+  // Deactivated by demo admin as overlapping too much with Arts & Culture /
+  // the video feed's own content — demonstrates the muted admin-list row
+  // AND its disappearance from every public category picker on first load.
+  {id:'entertainment',label:'Entertainment',icon:'🎬',active:false},
+  {id:'diy',label:'DIY',icon:'🔧',active:true},
+  {id:'professional',label:'Professional Services',icon:'💼',active:true},
 ];
+// Stable join key for categoryUsage() below, captured once at definition
+// time. BUSINESSES/VIDEOS in this fixture reference a category by its label
+// STRING (there's no product_categories-style join table in this mock), so
+// without this, renaming a category via Category Management's inline rename
+// would silently zero out its "Used by" counts the instant the display label
+// changed. matchKey never changes after this; `label` is the editable one.
+CATEGORIES.forEach(c=>{ c.matchKey = c.label; });
 
 const BUSINESSES = [
   {id:'aquatank',name:'AquaTank Kenya Ltd',categories:['Manufacturing','Construction'],location:'Industrial Area, Nairobi',verified:true,rating:4.8,ratingCount:212,grad:0,icon:'🛢️',
     description:'Rotomoulded water storage tanks for homes, farms and industry. ISO-certified production with nationwide delivery and a 5-year warranty on every tank.',
     products:34,videosCount:12,phone:'+254 711 224 560',hours:'Mon–Sat · 8:00–17:00',
     tags:['water tank','water tanks','tank','tanks','water storage','rotomoulding','poly tank','storage tank','suppliers'],
-    featured:false,sponsoredKeywords:['water','tank','tanks','storage','suppliers']},
+    featured:false,sponsoredKeywords:['water','tank','tanks','storage','suppliers'],
+    // v8: stand-ins for the real GET /businesses/{id}/stats' business_view_count /
+    // business_impression_count — see renderBizAnalytics() / businessStatsMock().
+    viewsMock:3260,impressionsMock:8840},
   {id:'sunflow',name:'SunFlow Irrigation',categories:['Energy','Agriculture'],location:'Nakuru',verified:true,rating:4.6,ratingCount:98,grad:1,icon:'☀️',
     description:'Solar-powered irrigation systems engineered for Kenyan smallholder and commercial farms — pumps, drip kits and control panels.',
     products:21,videosCount:9,phone:'+254 722 981 034',hours:'Mon–Fri · 8:00–17:00',
     tags:['solar irrigation','irrigation','solar pump','drip kit','farm','agriculture','solar','systems'],
-    featured:false,sponsoredKeywords:['solar','irrigation','systems']},
+    featured:false,sponsoredKeywords:['solar','irrigation','systems'],
+    viewsMock:1980,impressionsMock:5310},
   {id:'nairobisteel',name:'Nairobi Steel Works',categories:['Manufacturing','Construction'],location:'Baba Dogo, Nairobi',verified:true,rating:4.5,ratingCount:74,grad:2,icon:'⚙️',
     description:'Structural steel fabrication, roofing sheets and wire mesh for contractors across East Africa.',
     products:16,videosCount:5,phone:'+254 733 445 210',hours:'Mon–Sat · 7:30–17:30',
@@ -1280,19 +1362,19 @@ const BUSINESSES = [
 const PRODUCTS = [
   {id:'tank5000',businessId:'aquatank',name:'5,000L Vertical Water Tank',price:42500,grad:0,icon:'🛢️',
     specs:{Capacity:'5,000 Litres',Material:'Polyethylene (Rotomoulded)',Warranty:'5 Years',Availability:'In stock — Nairobi & Nakuru depots'},
-    tags:['water tank','tank','5000l','storage','water']},
+    tags:['water tank','tank','5000l','storage','water'],viewsMock:640},
   {id:'tank10000',businessId:'aquatank',name:'10,000L Loft Water Tank',price:78000,grad:0,icon:'🛢️',
     specs:{Capacity:'10,000 Litres',Material:'Polyethylene (Rotomoulded)',Warranty:'5 Years',Availability:'Made to order — 5 days'},
-    tags:['water tank','tank','10000l','loft tank','water']},
+    tags:['water tank','tank','10000l','loft tank','water'],viewsMock:410},
   {id:'tank1000',businessId:'aquatank',name:'1,000L Slimline Tank',price:14200,grad:2,icon:'🛢️',
     specs:{Capacity:'1,000 Litres',Material:'Polyethylene (Rotomoulded)',Warranty:'3 Years',Availability:'In stock — Nairobi'},
-    tags:['water tank','slimline','tank','water']},
+    tags:['water tank','slimline','tank','water'],viewsMock:290},
   {id:'solarpump',businessId:'sunflow',name:'Solar Water Pump SP-200',price:68000,grad:1,icon:'☀️',
     specs:{Capacity:'200 L/min',Power:'1.5kW solar array',Warranty:'3 Years',Availability:'Made to order — 7 days'},
-    tags:['solar pump','irrigation','solar irrigation','systems']},
+    tags:['solar pump','irrigation','solar irrigation','systems'],viewsMock:512},
   {id:'dripkit',businessId:'sunflow',name:'Drip Irrigation Starter Kit (1 Acre)',price:24000,grad:1,icon:'💧',
     specs:{Coverage:'1 Acre',Components:'Pump, filters, driplines, timer',Warranty:'1 Year',Availability:'In stock — Nakuru'},
-    tags:['drip irrigation','irrigation','solar irrigation','farm','systems']},
+    tags:['drip irrigation','irrigation','solar irrigation','farm','systems'],viewsMock:298},
   {id:'steelsheet',businessId:'nairobisteel',name:'Steel Roofing Sheets — Gauge 28',price:980,grad:2,icon:'⚙️',
     specs:{Gauge:'28',Length:'Cut to order',Warranty:'10 Years',Availability:'In stock'},tags:['steel','roofing','construction']},
   {id:'maizeseed',businessId:'greengrow',name:'Certified Maize Seed — Hybrid 614',price:650,grad:3,icon:'🌽',
@@ -1346,6 +1428,38 @@ const prodById = id => PRODUCTS.find(p=>p.id===id);
 const vidById = id => VIDEOS.find(v=>v.id===id);
 const catById = id => CATEGORIES.find(c=>c.id===id);
 
+/* v8 helpers for Category Management ("slug shown as a live preview, not
+   editable" per the brief) and its usage-count column. Real backend
+   auto-generates the slug the same way (unique_slug util, app/api/v1/endpoints/admin.py) —
+   this is a close-enough client-side approximation for a design pass, not a
+   claim that it exactly matches server-side collision handling. */
+function slugify(s){
+  return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'');
+}
+// Nice-to-have per the brief ("check with backend if that count isn't
+// already returned before assuming the frontend can compute it client-side
+// cheaply") — GET /admin/categories does NOT currently return usage counts
+// (see docs/decisions.md's 2026-09-04 entry), so this is a fixture-only
+// approximation for the design pass: businesses/videos match a category by
+// its stable matchKey (NOT the editable `label` — see the CATEGORIES.forEach
+// above, this is what keeps counts correct across an inline rename); products
+// have no per-product category field in this mock fixture yet (the real
+// backend's product_categories join table isn't modelled here), so product
+// usage is approximated via the owning business's categories. Flagged
+// explicitly in the Design notes panel as an open question — don't treat
+// this count as backend-accurate.
+function categoryUsage(cat){
+  const key = cat.matchKey;
+  const biz = BUSINESSES.filter(b=>b.categories.includes(key)).length;
+  const vid = VIDEOS.filter(v=>!v.removed && v.category && v.category.split(' · ').includes(key)).length;
+  const prod = PRODUCTS.filter(p=>{ const b=bizById(p.businessId); return b && b.categories.includes(key); }).length;
+  return {biz, vid, prod};
+}
+function formatJoined(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'});
+}
+
 /* ================= ICONS ================= */
 const ICONS = {
   back:'<path d="M15 18l-6-6 6-6"/>',
@@ -1385,6 +1499,10 @@ const ICONS = {
   video:'<rect x="2.5" y="6" width="14" height="12" rx="2"/><path d="M21.5 9.2l-5 2.8 5 2.8z"/>',
   upload:'<path d="M12 16V4M12 4l-4.5 4.5M12 4l4.5 4.5"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/>',
   trash:'<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/>',
+  /* ---- v8: Category Management / User Management (Admin) ---- */
+  tag:'<path d="M20.6 13.4L13 21a2 2 0 01-2.8 0l-8-8A2 2 0 012 11.6V4a2 2 0 012-2h7.6a2 2 0 011.4.6l8 8a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
 };
 function icon(name,size=20){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;}
 const SPONSOR_DOT = '<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;flex:0 0 auto;"></span>';
@@ -1445,6 +1563,38 @@ let FAKE_USERS = [
   {id:'demo-owner', email:'demo-owner@miles.tech', phone:null, password:'DemoPass123!', full_name:'Miles Tech Demo Owner', role:'business_admin', is_verified:true, is_active:true},
   {id:'demo-unverified', email:'grace@example.com', phone:null, password:'Passw0rd!', full_name:'Grace Wanjiru', role:'general_user', is_verified:false, is_active:true},
   {id:'demo-admin', email:'demo-admin@miles.tech', phone:null, password:'DemoAdmin123!', full_name:'Miles Tech Demo Admin', role:'platform_admin', is_verified:true, is_active:true},
+];
+
+// v8: mock "DB" backing Admin -> User Management, mirroring GET /admin/users'
+// real shape (id/full_name/email/phone/role/is_verified/is_active/joined) plus
+// a `businessIds` array standing in for the real endpoint's owned-businesses
+// detail lookup (GET /admin/users/{id}). Shares ids with FAKE_USERS for the
+// three accounts that exist in both (demo-owner/demo-unverified/demo-admin)
+// so "this is you" / self-deactivation-block logic keys off the same
+// sessionUser.id whichever screen you came from. 16 rows across all 7 real
+// brief roles, varied verified/active states and join dates, real Kenyan
+// business-owner names (not lorem ipsum) tied to the existing BUSINESSES
+// fixture — deliberately NOT the PM's own real account, since this is a
+// shared design artifact, not a live data dump.
+const ADMIN_USERS = [
+  {id:'founder-admin', full_name:'Wanjiru Kariuki', email:'wanjiru.kariuki@miles.tech', phone:'+254 711 000 001', role:'platform_admin', is_verified:true, is_active:true, joined:'2026-08-20', businessIds:[]},
+  {id:'demo-admin', full_name:'Miles Tech Demo Admin', email:'demo-admin@miles.tech', phone:null, role:'platform_admin', is_verified:true, is_active:true, joined:'2026-08-25', businessIds:[]},
+  {id:'mod-achieng', full_name:'Achieng Otieno', email:'achieng.otieno@miles.tech', phone:'+254 722 000 002', role:'content_moderator', is_verified:true, is_active:true, joined:'2026-08-27', businessIds:[]},
+  {id:'mod-lilian', full_name:'Lilian Njeri', email:'lilian.njeri@miles.tech', phone:null, role:'content_moderator', is_verified:true, is_active:true, joined:'2026-08-29', businessIds:[]},
+  {id:'demo-owner', full_name:'Miles Tech Demo Owner', email:'demo-owner@miles.tech', phone:null, role:'business_admin', is_verified:true, is_active:true, joined:'2026-08-22', businessIds:['aquatank','sunflow']},
+  {id:'owner-peter', full_name:'Peter Mwangi', email:'peter.mwangi@nairobisteel.co.ke', phone:'+254 733 445 210', role:'business_admin', is_verified:true, is_active:true, joined:'2026-08-23', businessIds:['nairobisteel']},
+  {id:'owner-faith', full_name:'Faith Chebet', email:'faith.chebet@greengrowagrovet.co.ke', phone:'+254 700 112 883', role:'business_admin', is_verified:true, is_active:true, joined:'2026-08-24', businessIds:['greengrow']},
+  {id:'owner-brian', full_name:'Brian Otieno', email:'brian.otieno@solarispower.co.ke', phone:'+254 720 556 907', role:'business_admin', is_verified:true, is_active:true, joined:'2026-08-24', businessIds:['solaris']},
+  {id:'owner-kevin', full_name:'Kevin Mutua', email:'kevin.mutua@buildright.co.ke', phone:'+254 741 902 244', role:'business_admin', is_verified:true, is_active:true, joined:'2026-08-29', businessIds:['buildright']},
+  {id:'gen-wanjiku', full_name:'Wanjiku Kamau', email:'wanjiku.kamau@gmail.com', phone:null, role:'general_user', is_verified:true, is_active:true, joined:'2026-08-30', businessIds:[]},
+  {id:'gen-samuel', full_name:'Samuel Kiprotich', email:null, phone:'+254 733 210 456', role:'general_user', is_verified:true, is_active:true, joined:'2026-08-31', businessIds:[]},
+  {id:'demo-unverified', full_name:'Grace Wanjiru', email:'grace@example.com', phone:null, role:'general_user', is_verified:false, is_active:true, joined:'2026-09-01', businessIds:[]},
+  // Previously deactivated (spam reports) — demonstrates the "Reactivate" side
+  // of the toggle on first load, not just the happy "Active" path.
+  {id:'gen-tom', full_name:'Tom Kiplangat', email:'tom.kiplangat@gmail.com', phone:null, role:'general_user', is_verified:true, is_active:false, joined:'2026-08-26', businessIds:[]},
+  {id:'adv-daniel', full_name:'Daniel Mburu', email:'daniel.mburu@adagency.co.ke', phone:'+254 715 330 220', role:'advertiser', is_verified:true, is_active:true, joined:'2026-09-02', businessIds:[]},
+  {id:'creator-mercy', full_name:'Mercy Achieng', email:'mercy.achieng@creators.co.ke', phone:null, role:'content_creator', is_verified:true, is_active:true, joined:'2026-09-02', businessIds:[]},
+  {id:'pub-james', full_name:'James Odhiambo', email:'james.odhiambo@pressco.ke', phone:'+254 700 990 112', role:'publisher', is_verified:true, is_active:true, joined:'2026-09-03', businessIds:[]},
 ];
 
 /* ================= NAV ================= */
@@ -1541,7 +1691,10 @@ function initHome(){
     `<button class="cat-chip" data-action="open-more-cats"><span class="ico">${icon('plus',18)}</span><span>More</span></button>`;
   document.getElementById('trendingRail').innerHTML = TRENDING_ORDER.map(id=>renderVidCardHome(vidById(id))).join('');
   document.getElementById('featuredBizRail').innerHTML = FEATURED_BIZ_ORDER.map(id=>renderBizCardHome(bizById(id))).join('');
-  document.getElementById('catGridHome').innerHTML = CATEGORIES.map(renderCatTile).join('');
+  // v8: deactivated categories vanish from every public picker (this grid,
+  // the video-upload category select below) but stay listed — muted, not
+  // hidden — in the Admin "Category Management" screen. See renderAdminCategories().
+  document.getElementById('catGridHome').innerHTML = CATEGORIES.filter(c=>c.active!==false).map(renderCatTile).join('');
   document.getElementById('suggestRow').innerHTML = SUGGESTIONS.map(s=>`<button class="suggest-chip" data-query="${s}">${s}</button>`).join('');
 }
 
@@ -2585,7 +2738,10 @@ const DASH_NAV = {
     {id:'profile', label:'Business Profile', icon:'building'},
     {id:'products', label:'Products', icon:'box'},
     {id:'videos', label:'Videos', icon:'video'},
-    {id:'analytics', label:'Analytics', icon:'chart', soon:true},
+    // v8: real screen now that GET /businesses/{id}/stats exists — no longer
+    // a disabled "Soon" placeholder (see docs/decisions.md's 2026-09-04
+    // "core analytics" entry). Orders stays a placeholder — no backend for it.
+    {id:'analytics', label:'Analytics', icon:'chart'},
     {id:'orders', label:'Orders', icon:'truck', soon:true},
   ],
   admin: [
@@ -2593,6 +2749,12 @@ const DASH_NAV = {
     {id:'bizmod', label:'Business Moderation', icon:'building'},
     {id:'prodmod', label:'Product Moderation', icon:'box'},
     {id:'vidmod', label:'Video Moderation', icon:'video'},
+    // v8, new: Category Management (POST/PATCH/GET /admin/categories) and
+    // User Management (GET/PATCH /admin/users) — see renderAdminCategories()/
+    // renderAdminUsers() below. Deliberately NOT adding an admin "Analytics"
+    // nav item — see the Design notes panel for the reasoning.
+    {id:'categories', label:'Category Management', icon:'tag'},
+    {id:'users', label:'User Management', icon:'user'},
   ],
 };
 let dashSection = 'overview';
@@ -2605,6 +2767,14 @@ let dashVideoConfirmRemoveId = null; // two-click remove, mirrors the real app's
 let dashVideoConfirmTimer = null;
 let rejectVideoTarget = null; // video id currently open in the reject-with-reason sheet
 let pickedVideoFile = null; // { name, size } from the upload sheet's file picker — display-only, no real upload
+
+// v8: Category Management / User Management state
+let categoryEditingId = null;   // which CATEGORIES row is currently in inline-rename mode
+let userMgmtQuery = '';         // free-text search over name/email/phone
+let userMgmtRoleFilter = '';    // '' = all roles, else one of the 7 UserRole values
+let userMgmtPage = 1;           // 1-based, paginated same shape as the real Page[AdminUserRead]
+let userMgmtExpandedId = null;  // which ADMIN_USERS row's "owned businesses" panel is open
+const USER_MGMT_PAGE_SIZE = 10;
 
 function pendingBizCount(){ return BUSINESSES.filter(b=>b.pending && !b.rejected).length; }
 function pendingProdCount(){ return PRODUCTS.filter(p=>p.moderationStatus==='pending').length; }
@@ -2826,7 +2996,7 @@ function renderVideoUploadSheet(){
         <label>Category <span class="opt">(optional)</span></label>
         <select id="videoCategoryInput">
           <option value="">— Select category —</option>
-          ${CATEGORIES.map(c=>`<option value="${c.label}">${c.label}</option>`).join('')}
+          ${CATEGORIES.filter(c=>c.active!==false).map(c=>`<option value="${c.label}">${c.label}</option>`).join('')}
         </select>
       </div>
       <div class="field">
@@ -2923,11 +3093,65 @@ function handleDashVideoRemoveClick(id){
     renderDashboard();
   }
 }
+/* ---- Business Dashboard: Analytics (v8, replaces the "Soon" placeholder) ----
+   Backs the same data GET /businesses/{id}/stats returns for real: the
+   business's own view/impression counts, product & video view sums, and a
+   product/video count broken out by moderation status (pending/approved/
+   rejected) — see docs/decisions.md's 2026-09-04 "core analytics" entry.
+   KpiCard-style tiles for the four headline numbers, plus a simple bar-row
+   breakdown for the two status splits — no chart library, per the brief's
+   "keep scope proportional to Phase 1a's basic-counts scope" guidance. */
+function businessStatsMock(biz){
+  const prods = PRODUCTS.filter(p=>p.businessId===biz.id);
+  const vids = VIDEOS.filter(v=>v.businessId===biz.id && !v.removed);
+  const productViews = prods.reduce((sum,p)=>sum+(p.viewsMock||0),0);
+  const videoViews = vids.reduce((sum,v)=>sum+(v.views||0),0);
+  const prodByStatus = {approved:0, pending:0, rejected:0};
+  prods.forEach(p=>{ const st = p.moderationStatus || 'approved'; prodByStatus[st] = (prodByStatus[st]||0)+1; });
+  const vidByStatus = {approved:0, pending:0, rejected:0};
+  vids.forEach(v=>{ const st = v.moderationStatus || 'approved'; vidByStatus[st] = (vidByStatus[st]||0)+1; });
+  return {
+    businessViews: biz.viewsMock || 0,
+    businessImpressions: biz.impressionsMock || 0,
+    productViews, videoViews, prodByStatus, vidByStatus,
+  };
+}
+function renderStatusBars(byStatus){
+  const total = Object.values(byStatus).reduce((a,b)=>a+b,0);
+  const order = [['approved','Approved'],['pending','Pending'],['rejected','Rejected']];
+  if(!total) return `<p style="font-size:.8rem;color:var(--ink-soft);margin:0;">Nothing listed yet.</p>`;
+  return order.map(([key,label])=>{
+    const v = byStatus[key]||0;
+    const pct = Math.round((v/total)*100);
+    return `<div class="bar-row"><div class="lbl">${label}</div><div class="bar-track"><div class="bar-fill ${key}" style="width:${pct}%;"></div></div><div class="val">${v}</div></div>`;
+  }).join('');
+}
+function renderBizAnalytics(biz){
+  const s = businessStatsMock(biz);
+  const prodTotal = Object.values(s.prodByStatus).reduce((a,b)=>a+b,0);
+  const vidTotal = Object.values(s.vidByStatus).reduce((a,b)=>a+b,0);
+  return `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="n">${s.businessViews.toLocaleString()}</div><div class="c">Profile Views</div></div>
+      <div class="kpi-card"><div class="n">${s.businessImpressions.toLocaleString()}</div><div class="c">Search Impressions</div></div>
+      <div class="kpi-card"><div class="n">${s.productViews.toLocaleString()}</div><div class="c">Total Product Views</div></div>
+      <div class="kpi-card"><div class="n">${s.videoViews.toLocaleString()}</div><div class="c">Total Video Views</div></div>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-head"><div><h2>Products by review status</h2><p>${prodTotal} listing${prodTotal===1?'':'s'} total</p></div></div>
+      ${renderStatusBars(s.prodByStatus)}
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-head"><div><h2>Videos by review status</h2><p>${vidTotal} video${vidTotal===1?'':'s'} total</p></div></div>
+      ${renderStatusBars(s.vidByStatus)}
+    </div>
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:-6px 2px 0;">Backed by <code>GET /businesses/{id}/stats</code> — the numbers on this screen are prototype fixtures standing in for that real aggregate.</p>`;
+}
 function renderDashboard(){
   const biz = bizById(dashBizId) || BUSINESSES[0];
   const ownPending = PRODUCTS.filter(p=>p.businessId===biz.id && p.moderationStatus==='pending').length
     + VIDEOS.filter(v=>v.businessId===biz.id && !v.removed && v.moderationStatus==='pending').length;
-  const titles = {overview:'Overview', profile:'Business Profile', products:'Products', videos:'Videos'};
+  const titles = {overview:'Overview', profile:'Business Profile', products:'Products', videos:'Videos', analytics:'Analytics'};
   const stats = [
     {n:String(ownPending), c:'Pending', warn:ownPending>0},
     {n:biz.verified?'Verified':biz.pending?'Pending':'Unverified', c:'Status'},
@@ -2937,6 +3161,7 @@ function renderDashboard(){
   else if(dashSection==='profile') body = renderBizProfile(biz);
   else if(dashSection==='products') body = renderBizProducts(biz);
   else if(dashSection==='videos') body = renderBizVideos(biz);
+  else if(dashSection==='analytics') body = renderBizAnalytics(biz);
   document.getElementById('dashboardContent').innerHTML = `
     <div class="dash-shell">
       <header class="dash-topbar">${dashTopbarHTML({breadcrumb:'Business Dashboard', title:titles[dashSection], stats})}</header>
@@ -3027,8 +3252,16 @@ function renderAdminOverview(){
       <div class="kpi-card ${pendingProd?'accent':''}"><div class="n">${pendingProd}</div><div class="c">Pending Products</div></div>
       <div class="kpi-card ${pendingVid?'accent':''}"><div class="n">${pendingVid}</div><div class="c">Pending Videos</div></div>
       <div class="kpi-card"><div class="n">${verifiedBizCount()}</div><div class="c">Verified Businesses</div></div>
-      <div class="kpi-card"><div class="n">${CATEGORIES.length}</div><div class="c">Live Categories</div></div>
+      <div class="kpi-card"><div class="n">${CATEGORIES.filter(c=>c.active!==false).length}</div><div class="c">Live Categories</div></div>
+      <div class="kpi-card"><div class="n">${BUSINESSES.length}</div><div class="c">Total Businesses</div></div>
+      <div class="kpi-card"><div class="n">${ADMIN_USERS.length}</div><div class="c">Platform Users</div></div>
     </div>
+    <!-- v8 judgment call: no dedicated Admin "Analytics" screen this pass — see
+         the Design notes panel for the reasoning (no cross-business aggregate
+         endpoint exists yet, only GET /businesses/{id}/stats scoped to one
+         business at a time) — these two extra KPI cards are the "richer
+         Overview" alternative, flagged explicitly for PM confirmation. -->
+
     <div class="dash-section">
       <div class="dash-section-head"><div><h2>Needs your review</h2><p>Oldest submissions first.</p></div></div>
       ${rows.length ? `<table class="dash-table"><tbody>${rows.join('')}</tbody></table>` :
@@ -3114,8 +3347,207 @@ function handleRejectVideoSubmit(e){
   closeSheets();
   renderAdmin();
 }
+/* ---- Admin Panel: Category Management (v8, new) ----
+   Backend: GET /admin/categories (all, incl. inactive), POST /admin/categories
+   ({name}, slug auto-generated), PATCH /admin/categories/{id} (rename and/or
+   toggle is_active) — see docs/decisions.md's 2026-09-04 entry. Deactivation
+   is the ONLY removal mechanism (no delete button anywhere here, deliberately —
+   hard-delete was documented as not built, on purpose, since categories are
+   still referenced by existing products/videos/businesses). Deactivated rows
+   stay in this list (muted, not hidden) — contrast with the public category
+   grid/pickers, which filter them out entirely (see the CATEGORIES.filter
+   call in initHome() and the video-upload category select above). */
+function renderAdminCategories(){
+  const activeCount = CATEGORIES.filter(c=>c.active!==false).length;
+  const rows = CATEGORIES.map(c=>{
+    const editing = categoryEditingId === c.id;
+    const usage = categoryUsage(c);
+    const isActive = c.active !== false;
+    return `<tr>
+      <td>
+        ${editing ? `
+          <div class="inline-edit-row">
+            <input type="text" id="catEditInput-${c.id}" value="${c.label}">
+            <button type="button" class="icon-btn-xs" data-action="cat-save" data-cat="${c.id}" title="Save">${icon('check',13)}</button>
+            <button type="button" class="icon-btn-xs" data-action="cat-cancel" title="Cancel">${icon('close',13)}</button>
+          </div>` : `
+          <div class="dash-row-entity ${isActive?'':'muted'}">
+            <span class="ic" style="background:var(--panel);color:var(--ink);font-size:1.05rem;">${c.icon}</span>
+            <div><div class="t">${c.label}</div><div class="m">/${c.id}</div></div>
+          </div>`}
+      </td>
+      <td style="white-space:nowrap;font-size:.72rem;color:var(--ink-soft);">${usage.biz} biz · ${usage.prod} prod · ${usage.vid} vid</td>
+      <td>${isActive ? `<span class="status-pill verified">${icon('check',9)} Active</span>` : `<span class="status-pill unverified">Inactive</span>`}</td>
+      <td><div class="dash-row-actions">
+        ${!editing?`<button type="button" class="icon-btn-xs" data-action="cat-rename" data-cat="${c.id}" title="Rename">${icon('edit',13)}</button>`:''}
+        <button type="button" class="toggle-switch ${isActive?'on':''}" data-action="cat-toggle" data-cat="${c.id}" role="switch" aria-checked="${isActive}" title="${isActive?'Deactivate':'Reactivate'}"></button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  return `<div class="dash-section">
+    <div class="dash-section-head">
+      <div><h2>Categories</h2><p>${CATEGORIES.length} total · ${activeCount} active and shown to shoppers. Deactivating hides a category from search/upload pickers — it's never deleted, so existing listings keep it.</p></div>
+      <button type="button" class="pill pill-amber pill-sm" data-action="cat-open-add">${icon('plus',13)} Add category</button>
+    </div>
+    <div style="overflow-x:auto;"><table class="dash-table"><thead><tr><th>Category</th><th>Used by</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p style="font-size:.7rem;color:var(--ink-soft);margin:12px 2px 0;">"Used by" is a fixture approximation for this design pass, not a live backend count — flagged in the Design notes panel for PM/backend confirmation.</p>
+  </div>`;
+}
+function openCategoryAddSheet(){
+  renderCategoryAddSheet();
+  openSheet('categoryAddSheet');
+}
+function renderCategoryAddSheet(){
+  document.getElementById('categoryAddSheet').innerHTML = `
+    <div class="grabber"></div>
+    <h3>Add category</h3>
+    <p class="sheet-sub">The slug is generated automatically from the name and can't be edited — it's the stable identifier used in URLs and filters.</p>
+    <form id="categoryAddForm" novalidate>
+      <div class="field" data-field="name">
+        <label>Category name</label>
+        <input type="text" id="catNameInput" placeholder="e.g. Logistics &amp; Transport">
+        <div class="err-msg" hidden></div>
+      </div>
+      <div class="field">
+        <label>Slug <span class="opt">(auto-generated, not editable)</span></label>
+        <div id="catSlugPreview" style="padding:11px 13px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);font-size:.86rem;color:var(--ink-soft);font-family:monospace;">—</div>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="pill pill-outline" style="flex:1;justify-content:center;" data-action="close-sheet">Cancel</button>
+        <button type="submit" class="pill pill-amber" style="flex:1;justify-content:center;">Add category</button>
+      </div>
+    </form>`;
+  const nameInput = document.getElementById('catNameInput');
+  const slugPreview = document.getElementById('catSlugPreview');
+  nameInput.addEventListener('input', ()=>{ slugPreview.textContent = slugify(nameInput.value) || '—'; });
+  document.getElementById('categoryAddForm').addEventListener('submit', handleCategoryAddSubmit);
+}
+function handleCategoryAddSubmit(e){
+  e.preventDefault();
+  const form = e.target;
+  clearFieldErrors(form);
+  const name = document.getElementById('catNameInput').value.trim();
+  if(!name){ setFieldError(form, 'name', 'Give the category a name.'); return; }
+  const slug = slugify(name);
+  if(!slug || CATEGORIES.some(c=>c.id===slug || c.label.toLowerCase()===name.toLowerCase())){
+    setFieldError(form, 'name', 'A category with this name already exists.');
+    return;
+  }
+  CATEGORIES.push({id:slug, label:name, matchKey:name, icon:'🏷️', active:true});
+  closeSheets();
+  toast(`${name} added`);
+  renderAdmin();
+  initHome(); // new active category should be selectable immediately, same live-shared-state ethos as everywhere else in this file
+}
+
+/* ---- Admin Panel: User Management (v8, new) ----
+   Backend: GET /admin/users (paginated, filter by role/q), GET /admin/users/{id}
+   (adds owned businesses), PATCH /admin/users/{id} ({is_active}) — see
+   docs/decisions.md's 2026-09-04 entry. Two rules enforced in the UI, not just
+   on click (per the brief — "shouldn't offer an action that will just 403"):
+   the signed-in admin's own row never gets a deactivate control, and NO
+   platform_admin row exposes one at all, for anyone. The search/role-filter
+   toolbar re-renders only its own list container (#userMgmtListWrap) so
+   typing doesn't fight the text input's focus — same "only touch the
+   sub-container that changed" approach runSearch() already uses for the
+   consumer Search screen's #resultsList. */
+function filteredAdminUsers(){
+  return ADMIN_USERS.filter(u=>{
+    if(userMgmtRoleFilter && u.role !== userMgmtRoleFilter) return false;
+    if(userMgmtQuery){
+      const q = userMgmtQuery.trim().toLowerCase();
+      const hay = [u.full_name, u.email, u.phone].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function renderPager(page, totalPages){
+  let btns = '';
+  for(let i=1;i<=totalPages;i++) btns += `<button type="button" class="${i===page?'active':''}" data-action="user-page" data-page="${i}">${i}</button>`;
+  return `<div class="pager">
+    <button type="button" data-action="user-page" data-page="${Math.max(1,page-1)}" ${page===1?'disabled':''} style="transform:rotate(180deg);">${icon('chev',12)}</button>
+    ${btns}
+    <button type="button" data-action="user-page" data-page="${Math.min(totalPages,page+1)}" ${page===totalPages?'disabled':''}>${icon('chev',12)}</button>
+  </div>`;
+}
+function renderUserOwnedBusinesses(u){
+  const owned = (u.businessIds||[]).map(bizById).filter(Boolean);
+  if(!owned.length) return `<p style="font-size:.78rem;color:var(--ink-soft);margin:0;">Owns no businesses.</p>`;
+  return `<div style="display:flex;flex-direction:column;gap:8px;">
+    ${owned.map(b=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div class="dash-row-entity"><span class="ic grad-${b.grad}">${b.icon}</span><div><div class="t">${b.name}</div><div class="m">${b.categories.join(' · ')} · ${b.location}</div></div></div>
+      <span class="status-pill ${b.verified?'verified':b.pending?'pending':b.rejected?'rejected':'unverified'}">${b.verified?'Verified':b.pending?'Pending':b.rejected?'Rejected':'Unverified'}</span>
+    </div>`).join('')}
+  </div>`;
+}
+function renderAdminUserRow(u){
+  const expanded = userMgmtExpandedId === u.id;
+  const isSelf = sessionUser && sessionUser.id === u.id;
+  const isPlatformAdmin = u.role === 'platform_admin';
+  const meta = ROLE_META[u.role] || ROLE_META.general_user;
+  const staffRole = isPlatformAdmin || u.role === 'content_moderator';
+  let actionCell;
+  // Self-check wins over the platform_admin check: if this row IS the
+  // signed-in admin, "This is you" is the more useful explanation of why
+  // there's no toggle, even when they also happen to be a platform_admin
+  // (as the demo admin account is) — "Protected" is reserved for OTHER
+  // platform_admin rows, which is the case the brief's stricter rule
+  // ("no platform_admin ... at all, not just not-by-another-platform_admin")
+  // is actually guarding against.
+  if(isSelf){
+    actionCell = `<span class="lock-note" title="You can't deactivate your own account.">${icon('lock',12)} This is you</span>`;
+  } else if(isPlatformAdmin){
+    actionCell = `<span class="lock-note" title="Platform Administrator accounts can't be deactivated from this screen, by anyone.">${icon('lock',12)} Protected</span>`;
+  } else {
+    actionCell = `<button type="button" class="toggle-switch ${u.is_active?'on':''}" data-action="user-toggle-active" data-user="${u.id}" role="switch" aria-checked="${u.is_active}" title="${u.is_active?'Deactivate':'Reactivate'}"></button>`;
+  }
+  const ownedCount = (u.businessIds||[]).length;
+  return `<tr>
+    <td><button type="button" class="icon-btn-xs" data-action="user-expand" data-user="${u.id}" style="transform:rotate(${expanded?90:0}deg);" title="Owned businesses">${icon('chev',12)}</button></td>
+    <td><div class="dash-row-entity"><span class="ic" style="background:var(--brand-blue);">${meta.icon}</span><div><div class="t">${u.full_name}</div><div class="m">${ownedCount ? `${ownedCount} business${ownedCount===1?'':'es'} owned` : '—'}</div></div></div></td>
+    <td><div style="font-size:.76rem;line-height:1.5;">${u.email?`<div>${u.email}</div>`:''}${u.phone?`<div style="color:var(--ink-soft);">${u.phone}</div>`:''}</div></td>
+    <td><span class="role-pill ${staffRole?'staff':''}">${meta.icon} ${meta.label}</span></td>
+    <td><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+      <span class="status-pill ${u.is_verified?'verified':'pending'}">${u.is_verified?icon('check',9)+' Verified':icon('clock',9)+' Unverified'}</span>
+      <span class="status-pill ${u.is_active?'approved':'rejected'}">${u.is_active?'Active':'Deactivated'}</span>
+    </div></td>
+    <td style="white-space:nowrap;font-size:.76rem;color:var(--ink-soft);">${formatJoined(u.joined)}</td>
+    <td>${actionCell}</td>
+  </tr>${expanded?`<tr class="user-expand-row"><td colspan="7"><div class="user-expand-inner">${renderUserOwnedBusinesses(u)}</div></td></tr>`:''}`;
+}
+function renderUserMgmtListInner(){
+  const all = filteredAdminUsers();
+  const totalPages = Math.max(1, Math.ceil(all.length / USER_MGMT_PAGE_SIZE));
+  if(userMgmtPage > totalPages) userMgmtPage = totalPages;
+  const pageItems = all.slice((userMgmtPage-1)*USER_MGMT_PAGE_SIZE, userMgmtPage*USER_MGMT_PAGE_SIZE);
+  const filtered = Boolean(userMgmtRoleFilter || userMgmtQuery);
+  return `
+    <p style="font-size:.72rem;color:var(--ink-soft);margin:2px 0 12px;">${all.length} of ${ADMIN_USERS.length} user${ADMIN_USERS.length===1?'':'s'} shown${filtered?' (filtered)':''}</p>
+    ${pageItems.length ? `<div style="overflow-x:auto;"><table class="dash-table"><thead><tr><th></th><th>Name</th><th>Contact</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>${pageItems.map(renderAdminUserRow).join('')}</tbody></table></div>` :
+    `<div class="dash-empty">No users match this search/filter.</div>`}
+    ${totalPages>1 ? renderPager(userMgmtPage, totalPages) : ''}`;
+}
+function refreshUserMgmtList(){
+  const wrap = document.getElementById('userMgmtListWrap');
+  if(wrap) wrap.innerHTML = renderUserMgmtListInner();
+}
+function renderAdminUsers(){
+  const roleOptions = [['','All roles'], ...Object.entries(ROLE_META).map(([id,m])=>[id,m.label])];
+  return `<div class="dash-section">
+    <div class="dash-toolbar">
+      <div class="dash-search">${icon('search',15)}<input type="text" id="userSearchInput" placeholder="Search name, email or phone…" value="${userMgmtQuery}"></div>
+      <div class="role-filter-row">${roleOptions.map(([id,label])=>`<button type="button" class="chip ${userMgmtRoleFilter===id?'active':''}" data-action="user-role-filter" data-role="${id}">${label}</button>`).join('')}</div>
+    </div>
+    <div id="userMgmtListWrap">${renderUserMgmtListInner()}</div>
+  </div>`;
+}
+function wireUserMgmtToolbar(){
+  const inp = document.getElementById('userSearchInput');
+  if(inp) inp.addEventListener('input', ()=>{ userMgmtQuery = inp.value; userMgmtPage = 1; refreshUserMgmtList(); });
+}
 function renderAdmin(){
-  const titles = {overview:'Overview', bizmod:'Business Moderation', prodmod:'Product Moderation', vidmod:'Video Moderation'};
+  const titles = {overview:'Overview', bizmod:'Business Moderation', prodmod:'Product Moderation', vidmod:'Video Moderation', categories:'Category Management', users:'User Management'};
   const stats = [
     {n:String(pendingBizCount()), c:'Pending Biz', warn:pendingBizCount()>0},
     {n:String(pendingProdCount()), c:'Pending Prod', warn:pendingProdCount()>0},
@@ -3125,6 +3557,8 @@ function renderAdmin(){
   else if(adminSection==='bizmod') body = renderAdminBizMod();
   else if(adminSection==='prodmod') body = renderAdminProdMod();
   else if(adminSection==='vidmod') body = renderAdminVidMod();
+  else if(adminSection==='categories') body = renderAdminCategories();
+  else if(adminSection==='users') body = renderAdminUsers();
   document.getElementById('adminContent').innerHTML = `
     <div class="dash-shell">
       <header class="dash-topbar">${dashTopbarHTML({breadcrumb:'Admin Panel', title:titles[adminSection], stats})}</header>
@@ -3135,6 +3569,7 @@ function renderAdmin(){
       <footer class="dash-footer">${dashFooterHTML('admin')}</footer>
     </div>`;
   renderDashSidebar('admin');
+  if(adminSection==='users') wireUserMgmtToolbar();
 }
 
 /* ================= THEME ================= */
@@ -3283,6 +3718,49 @@ document.getElementById('app').addEventListener('click', e=>{
     else if(a==='admin-reject-vid'){ openRejectVideoSheet(t.dataset.vid); }
     else if(a==='dash-open-video-upload'){ openVideoUploadSheet(); }
     else if(a==='dash-video-remove'){ handleDashVideoRemoveClick(t.dataset.vid); }
+    /* ---- v8: Category Management ---- */
+    else if(a==='cat-open-add'){ openCategoryAddSheet(); }
+    else if(a==='cat-rename'){
+      categoryEditingId = t.dataset.cat;
+      renderAdmin();
+      const el = document.getElementById('catEditInput-'+t.dataset.cat);
+      if(el){ el.focus(); el.select(); }
+    }
+    else if(a==='cat-cancel'){ categoryEditingId = null; renderAdmin(); }
+    else if(a==='cat-save'){
+      const id = t.dataset.cat;
+      const input = document.getElementById('catEditInput-'+id);
+      const val = input ? input.value.trim() : '';
+      const cat = CATEGORIES.find(c=>c.id===id);
+      if(!val){ toast('Category name cannot be empty'); return; }
+      if(CATEGORIES.some(c=>c.id!==id && c.label.toLowerCase()===val.toLowerCase())){ toast('Another category already has this name'); return; }
+      cat.label = val; // slug (id) intentionally NOT regenerated on rename — matches the real backend
+      categoryEditingId = null;
+      toast(`Renamed to "${val}"`);
+      renderAdmin();
+      initHome(); // keep Home's category grid/labels in sync — same "one shared source of truth" ethos as approving BuildRight live-updating Search
+    }
+    else if(a==='cat-toggle'){
+      const cat = CATEGORIES.find(c=>c.id===t.dataset.cat);
+      if(!cat) return;
+      cat.active = cat.active===false ? true : false;
+      toast(`${cat.label} ${cat.active?'reactivated':'deactivated'}`);
+      renderAdmin();
+      initHome(); // active/inactive change must be reflected immediately in Home's public category grid
+    }
+    /* ---- v8: User Management ---- */
+    else if(a==='user-role-filter'){ userMgmtRoleFilter = t.dataset.role; userMgmtPage = 1; renderAdmin(); }
+    else if(a==='user-page'){ userMgmtPage = parseInt(t.dataset.page,10) || 1; refreshUserMgmtList(); }
+    else if(a==='user-expand'){ userMgmtExpandedId = userMgmtExpandedId===t.dataset.user ? null : t.dataset.user; refreshUserMgmtList(); }
+    else if(a==='user-toggle-active'){
+      const u = ADMIN_USERS.find(x=>x.id===t.dataset.user);
+      if(!u) return;
+      if(u.role==='platform_admin'){ toast("Platform Administrator accounts can't be deactivated here."); return; }
+      if(sessionUser && sessionUser.id===u.id){ toast("You can't deactivate your own account."); return; }
+      u.is_active = !u.is_active;
+      toast(`${u.full_name} ${u.is_active?'reactivated':'deactivated'}`);
+      refreshUserMgmtList();
+    }
     else if(a==='close-sheet'){ closeSheets(); }
     else if(a==='ptab'){ /* handled below */ }
     else if(a==='filter-cat'){
