@@ -378,7 +378,7 @@ def test_patch_completed_campaign_is_409() -> None:
     assert resp.status_code == 409
 
 
-def test_patch_active_campaign_resets_to_pending_review() -> None:
+def test_patch_active_campaign_resets_to_pending_review(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     admin_token, _ = _dev_token(role="platform_admin")
     business = _create_business(owner_token)
@@ -399,7 +399,7 @@ def test_patch_active_campaign_resets_to_pending_review() -> None:
     assert resp.json()["moderation_note"] is None
 
 
-def test_patch_by_admin_does_not_reset_status() -> None:
+def test_patch_by_admin_does_not_reset_status(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     admin_token, _ = _dev_token(role="platform_admin")
     business = _create_business(owner_token)
@@ -824,7 +824,7 @@ def test_synchronous_daraja_failure_creates_no_funding_row(fake_payment_backend)
         assert count == 0
 
 
-def test_funding_poll_is_owner_admin_gated() -> None:
+def test_funding_poll_is_owner_admin_gated(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
@@ -848,7 +848,7 @@ def test_funding_poll_is_owner_admin_gated() -> None:
     assert resp.status_code == 200
 
 
-def test_funding_history_is_owner_admin_gated_and_paginated() -> None:
+def test_funding_history_is_owner_admin_gated_and_paginated(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
@@ -876,7 +876,7 @@ def test_funding_history_is_owner_admin_gated_and_paginated() -> None:
 # --- Funding via the callback: completion + funding/moderation independence -
 
 
-def test_funding_callback_completes_and_increments_budget() -> None:
+def test_funding_callback_completes_and_increments_budget(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
@@ -895,7 +895,7 @@ def test_funding_callback_completes_and_increments_budget() -> None:
     assert row.status == CampaignStatus.PENDING_REVIEW
 
 
-def test_funding_callback_failure_records_reason() -> None:
+def test_funding_callback_failure_records_reason(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
@@ -929,7 +929,7 @@ def test_funding_callback_failure_records_reason() -> None:
     assert campaign_row.budget_kes == Decimal("0")
 
 
-def test_pre_funded_then_approved_lands_on_active() -> None:
+def test_pre_funded_then_approved_lands_on_active(fake_payment_backend) -> None:
     """Fund a campaign while it's still PENDING_REVIEW, then approve it —
     should land straight on ACTIVE, not APPROVED, since it already has
     funding headroom (docs/decisions.md's funding/moderation-independence
@@ -949,7 +949,7 @@ def test_pre_funded_then_approved_lands_on_active() -> None:
     assert resp.json()["status"] == "active"
 
 
-def test_approved_then_funded_lands_on_active() -> None:
+def test_approved_then_funded_lands_on_active(fake_payment_backend) -> None:
     """Reverse order: approve first (unfunded, lands on APPROVED), then fund
     — should flip straight to ACTIVE via apply_campaign_funding()."""
     owner_token, _ = _dev_token()
@@ -966,7 +966,7 @@ def test_approved_then_funded_lands_on_active() -> None:
     assert _fetch_campaign(campaign["id"]).status == CampaignStatus.ACTIVE
 
 
-def test_funding_a_paused_campaign_does_not_override_the_pause() -> None:
+def test_funding_a_paused_campaign_does_not_override_the_pause(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
@@ -981,7 +981,7 @@ def test_funding_a_paused_campaign_does_not_override_the_pause() -> None:
     assert _fetch_campaign(campaign["id"]).status == CampaignStatus.PAUSED
 
 
-def test_funding_an_exhausted_campaign_revives_it_to_active() -> None:
+def test_funding_an_exhausted_campaign_revives_it_to_active(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
@@ -996,7 +996,7 @@ def test_funding_an_exhausted_campaign_revives_it_to_active() -> None:
     assert _fetch_campaign(campaign["id"]).status == CampaignStatus.ACTIVE
 
 
-def test_funding_a_rejected_campaign_does_not_activate_it() -> None:
+def test_funding_a_rejected_campaign_does_not_activate_it(fake_payment_backend) -> None:
     owner_token, _ = _dev_token()
     business = _create_business(owner_token)
     campaign = _create_campaign(owner_token, business["id"])
