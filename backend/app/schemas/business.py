@@ -7,6 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models.business import VerificationStatus
+from app.schemas.campaign_targeting import CampaignTargetingRead
 from app.schemas.category import CategoryRead
 
 _PHONE_RE = re.compile(r"^\+?[0-9 \-]{7,20}$")
@@ -154,6 +155,18 @@ class BusinessRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     product_count: int = 0
+    # Only present when there currently exists an ACTIVE Campaign targeting
+    # this exact business (product_id IS NULL on that campaign) — see
+    # docs/decisions.md's "Phase 1b design pass: self-serve advertiser
+    # campaign manager" entry. Set explicitly by the endpoint layer (a bulk,
+    # indexed query, not per-row) on GET /businesses, GET /businesses/{id},
+    # GET /businesses/slug/{slug} — app/api/v1/endpoints/businesses.py; every
+    # other endpoint returning BusinessRead (create/update/logo/cover-image
+    # uploads) simply gets the field's None default since Pydantic falls
+    # back to it when the attribute was never set on the ORM object, which
+    # is an acceptable simplification for those write-path responses (see
+    # docs/decisions.md follow-up).
+    active_campaign: CampaignTargetingRead | None = None
 
 
 class BusinessModerationAction(BaseModel):

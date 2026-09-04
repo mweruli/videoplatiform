@@ -14,22 +14,34 @@ Safaricom-generated, unguessable, and never exposed to any client. This
 handler:
 1. Parses the payload with `mpesa.parse_stk_callback()` — logs and returns
    200 (never 500) on a malformed/foreign payload.
-2. Looks up the `FeaturedPurchase` by `checkout_request_id`, and requires its
-   `merchant_request_id` to match too — a right-checkout/wrong-merchant
+2. Looks up a `FeaturedPurchase` by `checkout_request_id`; if none matches,
+   looks up a `CampaignFunding` by the same id (one shared webhook URL for
+   both features — see app/models/campaign_funding.py's module docstring for
+   why `checkout_request_id` is a safe shared lookup key: it's
+   Safaricom-generated and globally unique per STK push regardless of which
+   table's row initiated it). Either way, requires the matched row's
+   `merchant_request_id` to also match — a right-checkout/wrong-merchant
    payload is logged as a rejected anomaly, not processed.
-3. If no matching row, or the row is no longer PENDING (a duplicate/retried
-   callback — Safaricom does retry), logs and returns 200 without
-   reprocessing — idempotent by construction.
-4. On `result_code == 0`: COMPLETED + `mpesa_receipt_number` + `featured_until`
-   (extending from the later of `now()` or the target's existing
-   `featured_until` — see `_extend_featured_until` below) + flips the
-   target's `is_featured=True`. On non-zero: FAILED + `failure_reason`.
+3. If neither matches, or the matched row is no longer PENDING (a
+   duplicate/retried callback — Safaricom does retry), logs and returns 200
+   without reprocessing — idempotent by construction.
+4. On `result_code == 0`:
+   - `FeaturedPurchase`: COMPLETED + `mpesa_receipt_number` + `featured_until`
+     (extending from the later of `now()` or the target's existing
+     `featured_until` — see `_extend_featured_until` below) + flips the
+     target's `is_featured=True`.
+   - `CampaignFunding`: COMPLETED + `mpesa_receipt_number`, then
+     `campaign_billing.apply_campaign_funding()` (increments the campaign's
+     `budget_kes` and flips it to ACTIVE if it was APPROVED/EXHAUSTED and now
+     has funding headroom — see that function's docstring for the full
+     funding/moderation-independence rules, not re-derived here).
+   On non-zero result code, both: FAILED + `failure_reason`.
 
 Always returns HTTP 200 with `{"ResultCode": 0, "ResultDesc": "Accepted"}`
 regardless of internal outcome — Daraja's documented callback-ack contract.
-A business-logic `failed` purchase is a legitimate terminal state, not a
-delivery failure; returning anything but 200 makes Safaricom retry-storm the
-endpoint.
+A business-logic `failed` purchase/funding is a legitimate terminal state,
+not a delivery failure; returning anything but 200 makes Safaricom
+retry-storm the endpoint.
 """
 
 from __future__ import annotations
@@ -43,8 +55,10 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.business import Business
+from app.models.campaign_funding import CampaignFunding, CampaignFundingStatus
 from app.models.featured_purchase import FeaturedPurchase, FeaturedPurchaseStatus
 from app.models.product import Product
+from app.services.campaign_billing import apply_campaign_funding
 from app.services.mpesa import MpesaError, StkCallbackResult, parse_stk_callback
 
 logger = logging.getLogger("app.payments")
@@ -77,49 +91,33 @@ def _apply_completed_purchase(purchase: FeaturedPurchase, result: StkCallbackRes
     target.is_featured = True
 
 
-@router.post("/payments/mpesa/callback", tags=["payments"])
-def mpesa_stk_callback(payload: dict, db: Session = Depends(get_db)) -> dict:
-    try:
-        result = parse_stk_callback(payload)
-    except MpesaError:
-        logger.warning("Malformed/foreign M-Pesa STK callback payload: %r", payload)
-        return _ACK
-
-    purchase = db.scalar(
-        select(FeaturedPurchase).where(
-            FeaturedPurchase.checkout_request_id == result.checkout_request_id
-        )
-    )
-    if purchase is None:
-        logger.warning(
-            "M-Pesa STK callback for unknown CheckoutRequestID=%s", result.checkout_request_id
-        )
-        return _ACK
-
+def _handle_featured_purchase_callback(
+    db: Session, purchase: FeaturedPurchase, result: StkCallbackResult
+) -> None:
     if purchase.merchant_request_id != result.merchant_request_id:
         logger.warning(
-            "M-Pesa STK callback MerchantRequestID mismatch for purchase %s "
+            "M-Pesa STK callback MerchantRequestID mismatch for featured purchase %s "
             "(checkout_request_id=%s): expected %s, got %s — rejected as an anomaly.",
             purchase.id,
             result.checkout_request_id,
             purchase.merchant_request_id,
             result.merchant_request_id,
         )
-        return _ACK
+        return
 
     if purchase.status != FeaturedPurchaseStatus.PENDING:
         logger.info(
-            "Ignoring duplicate/retried M-Pesa STK callback for purchase %s (status=%s).",
+            "Ignoring duplicate/retried M-Pesa STK callback for featured purchase %s (status=%s).",
             purchase.id,
             purchase.status.value,
         )
-        return _ACK
+        return
 
     if result.amount is not None and result.amount != purchase.amount_kes:
         # Monitoring signal, not a gate — rejecting outright on a rounding/
         # currency artifact risks stranding a legitimate payment.
         logger.warning(
-            "M-Pesa STK callback amount %s differs from purchase %s's recorded amount %s.",
+            "M-Pesa STK callback amount %s differs from featured purchase %s's recorded amount %s.",
             result.amount,
             purchase.id,
             purchase.amount_kes,
@@ -133,4 +131,94 @@ def mpesa_stk_callback(payload: dict, db: Session = Depends(get_db)) -> dict:
         purchase.failure_reason = result.result_desc
 
     db.commit()
+
+
+def _handle_campaign_funding_callback(
+    db: Session, funding: CampaignFunding, result: StkCallbackResult
+) -> None:
+    """Campaign-funding equivalent of `_handle_featured_purchase_callback`
+    (same merchant-request-id cross-check, duplicate-callback idempotency,
+    and amount-mismatch-is-a-warning-not-a-gate posture) — the one real
+    difference is what happens on success: instead of flipping a
+    business/product's `is_featured` flag directly, it delegates to
+    `campaign_billing.apply_campaign_funding()`, which encodes the
+    funding/moderation-independence rules (increments `budget_kes`, and only
+    flips the campaign to ACTIVE if it was APPROVED/EXHAUSTED and now has
+    funding headroom — see that function's docstring, not re-derived here)."""
+    if funding.merchant_request_id != result.merchant_request_id:
+        logger.warning(
+            "M-Pesa STK callback MerchantRequestID mismatch for campaign funding %s "
+            "(checkout_request_id=%s): expected %s, got %s — rejected as an anomaly.",
+            funding.id,
+            result.checkout_request_id,
+            funding.merchant_request_id,
+            result.merchant_request_id,
+        )
+        return
+
+    if funding.status != CampaignFundingStatus.PENDING:
+        logger.info(
+            "Ignoring duplicate/retried M-Pesa STK callback for campaign funding %s (status=%s).",
+            funding.id,
+            funding.status.value,
+        )
+        return
+
+    if result.amount is not None and result.amount != funding.amount_kes:
+        logger.warning(
+            "M-Pesa STK callback amount %s differs from campaign funding %s's recorded amount %s.",
+            result.amount,
+            funding.id,
+            funding.amount_kes,
+        )
+
+    funding.result_code = result.result_code
+    if result.is_success:
+        funding.status = CampaignFundingStatus.COMPLETED
+        funding.mpesa_receipt_number = result.mpesa_receipt_number
+        apply_campaign_funding(funding.campaign, funding.amount_kes)
+    else:
+        funding.status = CampaignFundingStatus.FAILED
+        funding.failure_reason = result.result_desc
+
+    db.commit()
+
+
+@router.post("/payments/mpesa/callback", tags=["payments"])
+def mpesa_stk_callback(payload: dict, db: Session = Depends(get_db)) -> dict:
+    try:
+        result = parse_stk_callback(payload)
+    except MpesaError:
+        logger.warning("Malformed/foreign M-Pesa STK callback payload: %r", payload)
+        return _ACK
+
+    purchase = db.scalar(
+        select(FeaturedPurchase).where(
+            FeaturedPurchase.checkout_request_id == result.checkout_request_id
+        )
+    )
+    if purchase is not None:
+        _handle_featured_purchase_callback(db, purchase, result)
+        return _ACK
+
+    # No FeaturedPurchase matched — look up a CampaignFunding by the same
+    # checkout_request_id before giving up. Shared webhook URL, not a second
+    # Safaricom-facing endpoint — see this file's module docstring and
+    # app/models/campaign_funding.py's for why that's safe (checkout_request_id
+    # is Safaricom-generated and globally unique regardless of which table's
+    # row initiated the STK push).
+    funding = db.scalar(
+        select(CampaignFunding).where(
+            CampaignFunding.checkout_request_id == result.checkout_request_id
+        )
+    )
+    if funding is not None:
+        _handle_campaign_funding_callback(db, funding, result)
+        return _ACK
+
+    logger.warning(
+        "M-Pesa STK callback for unknown CheckoutRequestID=%s (no FeaturedPurchase or "
+        "CampaignFunding matched)",
+        result.checkout_request_id,
+    )
     return _ACK

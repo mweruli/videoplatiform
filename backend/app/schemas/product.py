@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.models.product import AvailabilityStatus, ModerationStatus
 from app.schemas.business import BusinessSummary
+from app.schemas.campaign_targeting import CampaignTargetingRead
 from app.schemas.category import CategoryRead
 
 
@@ -150,6 +151,13 @@ class ProductRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     related_products: list[ProductSummary] = Field(default_factory=list)
+    # Only present when there currently exists an ACTIVE Campaign targeting
+    # this exact product (product_id == this product's id) — a campaign
+    # targeting the parent business itself never leaks onto its products'
+    # active_campaign, and vice versa (see docs/decisions.md). Same
+    # endpoint-set / bulk-query / None-default-on-write-paths posture as
+    # BusinessRead.active_campaign.
+    active_campaign: CampaignTargetingRead | None = None
 
     @model_validator(mode="before")
     @classmethod

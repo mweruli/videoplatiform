@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_moderator
 from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
+from app.models.campaign import APPROVABLE_STATUSES, REJECTABLE_STATUSES, Campaign, CampaignStatus
 from app.models.category import Category
 from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
@@ -46,10 +47,12 @@ from app.schemas.business import (
     BusinessRejectAction,
     BusinessSummary,
 )
+from app.schemas.campaign import CampaignModerationAction, CampaignRead, CampaignRejectAction
 from app.schemas.category import AdminCategoryRead, CategoryCreate, CategoryRead, CategoryUpdate
 from app.schemas.common import Page
 from app.schemas.product import ProductModerationAction, ProductRead, ProductRejectAction
 from app.schemas.video import VideoModerationAction, VideoRead, VideoRejectAction
+from app.services.campaign_billing import resolve_status_after_approval
 from app.utils.slug import unique_slug
 
 router = APIRouter()
@@ -429,6 +432,140 @@ def reject_video(
     db.commit()
     db.refresh(video)
     return video
+
+
+# --- Campaigns (Phase 1b: self-serve advertiser campaign manager) --------
+# See docs/decisions.md's "Phase 1b design pass: self-serve advertiser
+# campaign manager" entry for the full state-machine writeup. Approve/reject
+# reuse the exact "pending-or-already-reviewed" relaxation already applied to
+# business/product/video above (2026-09-04 "approve/reject can now act on
+# already-reviewed content" entry) — `APPROVABLE_STATUSES`/
+# `REJECTABLE_STATUSES` on the Campaign model encode this directly rather
+# than a hardcoded tuple here, since campaigns have more reachable statuses
+# (ACTIVE/PAUSED/EXHAUSTED) than the simple pending/approved/rejected trio
+# business/product/video use.
+
+
+@router.get(
+    "/admin/campaigns",
+    response_model=Page[CampaignRead],
+    tags=["admin"],
+    dependencies=[Depends(require_moderator)],
+)
+def admin_list_campaigns(
+    db: Session = Depends(get_db),
+    status_filter: CampaignStatus | None = Query(default=None, alias="status"),
+    business_id: uuid.UUID | None = None,
+    q: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> Page[CampaignRead]:
+    """Campaigns have no soft-delete concept of their own (no `is_active`
+    column on `Campaign`), but a campaign's *target* can be soft-deleted
+    out from under it — a business or product the owner removed shouldn't
+    keep sitting in the moderation queue. Filters on the target's
+    `is_active` instead (`Business.is_active` always; `Product.is_active`
+    too when the campaign is product-scoped) — this is the campaign-shaped
+    equivalent of the exact bug already found and fixed for
+    `admin_list_businesses`/`admin_list_products`/`admin_list_videos` above
+    (see docs/decisions.md's "admin moderation queues never filtered
+    is_active" entry), applied correctly from this endpoint's very first
+    version rather than needing a second incident to catch it."""
+    page, page_size = _paginate_params(page, page_size)
+
+    stmt = (
+        select(Campaign)
+        .join(Business, Campaign.business_id == Business.id)
+        .outerjoin(Product, Campaign.product_id == Product.id)
+        .where(
+            Business.is_active.is_(True),
+            (Campaign.product_id.is_(None)) | (Product.is_active.is_(True)),
+        )
+    )
+    if status_filter is not None:
+        stmt = stmt.where(Campaign.status == status_filter)
+    if business_id is not None:
+        stmt = stmt.where(Campaign.business_id == business_id)
+    if q:
+        like = f"%{q.lower()}%"
+        stmt = stmt.where(func.lower(Campaign.name).like(like))
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    stmt = stmt.order_by(Campaign.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items = list(db.scalars(stmt).all())
+
+    return Page(
+        items=items, total=total, page=page, page_size=page_size,
+        pages=math.ceil(total / page_size) if total else 0,
+    )
+
+
+def _get_campaign_or_404(db: Session, campaign_id: uuid.UUID) -> Campaign:
+    campaign = db.get(Campaign, campaign_id)
+    if campaign is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found.")
+    return campaign
+
+
+@router.post(
+    "/admin/campaigns/{campaign_id}/approve",
+    response_model=CampaignRead,
+    tags=["admin"],
+)
+def approve_campaign(
+    campaign_id: uuid.UUID,
+    payload: CampaignModerationAction = CampaignModerationAction(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Campaign:
+    """Uses `resolve_status_after_approval()` rather than hardcoding
+    `APPROVED` — a campaign that was already funded while pending review
+    (funding and moderation are independent, see docs/decisions.md) lands
+    straight on ACTIVE instead of an unnecessary intermediate APPROVED hop."""
+    campaign = _get_campaign_or_404(db, campaign_id)
+    if campaign.status not in APPROVABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot approve from status '{campaign.status.value}'; "
+            "campaign must be 'pending_review' or 'rejected'.",
+        )
+    campaign.status = resolve_status_after_approval(campaign)
+    campaign.moderation_note = payload.note
+    db.commit()
+    db.refresh(campaign)
+    return campaign
+
+
+@router.post(
+    "/admin/campaigns/{campaign_id}/reject",
+    response_model=CampaignRead,
+    tags=["admin"],
+)
+def reject_campaign(
+    campaign_id: uuid.UUID,
+    payload: CampaignRejectAction,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_moderator),
+) -> Campaign:
+    """Rejectable from PENDING_REVIEW/APPROVED/ACTIVE/PAUSED/EXHAUSTED — a
+    moderator can pull down a running, spending campaign immediately, same
+    as an approved product/video/business. EXHAUSTED is deliberately
+    rejectable too, so a naturally-exhausted-but-policy-violating campaign
+    can't sit unrejected and later be silently revived by an innocent
+    top-up. 409 only from the already-REJECTED double-click case, or from
+    COMPLETED (the owner's own terminal choice, not moderation's to
+    override)."""
+    campaign = _get_campaign_or_404(db, campaign_id)
+    if campaign.status not in REJECTABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot reject from status '{campaign.status.value}'.",
+        )
+    campaign.status = CampaignStatus.REJECTED
+    campaign.moderation_note = payload.reason
+    db.commit()
+    db.refresh(campaign)
+    return campaign
 
 
 # --- Categories (Phase 1a: "Category framework ... admin-editable") -------

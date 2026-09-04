@@ -153,7 +153,10 @@ def _isolated_test_database() -> None:
 @pytest.fixture()
 def fake_payment_backend(monkeypatch: pytest.MonkeyPatch):
     """Installs a fake `PaymentBackend` in place of the real Daraja-calling
-    one, for tests of app/api/v1/endpoints/featured_purchases.py.
+    one, for tests of app/api/v1/endpoints/featured_purchases.py AND
+    app/api/v1/endpoints/campaigns.py (both call `get_payment_backend()` the
+    same way for their own STK-push-initiate endpoint — see
+    docs/decisions.md's Phase 1b campaign-manager entry).
 
     This mirrors the shape of this codebase's other pluggable-backend
     factories (`get_otp_sender()`, `get_video_backend()`,
@@ -162,15 +165,17 @@ def fake_payment_backend(monkeypatch: pytest.MonkeyPatch):
     needs a fake instance of one of them, since no existing test faked
     get_otp_sender()/get_video_backend() (see docs/decisions.md's Phase 1b
     design-pass entry). `get_payment_backend` isn't a FastAPI dependency
-    (it's called directly as a plain function inside the endpoint module),
-    so this patches it at the import site
-    (`app.api.v1.endpoints.featured_purchases.get_payment_backend`) rather
-    than via `app.dependency_overrides`.
+    (it's called directly as a plain function inside the endpoint modules),
+    so this patches it at both import sites
+    (`app.api.v1.endpoints.featured_purchases.get_payment_backend` and
+    `app.api.v1.endpoints.campaigns.get_payment_backend`) rather than via
+    `app.dependency_overrides`.
 
     Returns the `FakePaymentBackend` instance so a test can inspect
     `.calls` (what the endpoint actually sent) or set `.next_error` to
     simulate a synchronous Daraja failure (e.g. `MpesaError("boom")`).
     """
+    import app.api.v1.endpoints.campaigns as campaigns_module
     import app.api.v1.endpoints.featured_purchases as featured_purchases_module
     from app.services.mpesa import StkPushResult
 
@@ -204,4 +209,5 @@ def fake_payment_backend(monkeypatch: pytest.MonkeyPatch):
 
     backend = FakePaymentBackend()
     monkeypatch.setattr(featured_purchases_module, "get_payment_backend", lambda: backend)
+    monkeypatch.setattr(campaigns_module, "get_payment_backend", lambda: backend)
     return backend

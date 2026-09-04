@@ -58,6 +58,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.business import Business
     from app.models.category import Category
+    from app.schemas.campaign_targeting import CampaignTargetingRead
 
 
 class ModerationStatus(str, enum.Enum):
@@ -208,3 +209,11 @@ class Product(Base):
         secondaryjoin="Product.id == product_related.c.related_product_id",
         lazy="selectin",
     )
+
+    if TYPE_CHECKING:
+        # Not a mapped column — a transient, request-scoped attribute set
+        # directly on the ORM instance by app/api/v1/endpoints/products.py's
+        # `_attach_active_campaigns()` before the response schema validates it
+        # (see app/models/business.py's identical stub and docs/decisions.md's
+        # "Bulk-loading `active_campaign`" section).
+        active_campaign: CampaignTargetingRead | None

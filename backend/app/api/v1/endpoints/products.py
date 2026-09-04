@@ -23,9 +23,11 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_current_user_optional
 from app.db.session import get_db
 from app.models.business import Business
+from app.models.campaign import Campaign, CampaignStatus
 from app.models.category import Category
 from app.models.product import ModerationStatus, Product, product_categories
 from app.models.user import User, UserRole
+from app.schemas.campaign_targeting import CampaignTargetingRead
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate, ProductViewResult
 from app.services.featured_expiry import sweep_expired_featured_products
@@ -34,6 +36,36 @@ from app.services.uploads import read_and_validate_image
 from app.utils.slug import unique_slug
 
 router = APIRouter()
+
+
+def _attach_active_campaigns(db: Session, products: list[Product]) -> None:
+    """Bulk-loads `active_campaign` onto each Product in one indexed query
+    (not N+1) — see app/api/v1/endpoints/businesses.py's identical helper
+    and docs/decisions.md's "Bulk-loading `active_campaign`" section. Only
+    ever a *product-scoped* campaign (`product_id = <this product>`) — a
+    business-scoped campaign must never leak onto one of that business's
+    products' `active_campaign`."""
+    ids = [p.id for p in products]
+    if not ids:
+        return
+    campaigns = db.scalars(
+        select(Campaign).where(
+            Campaign.status == CampaignStatus.ACTIVE,
+            Campaign.product_id.in_(ids),
+        )
+    ).all()
+    by_product_id = {c.product_id: c for c in campaigns}
+    for product in products:
+        campaign = by_product_id.get(product.id)
+        product.active_campaign = (
+            CampaignTargetingRead(
+                campaign_id=campaign.id,
+                category_id=campaign.category_id,
+                county=campaign.county,
+            )
+            if campaign is not None
+            else None
+        )
 
 
 def _can_manage(business: Business, user: User) -> bool:
@@ -264,6 +296,7 @@ def list_products(
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     stmt = stmt.order_by(Product.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     items = list(db.scalars(stmt).all())
+    _attach_active_campaigns(db, items)
 
     return Page(
         items=items,
@@ -286,6 +319,7 @@ def get_product(
         # same-business, then nothing. See _related_products_fallback's
         # docstring for the exact order and reasoning.
         product.related_products = _related_products_fallback(db, product)
+    _attach_active_campaigns(db, [product])
     return product
 
 

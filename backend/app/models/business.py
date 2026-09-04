@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from app.models.category import Category
     from app.models.product import Product
     from app.models.user import User
+    from app.schemas.campaign_targeting import CampaignTargetingRead
 
 
 class VerificationStatus(str, enum.Enum):
@@ -152,3 +153,13 @@ class Business(Base):
         move to a SELECT COUNT query if a business profile page ever needs to
         avoid loading the full `products` collection just for this number."""
         return sum(1 for p in self.products if p.is_active)
+
+    if TYPE_CHECKING:
+        # Not a mapped column — a transient, request-scoped attribute set
+        # directly on the ORM instance by app/api/v1/endpoints/businesses.py's
+        # `_attach_active_campaigns()` before the response schema validates it
+        # (see docs/decisions.md's "Phase 1b design pass: self-serve
+        # advertiser campaign manager" entry's "Bulk-loading `active_campaign`
+        # without N+1" section). Declared here under `TYPE_CHECKING` only so
+        # mypy knows the attribute exists without it being a real DB column.
+        active_campaign: CampaignTargetingRead | None

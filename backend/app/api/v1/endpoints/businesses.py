@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.business import Business, VerificationStatus
+from app.models.campaign import Campaign, CampaignStatus
 from app.models.product import Product
 from app.models.user import User, UserRole
 from app.models.video import Video
@@ -30,6 +31,7 @@ from app.schemas.business import (
     BusinessViewResult,
     ModerationStatusCounts,
 )
+from app.schemas.campaign_targeting import CampaignTargetingRead
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
 from app.services.featured_expiry import sweep_expired_featured_businesses
 from app.services.storage import get_storage_backend
@@ -37,6 +39,43 @@ from app.services.uploads import read_and_validate_image
 from app.utils.slug import unique_slug
 
 router = APIRouter()
+
+
+def _attach_active_campaigns(db: Session, businesses: list[Business]) -> None:
+    """Bulk-loads `active_campaign` onto each Business in one indexed query
+    (not N+1) — see docs/decisions.md's "Bulk-loading `active_campaign`
+    without N+1" section. Only ever a *business-scoped* campaign
+    (`product_id IS NULL`) — a product-scoped campaign must never leak onto
+    its parent business's `active_campaign`.
+
+    Sets the transient (non-persisted) `active_campaign` attribute directly
+    on each ORM instance before it's returned from the endpoint — same
+    "stash a computed value the schema layer has no session to compute
+    itself" trick as `ProductSummary`/`ProductRead`'s `primary_image_url`
+    validators, applied here at the endpoint layer instead since this one
+    needs a DB query."""
+    ids = [b.id for b in businesses]
+    if not ids:
+        return
+    campaigns = db.scalars(
+        select(Campaign).where(
+            Campaign.status == CampaignStatus.ACTIVE,
+            Campaign.product_id.is_(None),
+            Campaign.business_id.in_(ids),
+        )
+    ).all()
+    by_business_id = {c.business_id: c for c in campaigns}
+    for business in businesses:
+        campaign = by_business_id.get(business.id)
+        business.active_campaign = (
+            CampaignTargetingRead(
+                campaign_id=campaign.id,
+                category_id=campaign.category_id,
+                county=campaign.county,
+            )
+            if campaign is not None
+            else None
+        )
 
 
 def _can_manage(business: Business, user: User) -> bool:
@@ -121,6 +160,7 @@ def list_businesses(
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     stmt = stmt.order_by(Business.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     items = list(db.scalars(stmt).all())
+    _attach_active_campaigns(db, items)
 
     return Page(
         items=items,
@@ -152,7 +192,9 @@ def get_business(
     URL the public will eventually see) — the frontend is responsible for
     only linking to verified businesses from public browse/search surfaces."""
     sweep_expired_featured_businesses(db)
-    return _get_business_or_404(db, business_id)
+    business = _get_business_or_404(db, business_id)
+    _attach_active_campaigns(db, [business])
+    return business
 
 
 @router.get(
@@ -163,6 +205,7 @@ def get_business_by_slug(slug: str, db: Session = Depends(get_db)) -> Business:
     business = db.scalar(select(Business).where(Business.slug == slug))
     if business is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
+    _attach_active_campaigns(db, [business])
     return business
 
 
