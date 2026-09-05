@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 
 import Icon from '../icons/Icon'
@@ -6,7 +6,9 @@ import CategoryChipSelect from './CategoryChipSelect'
 import { Field, FormBanner, Select, SubmitButton, TextArea, TextInput } from '../ui/FormControls'
 import { useCategories } from '../../hooks/useCatalog'
 import { ApiError } from '../../lib/api'
-import type { ProductDto, VideoDto, VideoUpdatePayload, VideoUploadPayload } from '../../lib/api'
+import type { CategoryDto, ProductDto, VideoDto, VideoUpdatePayload, VideoUploadPayload } from '../../lib/api'
+import { CATEGORY_SUGGESTION_DEBOUNCE_MS, suggestCategories } from '../../lib/categoryKeywords'
+import { tokenize } from '../../lib/searchMatch'
 
 /** Mirrors settings.allowed_video_content_types_list / MAX_VIDEO_UPLOAD_SIZE_MB (backend/app/core/config.py) — display copy only, the backend re-validates regardless. */
 const ACCEPTED_TYPES = 'video/mp4,video/quicktime,video/webm'
@@ -60,6 +62,16 @@ export default function VideoUploadForm(props: VideoUploadFormProps) {
   const [banner, setBanner] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Automated category suggestion (keyword matching, no AI/API call — see
+  // lib/categoryKeywords.ts). Same pattern as ProductForm: pre-checks
+  // suggested categories as the owner types, but only until they touch the
+  // picker themselves — an already-categorised video (edit mode) counts as
+  // "touched" from the start so a small description tweak can't silently
+  // replace deliberate prior curation.
+  const [suggestions, setSuggestions] = useState<CategoryDto[]>([])
+  const [manuallyTouched, setManuallyTouched] = useState(() => categoryIds.size > 0)
+  const manualTouchRef = useRef(manuallyTouched)
+
   function pickFile(picked: File | null) {
     setFile(picked)
     if (picked) setErrors((e) => ({ ...e, file: '' }))
@@ -78,6 +90,8 @@ export default function VideoUploadForm(props: VideoUploadFormProps) {
   }
 
   function toggleCategory(id: number) {
+    manualTouchRef.current = true
+    setManuallyTouched(true)
     setCategoryIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -85,6 +99,27 @@ export default function VideoUploadForm(props: VideoUploadFormProps) {
       return next
     })
   }
+
+  // Debounced re-scoring, same spirit as Search's live-search debounce
+  // (pages/Search.tsx) — recompute shortly after typing settles rather than
+  // on every keystroke.
+  useEffect(() => {
+    const categories = categoriesQuery.data
+    if (!categories || categories.length === 0) return
+    const timeout = window.setTimeout(() => {
+      const matches = suggestCategories(`${title} ${description}`, categories, tokenize)
+      setSuggestions(matches)
+      if (!manualTouchRef.current) {
+        setCategoryIds(new Set(matches.map((c) => c.id)))
+      }
+    }, CATEGORY_SUGGESTION_DEBOUNCE_MS)
+    return () => window.clearTimeout(timeout)
+  }, [title, description, categoriesQuery.data])
+
+  // Only surfaced once the owner has taken over category selection
+  // themselves — before that, suggestions are already reflected directly as
+  // pre-checked chips, so a second "suggested" hint would be redundant.
+  const pendingSuggestions = manuallyTouched ? suggestions.filter((c) => !categoryIds.has(c.id)) : []
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -209,6 +244,23 @@ export default function VideoUploadForm(props: VideoUploadFormProps) {
           onToggle={toggleCategory}
           loading={categoriesQuery.isLoading}
         />
+        {pendingSuggestions.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+              <Icon name="sparkle" size={12} className="text-teal" /> Suggested:
+            </span>
+            {pendingSuggestions.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => toggleCategory(category.id)}
+                className="rounded-full border border-dashed border-teal/60 px-2.5 py-0.5 text-xs font-bold text-teal transition-colors duration-150 ease-brand hover:bg-teal/10"
+              >
+                + {category.name}
+              </button>
+            ))}
+          </div>
+        )}
       </Field>
 
       <Field label="Link to a product" optional hint={products.length === 0 ? 'Add a product first to link one.' : undefined}>
