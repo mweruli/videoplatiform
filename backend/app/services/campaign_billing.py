@@ -27,6 +27,10 @@ from sqlalchemy import case, update
 from sqlalchemy.orm import Session
 
 from app.models.campaign import Campaign, CampaignStatus
+from app.services.daily_stats import (
+    record_campaign_clicks_daily,
+    record_campaign_impressions_daily,
+)
 
 
 def record_campaign_impressions(db: Session, campaign_ids: list[uuid.UUID]) -> int:
@@ -81,6 +85,14 @@ def record_campaign_impressions(db: Session, campaign_ids: list[uuid.UUID]) -> i
     existing "a stale id in a render's batch shouldn't fail the whole call"
     philosophy (app/api/v1/endpoints/businesses.py / products.py).
 
+    Also upserts each billed campaign's row in `campaign_daily_stats`
+    (impression_count + spend_kes for today) via
+    app/services/daily_stats.py's `record_campaign_impressions_daily` — fed
+    directly from this statement's own `RETURNING` clause (each billed
+    campaign's id + its current `cpm_kes`), not a re-query, so the daily
+    table can never bill a different rate than what `spent_kes` itself was
+    just incremented by in this same statement.
+
     Returns the number of campaigns actually billed this call.
     """
     if not campaign_ids:
@@ -114,10 +126,14 @@ def record_campaign_impressions(db: Session, campaign_ids: list[uuid.UUID]) -> i
                 else_=CampaignStatus.ACTIVE.name,
             ),
         )
+        .returning(Campaign.id, Campaign.cpm_kes)
     )
     result = db.execute(stmt)
+    billed = result.all()
+    campaign_costs = {row.id: row.cpm_kes / Decimal(1000) for row in billed}
+    record_campaign_impressions_daily(db, campaign_costs)
     db.commit()
-    return result.rowcount or 0
+    return len(billed)
 
 
 def record_campaign_clicks(db: Session, campaign_ids: list[uuid.UUID]) -> int:
@@ -125,17 +141,22 @@ def record_campaign_clicks(db: Session, campaign_ids: list[uuid.UUID]) -> int:
     for v1, see app/core/campaign_pricing.py). Same "currently-ACTIVE only,
     unknown/inactive ids silently skipped" policy as impressions, for
     consistency, though there is no race-safety concern here (a plain
-    counter, no ceiling to respect)."""
+    counter, no ceiling to respect). Also upserts `campaign_daily_stats`'
+    `click_count` for exactly the ids this call actually billed (via
+    `RETURNING`)."""
     if not campaign_ids:
         return 0
     stmt = (
         update(Campaign)
         .where(Campaign.id.in_(campaign_ids), Campaign.status == CampaignStatus.ACTIVE)
         .values(click_count=Campaign.click_count + 1)
+        .returning(Campaign.id)
     )
     result = db.execute(stmt)
+    updated_ids = list(result.scalars().all())
+    record_campaign_clicks_daily(db, updated_ids)
     db.commit()
-    return result.rowcount or 0
+    return len(updated_ids)
 
 
 def apply_campaign_funding(campaign: Campaign, amount_kes: Decimal) -> None:

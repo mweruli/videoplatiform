@@ -30,6 +30,10 @@ from app.models.user import User, UserRole
 from app.schemas.campaign_targeting import CampaignTargetingRead
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate, ProductViewResult
+from app.services.daily_stats import (
+    record_product_impressions_daily,
+    record_product_view_daily,
+)
 from app.services.featured_expiry import sweep_expired_featured_products
 from app.services.storage import get_storage_backend
 from app.services.uploads import read_and_validate_image
@@ -345,6 +349,7 @@ def record_product_view(product_id: uuid.UUID, db: Session = Depends(get_db)) ->
     if not product.is_active or product.moderation_status != ModerationStatus.APPROVED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
     product.view_count += 1
+    record_product_view_daily(db, product.id)
     db.commit()
     return ProductViewResult(view_count=product.view_count)
 
@@ -358,7 +363,11 @@ def record_product_impressions(
     docs/decisions.md. The frontend calls this once per search-results/
     browse render with the ids of products currently visible; each id that
     resolves to a real, currently-public (approved + active) product gets
-    `impression_count += 1`. Unknown/non-public ids are silently skipped."""
+    `impression_count += 1`. Unknown/non-public ids are silently skipped.
+
+    Also upserts the same day's row in `product_daily_stats` for exactly the
+    ids this call actually matched (via `RETURNING`), same as the business
+    impressions endpoint."""
     result = db.execute(
         update(Product)
         .where(
@@ -367,9 +376,12 @@ def record_product_impressions(
             Product.moderation_status == ModerationStatus.APPROVED,
         )
         .values(impression_count=Product.impression_count + 1)
+        .returning(Product.id)
     )
+    updated_ids = list(result.scalars().all())
+    record_product_impressions_daily(db, updated_ids)
     db.commit()
-    return ImpressionBatchResult(updated=result.rowcount or 0)
+    return ImpressionBatchResult(updated=len(updated_ids))
 
 
 @router.patch("/products/{product_id}", response_model=ProductRead, tags=["products"])

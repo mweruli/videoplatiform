@@ -38,6 +38,7 @@ from app.models.user import User, UserRole
 from app.models.video import Video, video_categories
 from app.schemas.common import Page
 from app.schemas.video import VideoRead, VideoUpdate, VideoViewResult
+from app.services.daily_stats import record_video_view_daily
 from app.services.uploads import read_and_validate_video
 from app.services.video import get_video_backend
 
@@ -237,6 +238,7 @@ def record_video_view(video_id: uuid.UUID, db: Session = Depends(get_db)) -> Vid
     if not video.is_active or video.moderation_status != ModerationStatus.APPROVED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found.")
     video.view_count += 1
+    record_video_view_daily(db, video.id)
     db.commit()
     return VideoViewResult(view_count=video.view_count)
 

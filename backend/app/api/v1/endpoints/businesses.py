@@ -33,6 +33,10 @@ from app.schemas.business import (
 )
 from app.schemas.campaign_targeting import CampaignTargetingRead
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
+from app.services.daily_stats import (
+    record_business_impressions_daily,
+    record_business_view_daily,
+)
 from app.services.featured_expiry import sweep_expired_featured_businesses
 from app.services.storage import get_storage_backend
 from app.services.uploads import read_and_validate_image
@@ -226,6 +230,7 @@ def record_business_view(
     if not business.is_active or business.verification_status != VerificationStatus.VERIFIED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
     business.view_count += 1
+    record_business_view_daily(db, business.id)
     db.commit()
     return BusinessViewResult(view_count=business.view_count)
 
@@ -247,7 +252,12 @@ def record_business_impressions(
     not an error — a stale id in the batch shouldn't fail the whole render's
     reporting call. No auth required, same as the view/impression endpoints
     generally being anonymous-friendly (a logged-out visitor's search
-    results are just as real a signal as a logged-in one's)."""
+    results are just as real a signal as a logged-in one's).
+
+    Also upserts the same day's row in `business_daily_stats` for exactly
+    the ids this call actually matched (via `RETURNING`, not the full
+    `payload.ids` list) — a stale/non-public id gets no daily bump either,
+    matching the lifetime counter's own skip behavior exactly."""
     result = db.execute(
         update(Business)
         .where(
@@ -256,9 +266,12 @@ def record_business_impressions(
             Business.verification_status == VerificationStatus.VERIFIED,
         )
         .values(impression_count=Business.impression_count + 1)
+        .returning(Business.id)
     )
+    updated_ids = list(result.scalars().all())
+    record_business_impressions_daily(db, updated_ids)
     db.commit()
-    return ImpressionBatchResult(updated=result.rowcount or 0)
+    return ImpressionBatchResult(updated=len(updated_ids))
 
 
 @router.get("/businesses/{business_id}/stats", response_model=BusinessStats, tags=["businesses"])
