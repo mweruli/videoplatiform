@@ -6,6 +6,7 @@ import {
   deactivateProduct,
   deactivateVideo,
   getBusinessStats,
+  getBusinessStatsTimeseries,
   getMyBusinesses,
   listProducts,
   listVideos,
@@ -228,6 +229,20 @@ export function useBusinessStats(businessId: string | undefined) {
   return useQuery({
     queryKey: ['businesses', 'stats', businessId],
     queryFn: () => getBusinessStats(token as string, businessId as string),
+    enabled: status === 'authenticated' && Boolean(token) && Boolean(businessId),
+  })
+}
+
+/**
+ * Business Dashboard Analytics trend charts (`GET /businesses/{id}/stats/timeseries`)
+ * — keyed on `days` too so switching the 7/30/90 range toggle re-fetches
+ * rather than silently reusing a stale window's cache.
+ */
+export function useBusinessStatsTimeseries(businessId: string | undefined, days: number) {
+  const { token, status } = useAuth()
+  return useQuery({
+    queryKey: ['businesses', 'stats', 'timeseries', businessId, days],
+    queryFn: () => getBusinessStatsTimeseries(token as string, businessId as string, days),
     enabled: status === 'authenticated' && Boolean(token) && Boolean(businessId),
   })
 }

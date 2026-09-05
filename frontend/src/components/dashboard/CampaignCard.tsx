@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import CampaignFundingHistory from './CampaignFundingHistory'
 import CampaignFundingModal from './CampaignFundingModal'
+import CampaignPerformance from './CampaignPerformance'
 import CampaignStatusBadge from './CampaignStatusBadge'
 import Icon from '../icons/Icon'
 import { useCompleteCampaign, usePauseCampaign, useResumeCampaign } from '../../hooks/useCampaigns'
@@ -183,7 +184,8 @@ export default function CampaignCard({ campaign, businessPhone }: CampaignCardPr
         )}
       </div>
 
-      <CampaignFundingHistory campaignId={campaign.id} className="mt-3" />
+      <CampaignPerformance campaignId={campaign.id} className="mt-3" />
+      <CampaignFundingHistory campaignId={campaign.id} className="mt-2.5" />
 
       <CampaignFundingModal
         open={fundOpen}

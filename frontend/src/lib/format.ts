@@ -39,6 +39,23 @@ export function formatRelativeTime(iso: string): string {
   return `${Math.floor(diffMonths / 12)}y ago`
 }
 
+/**
+ * Presents a `views / impressions` conversion rate (`BusinessStatsDto`'s
+ * `business_view_conversion_rate`/`product_view_conversion_rate`) as both a
+ * percentage and a natural-language ratio — "1 in 8" reads more concretely
+ * than "12.5%" at a glance, so BusinessAnalytics.tsx shows both. `null`
+ * means zero impressions recorded yet (never a misleading 0% or a
+ * divide-by-zero) — the caller renders an explicit "not enough data" state
+ * for that case rather than treating it as a real 0.
+ */
+export function formatConversionRate(rate: number | null): { pct: string; ratio: string | null } {
+  if (rate === null) return { pct: '—', ratio: null }
+  const pct = `${(rate * 100).toLocaleString('en-KE', { maximumFractionDigits: 1 })}%`
+  if (rate <= 0) return { pct, ratio: null }
+  const oneIn = Math.round(1 / rate)
+  return { pct, ratio: oneIn <= 1 ? 'nearly every impression converts' : `about 1 in ${oneIn} impressions` }
+}
+
 export function formatViews(count: number): string {
   if (count >= 1000) {
     const value = count / 1000

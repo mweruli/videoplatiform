@@ -7,6 +7,7 @@ import {
   getCampaign,
   getCampaignFunding,
   getCampaignPricing,
+  getCampaignStatsTimeseries,
   listBusinessCampaigns,
   listCampaignFundings,
   pauseCampaign,
@@ -147,6 +148,21 @@ export function usePollCampaignFunding(fundingId: string | undefined, enabled: b
       return data && data.status !== 'pending' ? false : 2500
     },
     refetchIntervalInBackground: true,
+  })
+}
+
+/**
+ * Per-campaign spend trend + budget-exhaustion projection — same
+ * "collapsed by default, only fetch once expanded" pattern as
+ * useCampaignFundingHistory below (see CampaignFundingHistory.tsx),
+ * mirrored onto CampaignPerformance.tsx.
+ */
+export function useCampaignStatsTimeseries(campaignId: string | undefined, days: number, enabled: boolean) {
+  const { token, status } = useAuth()
+  return useQuery({
+    queryKey: ['campaigns', 'stats', 'timeseries', campaignId, days],
+    queryFn: () => getCampaignStatsTimeseries(token as string, campaignId as string, days),
+    enabled: status === 'authenticated' && Boolean(token) && Boolean(campaignId) && enabled,
   })
 }
 

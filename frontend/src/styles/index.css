@@ -218,10 +218,26 @@ body {
   }
 }
 
+/* ---- Analytics trend chart entrance (TrendChart.tsx) ---- */
+@keyframes chart-draw-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.chart-draw-in {
+  animation: chart-draw-in 0.4s var(--ease-brand) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .eq-bar,
   .scrub-fill,
-  .heart-burst-anim {
+  .heart-burst-anim,
+  .chart-draw-in {
     animation: none !important;
   }
 }

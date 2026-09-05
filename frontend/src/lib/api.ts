@@ -945,18 +945,67 @@ export interface ModerationStatusCounts {
   rejected: number
 }
 
+export interface TopProductEntry {
+  id: string
+  name: string
+  slug: string
+  view_count: number
+}
+
+export interface TopVideoEntry {
+  id: string
+  title: string
+  view_count: number
+}
+
 export interface BusinessStatsDto {
   business_id: string
   business_view_count: number
   business_impression_count: number
   total_product_views: number
+  total_product_impressions: number
   total_video_views: number
   product_counts: ModerationStatusCounts
   video_counts: ModerationStatusCounts
+  /** 2026-09-05 addition (Phase 1b analytics read-endpoints round) — see docs/decisions.md. Top 5 each, active+approved only, desc by lifetime view_count. */
+  top_products: TopProductEntry[]
+  top_videos: TopVideoEntry[]
+  /** `views / impressions`, `null` (not 0 or Infinity) when there are zero impressions to divide by. */
+  business_view_conversion_rate: number | null
+  product_view_conversion_rate: number | null
 }
 
 export function getBusinessStats(token: string, businessId: string): Promise<BusinessStatsDto> {
   return apiFetch<BusinessStatsDto>(`${V1}/businesses/${businessId}/stats`, { headers: authHeaders(token) })
+}
+
+/**
+ * Daily trend layer backing the Business Dashboard's Analytics charts — see
+ * docs/decisions.md's "core analytics: daily timeseries layer" entry and its
+ * 2026-09-05 read-endpoint follow-up. Always exactly `days` rows, oldest
+ * first, zero-filled (every calendar day present, never a gap) — a frontend
+ * chart never needs to guess "no data" vs "no day".
+ */
+export interface BusinessStatsTimeseriesDay {
+  date: string
+  business_views: number
+  business_impressions: number
+  total_product_views: number
+  total_product_impressions: number
+  total_video_views: number
+  campaign_impression_count: number
+  campaign_click_count: number
+  campaign_spend_kes: string
+}
+
+export function getBusinessStatsTimeseries(
+  token: string,
+  businessId: string,
+  days: number,
+): Promise<BusinessStatsTimeseriesDay[]> {
+  return apiFetch<BusinessStatsTimeseriesDay[]>(`${V1}/businesses/${businessId}/stats/timeseries?days=${days}`, {
+    headers: authHeaders(token),
+  })
 }
 
 /**
@@ -1239,6 +1288,38 @@ export function resumeCampaign(token: string, campaignId: string): Promise<Campa
 /** Owner's own "I'm done" — allowed from any non-COMPLETED status, 409 from COMPLETED itself (double-click safety). Truly terminal, unlike EXHAUSTED. */
 export function completeCampaign(token: string, campaignId: string): Promise<CampaignDto> {
   return apiFetch<CampaignDto>(`${V1}/campaigns/${campaignId}/complete`, { method: 'POST', headers: authHeaders(token) })
+}
+
+/**
+ * Per-campaign spend trend + budget-exhaustion projection — see
+ * docs/decisions.md's "core analytics: daily timeseries layer" entry and its
+ * 2026-09-05 read-endpoint follow-up. `projected_days_remaining` is `null`
+ * when the trailing-7-day average spend is exactly 0 (no recent spend to
+ * extrapolate from), never a divide-by-zero or `Infinity`.
+ */
+export interface CampaignStatsTimeseriesDay {
+  date: string
+  impressions: number
+  clicks: number
+  spend_kes: string
+}
+
+export interface CampaignStatsTimeseries {
+  campaign_id: string
+  days: CampaignStatsTimeseriesDay[]
+  remaining_kes: string
+  avg_daily_spend_kes: string
+  projected_days_remaining: number | null
+}
+
+export function getCampaignStatsTimeseries(
+  token: string,
+  campaignId: string,
+  days: number,
+): Promise<CampaignStatsTimeseries> {
+  return apiFetch<CampaignStatsTimeseries>(`${V1}/campaigns/${campaignId}/stats/timeseries?days=${days}`, {
+    headers: authHeaders(token),
+  })
 }
 
 export interface CampaignFundingDto {
