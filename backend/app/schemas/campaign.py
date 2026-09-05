@@ -9,6 +9,7 @@ billing-rate-bug follow-up) for the full design writeup this implements.
 from __future__ import annotations
 
 import uuid
+from datetime import date as date_
 from datetime import datetime
 from decimal import Decimal
 
@@ -31,6 +32,8 @@ __all__ = [
     "CampaignPricingUpdate",
     "CampaignRead",
     "CampaignRejectAction",
+    "CampaignStatsTimeseries",
+    "CampaignStatsTimeseriesDay",
     "CampaignTargetingRead",
     "CampaignUpdate",
 ]
@@ -129,6 +132,40 @@ class CampaignModerationAction(BaseModel):
 
 class CampaignRejectAction(BaseModel):
     reason: str = Field(min_length=3, max_length=2000)
+
+
+class CampaignStatsTimeseriesDay(BaseModel):
+    """One row of `CampaignStatsTimeseries.days` — see that model and
+    `GET /campaigns/{id}/stats/timeseries`'s docstring. Every calendar day in
+    the requested window appears here, zero-filled, same guarantee as
+    `BusinessStatsTimeseriesDay` (app/schemas/business.py)."""
+
+    date: date_
+    impressions: int
+    clicks: int
+    spend_kes: Decimal
+
+
+class CampaignStatsTimeseries(BaseModel):
+    """`GET /campaigns/{id}/stats/timeseries` response — the per-day series
+    plus a derived budget-exhaustion projection, per docs/decisions.md's
+    "core analytics: daily timeseries layer" entry (2026-09-05 read-endpoint
+    follow-up): `projected_days_remaining` is a trailing-7-day average daily
+    spend (over the most recent `min(7, len(days))` days of the *requested*
+    window, zero-filled, so a quiet recent week correctly pulls the average
+    down) divided into `remaining_kes` (`budget_kes - spent_kes`, floored at
+    0, same as `CampaignRead.remaining_kes`). `None` when the trailing
+    average is exactly 0 (no recent spend at all) — a campaign that hasn't
+    spent anything lately has no meaningful "time until exhausted" to
+    project, so this returns `None` rather than a division-by-zero error or
+    a nonsensical `Infinity`. Computed fresh on every call, never stored or
+    cached."""
+
+    campaign_id: uuid.UUID
+    days: list[CampaignStatsTimeseriesDay]
+    remaining_kes: Decimal
+    avg_daily_spend_kes: Decimal
+    projected_days_remaining: float | None
 
 
 class CampaignFundingCreate(BaseModel):

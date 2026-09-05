@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import date as date_
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -192,16 +194,76 @@ class ModerationStatusCounts(BaseModel):
     rejected: int = 0
 
 
+class TopProductEntry(BaseModel):
+    """One row of `BusinessStats.top_products` — the business owner's own
+    best-performing products by lifetime `view_count`. See
+    `GET /businesses/{id}/stats`'s docstring for the exact
+    active+approved-only query this is sourced from."""
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    view_count: int
+
+
+class TopVideoEntry(BaseModel):
+    """`BusinessStats.top_videos` counterpart to `TopProductEntry`."""
+
+    id: uuid.UUID
+    title: str
+    view_count: int
+
+
 class BusinessStats(BaseModel):
     """`GET /businesses/{id}/stats` — owner/admin-only aggregate view (see
     docs/decisions.md). Product/video counts and view sums only cover
     currently-active (not soft-deleted) rows, matching how counts are shown
-    everywhere else in this codebase (e.g. `Business.product_count`)."""
+    everywhere else in this codebase (e.g. `Business.product_count`).
+
+    2026-09-05 addition (Phase 1b analytics read-endpoints round, see
+    docs/decisions.md's dated follow-up to the daily-timeseries design pass):
+    `top_products`/`top_videos` (ranked by lifetime `view_count`, top 5,
+    active+approved only — "performing" means actually publicly visible, not
+    just existing) and the two `*_conversion_rate` funnel fields
+    (`views / impressions`, `None` when there are zero impressions to divide
+    by, rather than a misleading 0.0 or a ZeroDivisionError) are new; nothing
+    about the pre-existing fields above changed."""
 
     business_id: uuid.UUID
     business_view_count: int
     business_impression_count: int
     total_product_views: int
+    total_product_impressions: int
     total_video_views: int
     product_counts: ModerationStatusCounts
     video_counts: ModerationStatusCounts
+    top_products: list[TopProductEntry] = Field(default_factory=list)
+    top_videos: list[TopVideoEntry] = Field(default_factory=list)
+    business_view_conversion_rate: float | None = None
+    product_view_conversion_rate: float | None = None
+
+
+class BusinessStatsTimeseriesDay(BaseModel):
+    """One row of `GET /businesses/{id}/stats/timeseries` — see that
+    endpoint's docstring and docs/decisions.md's "core analytics: daily
+    timeseries layer" entry (and its 2026-09-05 read-endpoint follow-up) for
+    the exact query shape and the zero-fill guarantee: every calendar day in
+    the requested window appears here, even if every field is 0, so a
+    frontend chart never has to guess "no data" vs "no day".
+
+    `campaign_*` fields sum across every campaign owned by this business
+    (regardless of which product, if any, a campaign promotes) and are
+    always present (0 when the business has no campaigns, or no campaign had
+    activity that day) rather than being conditionally omitted — one
+    consistent row shape is simpler for a chart to consume than a
+    sometimes-present set of keys."""
+
+    date: date_
+    business_views: int
+    business_impressions: int
+    total_product_views: int
+    total_product_impressions: int
+    total_video_views: int
+    campaign_impression_count: int
+    campaign_click_count: int
+    campaign_spend_kes: Decimal

@@ -24,6 +24,9 @@ from __future__ import annotations
 
 import math
 import uuid
+from datetime import date as date_
+from datetime import timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -38,6 +41,7 @@ from app.models.campaign import (
     Campaign,
     CampaignStatus,
 )
+from app.models.campaign_daily_stats import CampaignDailyStats
 from app.models.campaign_funding import CampaignFunding, CampaignFundingStatus
 from app.models.category import Category
 from app.models.product import Product
@@ -48,6 +52,8 @@ from app.schemas.campaign import (
     CampaignFundingRead,
     CampaignPricingRead,
     CampaignRead,
+    CampaignStatsTimeseries,
+    CampaignStatsTimeseriesDay,
     CampaignUpdate,
 )
 from app.schemas.common import ImpressionBatchRequest, ImpressionBatchResult, Page
@@ -222,6 +228,89 @@ def get_campaign(
     if not _can_manage(campaign.business, current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your campaign.")
     return campaign
+
+
+@router.get(
+    "/campaigns/{campaign_id}/stats/timeseries",
+    response_model=CampaignStatsTimeseries,
+    tags=["campaigns"],
+)
+def get_campaign_stats_timeseries(
+    campaign_id: uuid.UUID,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CampaignStatsTimeseries:
+    """Owner (or platform admin) only, same `_can_manage` gate as every other
+    campaign endpoint. Day-by-day impressions/clicks/spend for the requested
+    window (`days`, default 30, clamped to [1, 90]), zero-filled exactly like
+    `GET /businesses/{id}/stats/timeseries` (see that endpoint's docstring
+    and docs/decisions.md's "core analytics: daily timeseries layer" entry —
+    same Python date-range + dict-merge approach, not Postgres
+    `generate_series`).
+
+    Also returns a derived **budget-exhaustion projection**
+    (`projected_days_remaining`): `remaining_kes` (`budget_kes - spent_kes`,
+    floored at 0, same as `CampaignRead.remaining_kes`) divided by
+    `avg_daily_spend_kes`, a trailing average over the most recent
+    `min(7, days)` days of *this same* zero-filled series (so quiet recent
+    days correctly pull the average down, not just days that happened to
+    have spend). Guards divide-by-zero: a campaign with zero spend in that
+    trailing window has no meaningful projection, so `avg_daily_spend_kes`
+    is `0` and `projected_days_remaining` is `None` — never a
+    `ZeroDivisionError` or a nonsensical `Infinity`. This is computed fresh
+    on every call from `campaign_daily_stats`, never stored/cached."""
+    campaign = _get_campaign_or_404(db, campaign_id)
+    if not _can_manage(campaign.business, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your campaign.")
+
+    days = min(max(days, 1), 90)
+    start = date_.today() - timedelta(days=days - 1)
+
+    by_date = {
+        row.stat_date: row
+        for row in db.execute(
+            select(CampaignDailyStats).where(
+                CampaignDailyStats.campaign_id == campaign_id,
+                CampaignDailyStats.stat_date >= start,
+            )
+        )
+        .scalars()
+        .all()
+    }
+
+    series: list[CampaignStatsTimeseriesDay] = []
+    for n in range(days):
+        day = start + timedelta(days=n)
+        row = by_date.get(day)
+        series.append(
+            CampaignStatsTimeseriesDay(
+                date=day,
+                impressions=row.impression_count if row else 0,
+                clicks=row.click_count if row else 0,
+                spend_kes=row.spend_kes if row else Decimal("0"),
+            )
+        )
+
+    trailing_window = min(7, days)
+    trailing_days = series[-trailing_window:]
+    trailing_spend = sum((d.spend_kes for d in trailing_days), Decimal("0"))
+    avg_daily_spend = trailing_spend / trailing_window if trailing_window else Decimal("0")
+
+    remaining = campaign.budget_kes - campaign.spent_kes
+    remaining_kes = remaining if remaining > 0 else Decimal("0")
+
+    projected_days_remaining = (
+        float(remaining_kes / avg_daily_spend) if avg_daily_spend > 0 else None
+    )
+
+    return CampaignStatsTimeseries(
+        campaign_id=campaign.id,
+        days=series,
+        remaining_kes=remaining_kes,
+        avg_daily_spend_kes=avg_daily_spend,
+        projected_days_remaining=projected_days_remaining,
+    )
 
 
 @router.patch("/campaigns/{campaign_id}", response_model=CampaignRead, tags=["campaigns"])

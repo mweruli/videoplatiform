@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -1287,3 +1288,148 @@ def test_non_active_campaign_status_never_exposed_as_active_campaign() -> None:
         _set_campaign(campaign["id"], status=non_active_status)
         resp = client.get(f"/api/v1/businesses/{business['id']}")
         assert resp.json()["active_campaign"] is None, f"leaked for {non_active_status}"
+
+
+# --- Phase 1b analytics read endpoints: campaign timeseries + projection ----
+#
+# See docs/decisions.md's "core analytics: daily timeseries layer" entry
+# (and its 2026-09-05 read-endpoint follow-up) for the full design these
+# exercise. `record_campaign_impressions_daily`/`record_campaign_clicks_daily`
+# (app/services/daily_stats.py) always write to *today*'s row — to seed a
+# few genuinely different calendar days (not just repeated today-writes),
+# these tests monkeypatch that module's `_today()` for the duration of each
+# write, same "use the real upsert functions, not raw SQL" instruction the
+# task brief gave explicitly. This is still the real, production write path
+# — only the notion of "what day is it" is faked, exactly like freezegun
+# would, without adding a new dependency for one test module.
+
+
+def _seed_campaign_daily_spend(monkeypatch, campaign_id: str, day: date, cost_kes: Decimal) -> None:
+    """Seeds exactly one impression's worth of spend (`cost_kes`) into
+    `campaign_daily_stats` for `day`, via the real
+    `record_campaign_impressions_daily` upsert function."""
+    from app.services import daily_stats as daily_stats_module
+
+    monkeypatch.setattr(daily_stats_module, "_today", lambda: day)
+    with SessionLocal() as db:
+        daily_stats_module.record_campaign_impressions_daily(
+            db, {uuid.UUID(campaign_id): cost_kes}
+        )
+        db.commit()
+
+
+def test_campaign_stats_timeseries_zero_fills_and_projects_budget_exhaustion(
+    monkeypatch,
+) -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    campaign = _create_campaign(owner_token, business["id"])
+    _set_campaign(campaign["id"], budget_kes=Decimal("1000"), spent_kes=Decimal("300"))
+
+    today = date.today()
+    # Trailing 7 days (today back 6 days): KES 50/day spend -> avg 50/day.
+    for n in range(7):
+        _seed_campaign_daily_spend(
+            monkeypatch, campaign["id"], today - timedelta(days=n), Decimal("50")
+        )
+    # Outside the trailing-7 window but inside the requested 30-day range:
+    # a much bigger spend day that must NOT pull the trailing average up.
+    old_day = today - timedelta(days=15)
+    _seed_campaign_daily_spend(monkeypatch, campaign["id"], old_day, Decimal("500"))
+
+    resp = client.get(
+        f"/api/v1/campaigns/{campaign['id']}/stats/timeseries?days=30",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["campaign_id"] == campaign["id"]
+    assert len(body["days"]) == 30
+
+    by_date = {d["date"]: d for d in body["days"]}
+    assert Decimal(by_date[str(today)]["spend_kes"]) == Decimal("50")
+    assert by_date[str(today)]["impressions"] == 1
+    assert Decimal(by_date[str(old_day)]["spend_kes"]) == Decimal("500")
+
+    # Zero-fill: a day with genuinely no activity (between the trailing
+    # window and old_day) is a real row, not an absent one.
+    gap_day = today - timedelta(days=10)
+    gap_row = by_date[str(gap_day)]
+    assert gap_row["impressions"] == 0
+    assert gap_row["clicks"] == 0
+    assert Decimal(gap_row["spend_kes"]) == Decimal("0")
+
+    # remaining_kes = 1000 - 300 = 700; trailing-7-day avg = 350/7 = 50/day
+    # (old_day's 500 must be excluded from the trailing average);
+    # projected_days_remaining = 700 / 50 = 14.0.
+    assert Decimal(body["remaining_kes"]) == Decimal("700")
+    assert Decimal(body["avg_daily_spend_kes"]) == Decimal("50")
+    assert body["projected_days_remaining"] == 14.0
+
+
+def test_campaign_stats_timeseries_no_recent_spend_projection_is_null() -> None:
+    """A campaign with budget remaining but zero spend in the trailing
+    window has no meaningful "days until exhausted" — must be `None`, never
+    a ZeroDivisionError or `Infinity`."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    campaign = _create_campaign(owner_token, business["id"])
+    _set_campaign(campaign["id"], budget_kes=Decimal("500"), spent_kes=Decimal("100"))
+
+    resp = client.get(
+        f"/api/v1/campaigns/{campaign['id']}/stats/timeseries?days=30",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["days"]) == 30
+    assert all(Decimal(d["spend_kes"]) == Decimal("0") for d in body["days"])
+    assert Decimal(body["avg_daily_spend_kes"]) == Decimal("0")
+    assert body["projected_days_remaining"] is None
+    # remaining_kes is still real/reported even with no projection.
+    assert Decimal(body["remaining_kes"]) == Decimal("400")
+
+
+def test_campaign_stats_timeseries_already_exhausted_with_recent_spend_is_zero_days() -> None:
+    """budget fully spent + real recent spend -> a real, sane 0.0, not a
+    negative number or None."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    campaign = _create_campaign(owner_token, business["id"])
+    _set_campaign(campaign["id"], budget_kes=Decimal("100"), spent_kes=Decimal("100"))
+
+    with SessionLocal() as db:
+        from app.services.daily_stats import record_campaign_impressions_daily
+
+        record_campaign_impressions_daily(db, {uuid.UUID(campaign["id"]): Decimal("25")})
+        db.commit()
+
+    resp = client.get(
+        f"/api/v1/campaigns/{campaign['id']}/stats/timeseries?days=7",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert Decimal(body["remaining_kes"]) == Decimal("0")
+    assert Decimal(body["avg_daily_spend_kes"]) > Decimal("0")
+    assert body["projected_days_remaining"] == 0.0
+
+
+def test_campaign_stats_timeseries_is_owner_admin_gated() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    campaign = _create_campaign(owner_token, business["id"])
+
+    other_token, _ = _dev_token()
+    resp = client.get(
+        f"/api/v1/campaigns/{campaign['id']}/stats/timeseries",
+        headers=_auth_headers(other_token),
+    )
+    assert resp.status_code == 403
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.get(
+        f"/api/v1/campaigns/{campaign['id']}/stats/timeseries",
+        headers=_auth_headers(admin_token),
+    )
+    assert resp.status_code == 200

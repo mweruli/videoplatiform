@@ -10,13 +10,19 @@ shared dev database don't collide with previous runs' data.
 
 from __future__ import annotations
 
+import io
 import uuid
+from datetime import date, timedelta
+from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.business import Business
 from app.models.category import Category
+from app.models.product import Product
+from app.models.video import Video
 
 client = TestClient(app)
 
@@ -1001,9 +1007,257 @@ def test_business_stats_aggregation_and_access_control() -> None:
     assert stats["total_video_views"] == 0
     assert stats["video_counts"] == {"pending": 0, "approved": 0, "rejected": 0}
 
+    # Funnel fields: no impressions were ever recorded for this business or
+    # its products in this test, so both conversion rates must be None (a
+    # 0-impression denominator has no meaningful ratio), never a
+    # ZeroDivisionError or a misleading 0.0.
+    assert stats["business_impression_count"] == 0
+    assert stats["business_view_conversion_rate"] is None
+    assert stats["total_product_impressions"] == 0
+    assert stats["product_view_conversion_rate"] is None
+
+    # Ranked top_products: approved-only (the pending product is excluded
+    # even though it exists), ordered by view_count descending.
+    assert stats["top_products"] == [
+        {
+            "id": product_a["id"],
+            "name": product_a["name"],
+            "slug": product_a["slug"],
+            "view_count": 2,
+        },
+        {
+            "id": product_b["id"],
+            "name": product_b["name"],
+            "slug": product_b["slug"],
+            "view_count": 1,
+        },
+    ]
+    assert stats["top_videos"] == []
+
     # Admin/moderator can too.
     resp = client.get(
         f"/api/v1/businesses/{business['id']}/stats", headers=_auth_headers(admin_token)
+    )
+    assert resp.status_code == 200
+
+
+_TINY_MP4_BYTES = (
+    b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom"
+    b"\x00\x00\x00\x08free"
+)
+
+
+def _upload_video(token: str, business_id: str, **form_overrides) -> dict:
+    form = {"title": _unique("Stats Video")}
+    form.update(form_overrides)
+    resp = client.post(
+        f"/api/v1/businesses/{business_id}/videos",
+        data=form,
+        files={"file": ("clip.mp4", io.BytesIO(_TINY_MP4_BYTES), "video/mp4")},
+        headers=_auth_headers(token),
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def _set_view_count(
+    model: type,
+    entity_id: str,
+    view_count: int,
+    impression_count: int | None = None,
+) -> None:
+    """Direct DB override of a numeric counter for a controlled test —
+    same escape-hatch pattern tests/test_campaigns.py's `_set_campaign` uses:
+    real endpoints already have their own dedicated view/impression-
+    increment tests elsewhere, so this just puts a row into a specific
+    numeric state to test the *ranking query* over it, not the increment
+    mechanism itself."""
+    with SessionLocal() as db:
+        row = db.get(model, uuid.UUID(entity_id))
+        assert row is not None
+        row.view_count = view_count
+        if impression_count is not None:
+            row.impression_count = impression_count
+        db.commit()
+
+
+def test_business_stats_top_products_top_videos_and_funnel() -> None:
+    """Ranked top_products/top_videos (approved+active only, ordered by
+    lifetime view_count descending — a pending row with a *higher* raw
+    view_count must still be excluded) plus the funnel conversion-rate
+    fields, computed over the same already-existing lifetime counters."""
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    admin_token, _ = _dev_token(role="platform_admin")
+    business_id = business["id"]
+
+    resp = client.post(
+        f"/api/v1/businesses/{business_id}/products",
+        json={"name": _unique("Funnel Product High")},
+        headers=_auth_headers(owner_token),
+    )
+    product_high = resp.json()
+    resp = client.post(
+        f"/api/v1/businesses/{business_id}/products",
+        json={"name": _unique("Funnel Product Low")},
+        headers=_auth_headers(owner_token),
+    )
+    product_low = resp.json()
+    resp = client.post(
+        f"/api/v1/businesses/{business_id}/products",
+        json={"name": _unique("Funnel Product Pending")},
+        headers=_auth_headers(owner_token),
+    )
+    product_pending = resp.json()
+    assert product_pending["moderation_status"] == "pending"
+
+    for pid in (product_high["id"], product_low["id"]):
+        resp = client.post(
+            f"/api/v1/admin/products/{pid}/approve", json={}, headers=_auth_headers(admin_token)
+        )
+        assert resp.status_code == 200
+
+    _set_view_count(Product, product_high["id"], view_count=20, impression_count=40)
+    _set_view_count(Product, product_low["id"], view_count=5, impression_count=10)
+    # Pending, with a raw view_count *higher* than either approved product —
+    # must still never appear in top_products.
+    _set_view_count(Product, product_pending["id"], view_count=100, impression_count=200)
+
+    video_high = _upload_video(owner_token, business_id)
+    video_low = _upload_video(owner_token, business_id)
+    video_pending = _upload_video(owner_token, business_id)
+    for vid in (video_high["id"], video_low["id"]):
+        resp = client.post(
+            f"/api/v1/admin/videos/{vid}/approve", json={}, headers=_auth_headers(admin_token)
+        )
+        assert resp.status_code == 200
+    _set_view_count(Video, video_high["id"], view_count=9)
+    _set_view_count(Video, video_low["id"], view_count=3)
+    _set_view_count(Video, video_pending["id"], view_count=50)
+
+    with SessionLocal() as db:
+        biz = db.get(Business, uuid.UUID(business_id))
+        biz.view_count = 10
+        biz.impression_count = 40
+        db.commit()
+
+    resp = client.get(
+        f"/api/v1/businesses/{business_id}/stats", headers=_auth_headers(owner_token)
+    )
+    assert resp.status_code == 200
+    stats = resp.json()
+
+    assert [p["id"] for p in stats["top_products"]] == [product_high["id"], product_low["id"]]
+    assert [p["view_count"] for p in stats["top_products"]] == [20, 5]
+
+    assert [v["id"] for v in stats["top_videos"]] == [video_high["id"], video_low["id"]]
+    assert [v["view_count"] for v in stats["top_videos"]] == [9, 3]
+
+    # total_product_views/impressions sum ALL active products regardless of
+    # moderation status (matches this endpoint's pre-existing "counts/sums
+    # include pending/rejected" convention) — 20+5+100 / 40+10+200.
+    assert stats["total_product_views"] == 125
+    assert stats["total_product_impressions"] == 250
+    assert stats["product_view_conversion_rate"] == 125 / 250
+
+    assert stats["business_view_count"] == 10
+    assert stats["business_impression_count"] == 40
+    assert stats["business_view_conversion_rate"] == 10 / 40
+
+
+def test_business_stats_timeseries_zero_fill_and_seeded_real_days(monkeypatch) -> None:
+    """Seeds a few genuinely different calendar days of `*_daily_stats` rows
+    via the real upsert functions (app/services/daily_stats.py), not raw
+    SQL — those functions always write to *today*'s row, so a few different
+    days are simulated by monkeypatching their internal `_today()` for the
+    duration of each write (same technique freezegun would provide, without
+    adding a new dependency for one test module). Confirms the timeseries
+    endpoint returns real seeded days correctly, AND that a day with
+    genuinely no activity in between is a real zero row, not an absent one."""
+    from app.services import daily_stats as daily_stats_module
+
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+    business_id = business["id"]
+
+    resp = client.post(
+        f"/api/v1/businesses/{business_id}/products",
+        json={"name": _unique("Timeseries Product")},
+        headers=_auth_headers(owner_token),
+    )
+    product = resp.json()
+
+    today = date.today()
+    day_a = today - timedelta(days=6)
+    day_b = today - timedelta(days=2)
+    gap_day = today - timedelta(days=4)  # strictly between day_a and day_b
+
+    monkeypatch.setattr(daily_stats_module, "_today", lambda: day_a)
+    with SessionLocal() as db:
+        daily_stats_module.record_business_view_daily(db, uuid.UUID(business_id))
+        daily_stats_module.record_business_view_daily(db, uuid.UUID(business_id))
+        daily_stats_module.record_business_impressions_daily(db, [uuid.UUID(business_id)])
+        daily_stats_module.record_product_view_daily(db, uuid.UUID(product["id"]))
+        db.commit()
+
+    monkeypatch.setattr(daily_stats_module, "_today", lambda: day_b)
+    with SessionLocal() as db:
+        daily_stats_module.record_business_view_daily(db, uuid.UUID(business_id))
+        db.commit()
+
+    resp = client.get(
+        f"/api/v1/businesses/{business_id}/stats/timeseries?days=10",
+        headers=_auth_headers(owner_token),
+    )
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert len(rows) == 10
+    assert [r["date"] for r in rows] == sorted(r["date"] for r in rows)
+
+    by_date = {r["date"]: r for r in rows}
+
+    row_a = by_date[str(day_a)]
+    assert row_a["business_views"] == 2
+    assert row_a["business_impressions"] == 1
+    assert row_a["total_product_views"] == 1
+
+    row_b = by_date[str(day_b)]
+    assert row_b["business_views"] == 1
+    assert row_b["business_impressions"] == 0
+
+    # Zero-fill: a day with no activity at all is present with real zeros
+    # (a real row, not an absent key) — every field individually, rather
+    # than an exact-dict match, since `campaign_spend_kes`'s Decimal string
+    # form ("0" vs "0.00") depends on how many real rows have contributed a
+    # NUMERIC(12,2)-typed value elsewhere in the series, not something this
+    # test should have to predict exactly.
+    gap_row = by_date[str(gap_day)]
+    assert gap_row["date"] == str(gap_day)
+    assert gap_row["business_views"] == 0
+    assert gap_row["business_impressions"] == 0
+    assert gap_row["total_product_views"] == 0
+    assert gap_row["total_product_impressions"] == 0
+    assert gap_row["total_video_views"] == 0
+    assert gap_row["campaign_impression_count"] == 0
+    assert gap_row["campaign_click_count"] == 0
+    assert Decimal(gap_row["campaign_spend_kes"]) == Decimal("0")
+
+
+def test_business_stats_timeseries_is_owner_admin_gated() -> None:
+    owner_token, _ = _dev_token()
+    business = _create_business(owner_token)
+
+    other_token, _ = _dev_token()
+    resp = client.get(
+        f"/api/v1/businesses/{business['id']}/stats/timeseries",
+        headers=_auth_headers(other_token),
+    )
+    assert resp.status_code == 403
+
+    admin_token, _ = _dev_token(role="platform_admin")
+    resp = client.get(
+        f"/api/v1/businesses/{business['id']}/stats/timeseries",
+        headers=_auth_headers(admin_token),
     )
     assert resp.status_code == 200
 
